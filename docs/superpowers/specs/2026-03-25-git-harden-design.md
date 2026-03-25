@@ -23,11 +23,11 @@ git-harden.sh --help     # usage info
 |------|---------|
 | 0 | All settings OK, or changes applied successfully |
 | 1 | Error (missing dependencies, write failure, etc.) |
-| 2 | Audit found issues (useful for CI/onboarding checks) |
+| 2 | Audit found issues (useful for CI/onboarding checks). Missing signing key counts as an issue. |
 
 ## Compatibility
 
-- Bash and zsh (no bash-only constructs that break zsh; no zsh-only constructs)
+- Shebang: `#!/usr/bin/env bash`. The script targets bash on both macOS and Linux. It does not need to run under zsh natively, but works when invoked from a zsh session via `bash git-harden.sh` or `./git-harden.sh`.
 - macOS and Linux, with platform detection for credential helpers and tool paths
 - Idempotent — safe to re-run; already-correct settings are left untouched
 
@@ -88,26 +88,26 @@ git-harden.sh --help     # usage info
 |---------|-------|-----------|
 | `core.protectNTFS` | `true` | Block NTFS alternate data stream attacks; protects cross-platform collaborators even on macOS/Linux |
 | `core.protectHFS` | `true` | Block HFS+ Unicode normalization tricks (invisible chars creating `.git` variants) |
-| `core.fsmonitor` | `false` | Prevent fsmonitor-based code execution from repo-local config (CVE-2022-39253) |
+| `core.fsmonitor` | `false` | Prevent fsmonitor-based code execution from repo-local config |
 
 ### Hook Execution Control
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
-| `core.hooksPath` | `~/.config/git/hooks` | Redirect hooks to user-controlled directory; repo-local `.git/hooks/` are never executed. The script creates this directory if it doesn't exist. |
+| `core.hooksPath` | `~/.config/git/hooks` | Redirect hooks to user-controlled directory; repo-local `.git/hooks/` are never executed. The script creates this directory if it doesn't exist. The literal tilde `~` is stored in config (not expanded) so dotfile portability is preserved. |
 
 ### Repository Safety
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
 | `safe.bareRepository` | `explicit` | Prevent auto-detection of bare repos in unexpected locations (CVE-2024-32465) |
-| `submodule.recurse` | `false` | Prevent auto-init of submodules on clone — submodules are the #1 git attack surface |
+| `submodule.recurse` | `false` | Prevent automatic submodule operations during pull, checkout, and fetch. For clone, users should also use `--no-recurse-submodules` (noted in admin recommendations). |
 
 ### Pull & Merge Hardening
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
-| `pull.ff` | `only` | Refuse non-fast-forward pulls — surfaces rewritten history |
+| `pull.ff` | `only` | Refuse non-fast-forward pulls — surfaces rewritten history. **Note:** overrides any existing `pull.rebase` setting. The audit phase checks for `pull.rebase` and warns about the conflict. |
 | `merge.ff` | `only` | Same protection for explicit merges |
 
 ### Transport Security
@@ -124,10 +124,10 @@ Platform-detected:
 | Platform | Setting | Value |
 |----------|---------|-------|
 | macOS | `credential.helper` | `osxkeychain` |
-| Linux (GNOME/libsecret available) | `credential.helper` | `/usr/lib/git-core/git-credential-libsecret` |
+| Linux (libsecret available) | `credential.helper` | Detected by checking common paths: `/usr/lib/git-core/git-credential-libsecret`, `/usr/libexec/git-core/git-credential-libsecret` |
 | Linux (fallback) | `credential.helper` | `cache --timeout=3600` |
 
-The script warns if `credential.helper` is currently set to `store` (plaintext) and offers to replace it.
+Detection: check if the libsecret binary exists at known distribution paths. The script warns if `credential.helper` is currently set to `store` (plaintext) and offers to replace it.
 
 ### Commit & Tag Signing (SSH-based)
 
@@ -137,7 +137,7 @@ The script warns if `credential.helper` is currently set to `store` (plaintext) 
 | `user.signingkey` | (detected/generated) | Path to the user's SSH public key |
 | `commit.gpgsign` | `true` | Sign all commits |
 | `tag.gpgsign` | `true` | Sign all tags |
-| `tag.forceSignAnnotated` | `true` | Prevent accidentally creating unsigned annotated tags |
+| `tag.forceSignAnnotated` | `true` | Belt-and-suspenders with `tag.gpgsign`; ensures annotated tags are signed even if `tag.gpgsign` is later unset |
 | `gpg.ssh.allowedSignersFile` | `~/.config/git/allowed_signers` | Path for local signature verification |
 
 ### Visibility
@@ -161,7 +161,7 @@ In interactive mode, the signing wizard runs after the config settings are appli
 
 ### Detection
 
-1. Scan `~/.ssh/` for existing keys: `id_ed25519`, `id_ed25519_sk`, `id_ecdsa_sk`
+1. Scan `~/.ssh/` for existing keys by well-known names (`id_ed25519`, `id_ed25519_sk`, `id_ecdsa_sk`) and also check `IdentityFile` directives in `~/.ssh/config` for custom-named keys
 2. Check for FIDO2 hardware: `ykman info` or `fido2-token -L`
 3. Check git version is 2.34+ (required for SSH signing)
 
@@ -175,14 +175,14 @@ In interactive mode, the signing wizard runs after the config settings are appli
 **Tier 2 — FIDO2 hardware key (if hardware detected):**
 - Offer to generate: `ssh-keygen -t ed25519-sk -C "<user.email>"`
 - Optionally generate as resident key: `ssh-keygen -t ed25519-sk -O resident -O application=ssh:git-signing`
-- User touches hardware key during generation
+- Print clear prompt: "Touch your security key now..." before the keygen call (it blocks waiting for touch)
 - Configure `user.signingkey` to the `.pub` file
 
 ### With `-y` Mode
 
 - Auto-detect best available key: FIDO2 `ed25519-sk` > software `ed25519`
 - If a suitable key exists, configure it automatically
-- If no key exists, enable all signing settings but leave `user.signingkey` unset and print a note
+- If no key exists, set only non-breaking signing settings (`gpg.format`, `gpg.ssh.allowedSignersFile`) but do NOT enable `commit.gpgsign` or `tag.gpgsign` (which would break every commit). Print a note to run the script interactively to complete signing setup.
 
 ### Allowed Signers File
 
@@ -202,7 +202,13 @@ The script audits and optionally configures `~/.ssh/config` defaults for git-rel
 | `AddKeysToAgent` | `yes` | Cache keys in agent after first use |
 | `PubkeyAcceptedAlgorithms` | `ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,sk-ecdsa-sha2-nistp256@openssh.com` | Prefer modern algorithms, disallow RSA-SHA1 |
 
-These are applied as a `Host *` block in `~/.ssh/config` (appended if the settings don't already exist). The script does not modify existing host-specific blocks.
+**Application strategy:**
+- Create `~/.ssh/` (mode `700`) and `~/.ssh/config` (mode `600`) if they don't exist
+- Search for each directive name in the existing config file (simple text match)
+- Only add directives that are not already present anywhere in the file
+- Append as a `Host *` block at the end of the file
+- The script does not modify existing host-specific blocks
+- Known limitation: if a directive exists in an `Include`-d file, the script won't detect it. A note is printed advising users with complex SSH configs to review the result.
 
 ## Admin Recommendations (Informational Output)
 
