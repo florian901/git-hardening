@@ -1,0 +1,12 @@
+{
+  "name": "Phase 1",
+  "status": "pending",
+  "agents": [
+    {
+      "slug": "git-harden-sh-design-spec",
+      "description": "git-harden.sh — Design Spec",
+      "branch": "feature/git-harden-sh-design-spec",
+      "status": "planned"
+    }
+  ]
+}
