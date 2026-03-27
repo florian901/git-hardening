@@ -1,0 +1,4 @@
+# Crosslink trusted signers
+# Format: <principal> <key-type> <base64-key> [comment]
+# approved by flo at 2026-03-27 16:20:17 UTC
+plan-git-harden-sh-design-spec-8b87@crosslink ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC3h70Zc6CSo7PkaMRBZuV9N/Z/p5UIL9x22Sl2Qvhwj crosslink-agent:plan-git-harden-sh-design-spec-8b87@MacBook-Air-4.local
