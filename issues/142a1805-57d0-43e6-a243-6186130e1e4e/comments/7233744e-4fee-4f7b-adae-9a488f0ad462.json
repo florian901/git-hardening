@@ -1,0 +1,8 @@
+{
+  "uuid": "7233744e-4fee-4f7b-adae-9a488f0ad462",
+  "issue_uuid": "142a1805-57d0-43e6-a243-6186130e1e4e",
+  "author": "BP3j-Uz4t-git-harden-sh-00eb",
+  "content": "Plan: Implement git-harden.sh as a single-file bash script at repo root following design spec architecture exactly. Bash 3.2 compatible. Will validate with shellcheck.",
+  "created_at": "2026-03-27T17:10:57.493270Z",
+  "kind": "plan"
+}
