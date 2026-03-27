@@ -7,8 +7,9 @@
       "description": "git-harden.sh — Design Spec",
       "agent_id": "BP3j-2A5y-git-harden-sh-design-spec-216a",
       "branch": "feature/BP3j-2A5y-git-harden-sh-design-spec-216a",
-      "status": "running",
-      "started_at": "2026-03-27T17:05:19.816429+00:00"
+      "status": "completed",
+      "started_at": "2026-03-27T17:05:19.816429+00:00",
+      "completed_at": "2026-03-27T17:07:46.830389+00:00"
     }
   ]
 }
