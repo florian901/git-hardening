@@ -28,6 +28,7 @@ git-harden.sh --help     # usage info
 ## Compatibility
 
 - Shebang: `#!/usr/bin/env bash`. The script targets bash on both macOS and Linux. It does not need to run under zsh natively, but works when invoked from a zsh session via `bash git-harden.sh` or `./git-harden.sh`.
+- **Bash 3.2 compatible** — macOS ships Bash 3.2 (GPLv2). No associative arrays, no `mapfile`/`readarray`, no `${var,,}` case conversion, no `&>>`/`|&` redirection, no `declare -A`. Use indexed arrays and `tr '[:upper:]' '[:lower:]'` for case conversion.
 - macOS and Linux, with platform detection for credential helpers and tool paths
 - Idempotent — safe to re-run; already-correct settings are left untouched
 
@@ -50,6 +51,7 @@ git-harden.sh --help     # usage info
    └── If --audit flag: print report and exit (code 0 or 2)
 
 3. Apply phase (interactive or -y)
+   ├── Back up current config: git config --global --list > ~/.config/git/pre-harden-backup-<timestamp>.txt
    ├── For each non-OK setting:
    │   ├── Interactive: show description, current vs recommended, prompt [Y/n]
    │   └── -y mode: apply silently
@@ -175,13 +177,13 @@ In interactive mode, the signing wizard runs after the config settings are appli
 **Tier 2 — FIDO2 hardware key (if hardware detected):**
 - Offer to generate: `ssh-keygen -t ed25519-sk -C "<user.email>"`
 - Optionally generate as resident key: `ssh-keygen -t ed25519-sk -O resident -O application=ssh:git-signing`
-- Print clear prompt: "Touch your security key now..." before the keygen call (it blocks waiting for touch)
+- Print clear prompt: "Touch your security key now..." before the keygen call (it blocks waiting for touch). Do NOT redirect stderr — `ssh-keygen` emits its own touch prompts and progress on stderr.
 - Configure `user.signingkey` to the `.pub` file
 
 ### With `-y` Mode
 
 - Auto-detect best available key: FIDO2 `ed25519-sk` > software `ed25519`
-- If a suitable key exists, configure it automatically
+- If a suitable key exists, verify the public key file is readable before configuring. Then configure and enable signing.
 - If no key exists, set only non-breaking signing settings (`gpg.format`, `gpg.ssh.allowedSignersFile`) but do NOT enable `commit.gpgsign` or `tag.gpgsign` (which would break every commit). Print a note to run the script interactively to complete signing setup.
 
 ### Allowed Signers File
