@@ -2,23 +2,18 @@
   "next_display_id": 1,
   "next_comment_id": 1,
   "display_id_map": {},
-  "locks": {
-    "1": {
-      "agent_id": "plan-git-harden-sh-design-spec-2153",
-      "claimed_at": "2026-03-27T16:51:56.555466Z"
-    }
-  },
+  "locks": {},
   "issues": {},
   "unsigned_event_warnings": [
     {
       "agent_id": "plan-git-harden-sh-design-spec-2153",
-      "agent_seq": 1,
-      "timestamp": "2026-03-27T16:51:56.555466Z"
+      "agent_seq": 2,
+      "timestamp": "2026-03-27T16:52:41.698490Z"
     }
   ],
   "watermark": {
-    "timestamp": "2026-03-27T16:51:56.555466Z",
+    "timestamp": "2026-03-27T16:52:41.698490Z",
     "agent_id": "plan-git-harden-sh-design-spec-2153",
-    "agent_seq": 1
+    "agent_seq": 2
   }
 }
