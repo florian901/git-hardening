@@ -7,8 +7,9 @@ Protects against history rewriting, supply chain attacks, credential theft, and 
 ## Quick Start
 
 ```bash
-# Download and run
-curl -O https://raw.githubusercontent.com/<you>/git-hardening/main/git-harden.sh
+# Clone and run
+git clone https://github.com/YOUR_ORG/git-hardening.git
+cd git-hardening
 chmod +x git-harden.sh
 
 # Audit your current config (no changes)
@@ -20,6 +21,8 @@ chmod +x git-harden.sh
 # Apply all recommended defaults without prompting
 ./git-harden.sh -y
 ```
+
+On first interactive run, the script asks you to confirm you've reviewed it for safety. If you haven't, it prints instructions for piping it to Claude Code or Gemini CLI for an automated review.
 
 ## What It Does
 
@@ -62,6 +65,8 @@ The script includes an interactive wizard that:
 5. Sets up `~/.config/git/allowed_signers` for local signature verification
 
 With `-y`, the script auto-detects the best available key. If no key exists, signing config is prepared but not enabled (to avoid breaking commits).
+
+**Privacy note:** The signing wizard warns that reusing the same signing key across personal and work accounts enables cross-platform identity correlation (OSINT risk). For identity separation, generate dedicated keys per context and use git's `includeIf` for per-org config.
 
 ## Usage
 
@@ -122,6 +127,19 @@ The script prints (but does not apply) server/org-level recommendations:
 - Use fine-grained, short-lived tokens in CI/CD
 - Maintain an allowed signers file in repos
 - Clone untrusted repos with `--no-recurse-submodules`
+- Use separate signing keys per org to prevent cross-platform identity correlation (OSINT)
+
+## Running Tests
+
+```bash
+# Run the BATS test suite (64 tests)
+./test/run.sh
+
+# Requires bats-core submodules — init them if needed
+git submodule update --init --recursive
+```
+
+Tests run in an isolated `$HOME` (via `mktemp`) and never touch your real git or SSH config.
 
 ## License
 
