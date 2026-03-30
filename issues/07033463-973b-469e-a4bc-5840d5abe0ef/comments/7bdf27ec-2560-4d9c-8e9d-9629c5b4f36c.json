@@ -1,0 +1,8 @@
+{
+  "uuid": "7bdf27ec-2560-4d9c-8e9d-9629c5b4f36c",
+  "issue_uuid": "07033463-973b-469e-a4bc-5840d5abe0ef",
+  "author": "anon-31e9bd66",
+  "content": "Delivered: 5 Containerfiles in test/containers/ for ubuntu:24.04, debian:trixie, fedora:42, alpine:3.21, archlinux:base. Each installs bash, git, openssh, tmux, creates non-root testuser, copies script+tests.",
+  "created_at": "2026-03-30T22:32:12.238094Z",
+  "kind": "result"
+}
