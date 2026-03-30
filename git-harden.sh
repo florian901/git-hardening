@@ -46,7 +46,7 @@ AUDIT_MISS=0
 
 # Whether signing key was found
 SIGNING_KEY_FOUND=false
-export SIGNING_KEY_PATH="" # private key path; exported for hook/subshell use
+
 SIGNING_PUB_PATH=""
 
 # Credential helper detected for this platform
@@ -277,6 +277,7 @@ detect_credential_helper() {
                 DETECTED_CRED_HELPER="$libsecret_path"
             else
                 DETECTED_CRED_HELPER="cache --timeout=3600"
+                print_info "libsecret not found; falling back to in-memory credential cache (1h TTL, not persistent)"
             fi
             ;;
     esac
@@ -603,7 +604,7 @@ apply_signing_config() {
 
 detect_existing_keys() {
     SIGNING_KEY_FOUND=false
-    SIGNING_KEY_PATH=""
+    
     SIGNING_PUB_PATH=""
 
     # Check if a signing key is already configured
@@ -616,7 +617,7 @@ detect_existing_keys() {
             SIGNING_KEY_FOUND=true
             SIGNING_PUB_PATH="$expanded_key"
             # Derive private key path (remove .pub suffix if present)
-            SIGNING_KEY_PATH="${expanded_key%.pub}"
+
             return
         fi
     fi
@@ -628,7 +629,7 @@ detect_existing_keys() {
         pub_path="${priv_path}.pub"
         if [ -f "$pub_path" ]; then
             SIGNING_KEY_FOUND=true
-            SIGNING_KEY_PATH="$priv_path"
+
             SIGNING_PUB_PATH="$pub_path"
             return
         fi
@@ -652,7 +653,7 @@ detect_existing_keys() {
                 case "$key_type_str" in
                     ssh-ed25519*|sk-ssh-ed25519*)
                         SIGNING_KEY_FOUND=true
-                        SIGNING_KEY_PATH="$identity_path"
+
                         SIGNING_PUB_PATH="$pub_path"
                         return
                         ;;
@@ -751,7 +752,7 @@ generate_ssh_key() {
     if [ -f "$key_path" ]; then
         print_warn "$key_path already exists. Not overwriting."
         SIGNING_KEY_FOUND=true
-        SIGNING_KEY_PATH="$key_path"
+
         SIGNING_PUB_PATH="${key_path}.pub"
         return
     fi
@@ -768,11 +769,11 @@ generate_ssh_key() {
     mkdir -p "$SSH_DIR"
     chmod 700 "$SSH_DIR"
 
-    ssh-keygen -t ed25519 -C "$email" -f "$key_path" </dev/tty
+    ssh-keygen -t ed25519 -C "$email" -f -- "$key_path" </dev/tty
 
     if [ -f "${key_path}.pub" ]; then
         SIGNING_KEY_FOUND=true
-        SIGNING_KEY_PATH="$key_path"
+
         SIGNING_PUB_PATH="${key_path}.pub"
         print_info "Key generated: ${key_path}.pub"
     else
@@ -786,7 +787,7 @@ generate_fido2_key() {
     if [ -f "$key_path" ]; then
         print_warn "$key_path already exists. Not overwriting."
         SIGNING_KEY_FOUND=true
-        SIGNING_KEY_PATH="$key_path"
+
         SIGNING_PUB_PATH="${key_path}.pub"
         return
     fi
@@ -804,11 +805,11 @@ generate_fido2_key() {
     chmod 700 "$SSH_DIR"
 
     # Do NOT suppress stderr — per AC-7
-    ssh-keygen -t ed25519-sk -C "$email" -f "$key_path" </dev/tty
+    ssh-keygen -t ed25519-sk -C "$email" -f -- "$key_path" </dev/tty
 
     if [ -f "${key_path}.pub" ]; then
         SIGNING_KEY_FOUND=true
-        SIGNING_KEY_PATH="$key_path"
+
         SIGNING_PUB_PATH="${key_path}.pub"
         print_info "Key generated: ${key_path}.pub"
     else
@@ -868,6 +869,7 @@ apply_ssh_directive() {
             # Use temp file to avoid sed -i portability issues
             local tmpfile
             tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
+            trap 'rm -f "$tmpfile"' EXIT
             # Replace first occurrence of the directive (case-insensitive)
             local replaced=false
             while IFS= read -r line || [ -n "$line" ]; do
