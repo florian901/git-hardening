@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "design_doc": ".design/git-harden.md",
+  "doc_hash": "sha256:402a07b3f770654a876ce0eb6f5627edb96661ef1bf71bed7ebe8a94d5528a98",
+  "stage": "designed",
+  "plans": [],
+  "runs": []
+}

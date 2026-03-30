@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "design_doc": "docs/superpowers/specs/2026-03-25-git-harden-design.md",
+  "doc_hash": "sha256:56d8f6f7618cdd95103735bcff7ee175a730075d57617e94444f137450c9c0e9",
+  "stage": "planning",
+  "plans": [
+    {
+      "agent_id": "driver--plan-git-harden-sh-design-spec-8b87",
+      "worktree": "/Users/flo/projects/git-hardening/.worktrees/plan-git-harden-sh-design-spec-8b87",
+      "started_at": "2026-03-27T16:20:15.696587+00:00",
+      "status": "running",
+      "blocking_gaps": 0,
+      "advisory_gaps": 0
+    },
+    {
+      "agent_id": "driver--plan-git-harden-sh-design-spec-2153",
+      "worktree": "/Users/flo/projects/git-hardening/.worktrees/plan-git-harden-sh-design-spec-2153",
+      "started_at": "2026-03-27T16:44:43.942789+00:00",
+      "status": "running",
+      "blocking_gaps": 0,
+      "advisory_gaps": 0
+    }
+  ],
+  "runs": []
+}
