@@ -1,0 +1,8 @@
+{
+  "uuid": "50dea818-c294-4117-994c-d17098060d3d",
+  "issue_uuid": "91415850-4320-495d-a779-4cec0b77f409",
+  "author": "anon-31e9bd66",
+  "content": "Decision: Install bats-core, bats-support, and bats-assert as git submodules in test/libs/ rather than requiring a system install. This makes the tests self-contained and runnable on any machine with bash.",
+  "created_at": "2026-03-30T20:40:01.802882Z",
+  "kind": "decision"
+}
