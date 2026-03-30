@@ -1,0 +1,11 @@
+{
+  "uuid": "07033463-973b-469e-a4bc-5840d5abe0ef",
+  "display_id": 18,
+  "title": "Create Containerfiles for all 5 distros (ubuntu, debian, fedora, alpine, arch)",
+  "status": "open",
+  "priority": "high",
+  "parent_uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-30T22:30:35.984339Z",
+  "updated_at": "2026-03-30T22:30:35.984339Z"
+}
