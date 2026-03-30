@@ -2,11 +2,12 @@
   "uuid": "d8970dd4-b66c-407a-b4df-c46cec9ad1df",
   "display_id": 7,
   "title": "Add pre-execution safety review prompt",
-  "status": "open",
+  "status": "closed",
   "priority": "high",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-30T21:16:08.656942Z",
-  "updated_at": "2026-03-30T21:16:09.626105Z",
+  "updated_at": "2026-03-30T22:11:47.258493Z",
+  "closed_at": "2026-03-30T22:11:47.258493Z",
   "labels": [
     "feature"
   ]
