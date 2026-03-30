@@ -65,6 +65,24 @@ die() {
     exit 1
 }
 
+# Strip inline comments and surrounding quotes from an SSH config value.
+# Handles: value # comment, "value", 'value', "value" # comment
+strip_ssh_value() {
+    local val="$1"
+    # Remove inline comment (not inside quotes): strip ' #...' from end
+    # Be careful: only strip ' #' preceded by space (not part of path)
+    val="$(printf '%s' "$val" | sed 's/[[:space:]]#.*$//')"
+    # Remove surrounding double quotes
+    val="${val#\"}"
+    val="${val%\"}"
+    # Remove surrounding single quotes
+    val="${val#\'}"
+    val="${val%\'}"
+    # Trim whitespace
+    val="$(printf '%s' "$val" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    printf '%s' "$val"
+}
+
 print_ok() {
     printf '%b[OK]%b   %s\n' "$GREEN" "$RESET" "$1" >&2
     AUDIT_OK=$((AUDIT_OK + 1))
@@ -209,7 +227,10 @@ check_dependencies() {
     fi
 
     local git_version
-    git_version="$(git --version | sed 's/[^0-9.]//g')"
+    git_version="$(git --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    if [ -z "$git_version" ]; then
+        die "Could not parse git version from: $(git --version)"
+    fi
     if ! version_gte "$git_version" "2.34.0"; then
         die "git >= 2.34.0 required (found $git_version)"
     fi
@@ -395,6 +416,7 @@ audit_ssh_directive() {
 
     local current
     current="$(grep -i "^[[:space:]]*${directive}[[:space:]]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^ ]*[[:space:]]*//' || true)"
+    current="$(strip_ssh_value "$current")"
 
     if [ -z "$current" ]; then
         print_miss "SSH: $directive (expected: $expected)"
@@ -615,11 +637,11 @@ detect_existing_keys() {
     if [ -f "$SSH_CONFIG" ]; then
         local identity_path
         while IFS= read -r identity_path; do
+            # Strip inline comments and quotes
+            identity_path="$(strip_ssh_value "$identity_path")"
+            [ -z "$identity_path" ] && continue
             # Expand tilde safely
             identity_path="${identity_path/#\~/$HOME}"
-            # Strip leading/trailing whitespace
-            identity_path="$(printf '%s' "$identity_path" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-            [ -z "$identity_path" ] && continue
 
             pub_path="${identity_path}.pub"
             if [ -f "$pub_path" ]; then
@@ -827,6 +849,7 @@ apply_ssh_directive() {
     # Check if directive already exists with correct value (case-insensitive directive match)
     local current
     current="$(grep -i "^[[:space:]]*${directive}[[:space:]]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^ ]*[[:space:]]*//' || true)"
+    current="$(strip_ssh_value "$current")"
 
     if [ "$current" = "$value" ]; then
         return

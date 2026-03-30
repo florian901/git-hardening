@@ -109,6 +109,60 @@ source_functions() {
 }
 
 # ===========================================================================
+# Version extraction (grep-based, not sed)
+# ===========================================================================
+
+@test "version extraction handles standard git output" {
+    local ver
+    ver="$(echo "git version 2.39.5" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    [ "$ver" = "2.39.5" ]
+}
+
+@test "version extraction handles Apple Git suffix" {
+    local ver
+    ver="$(echo "git version 2.39.5 (Apple Git-154)" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    [ "$ver" = "2.39.5" ]
+}
+
+@test "version extraction handles rc suffix" {
+    local ver
+    ver="$(echo "git version 2.45.0-rc1" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    [ "$ver" = "2.45.0" ]
+}
+
+# ===========================================================================
+# strip_ssh_value helper
+# ===========================================================================
+
+@test "strip_ssh_value removes inline comment" {
+    source_functions
+    local result
+    result="$(strip_ssh_value "~/.ssh/id_ed25519 # signing key")"
+    [ "$result" = "~/.ssh/id_ed25519" ]
+}
+
+@test "strip_ssh_value removes surrounding double quotes" {
+    source_functions
+    local result
+    result="$(strip_ssh_value '"~/.ssh/my key"')"
+    [ "$result" = "~/.ssh/my key" ]
+}
+
+@test "strip_ssh_value removes quotes and comment together" {
+    source_functions
+    local result
+    result="$(strip_ssh_value '"~/.ssh/my key" # comment')"
+    [ "$result" = "~/.ssh/my key" ]
+}
+
+@test "strip_ssh_value handles plain value" {
+    source_functions
+    local result
+    result="$(strip_ssh_value "accept-new")"
+    [ "$result" = "accept-new" ]
+}
+
+# ===========================================================================
 # Audit: git config settings
 # ===========================================================================
 
@@ -491,6 +545,36 @@ SSHEOF
 
     [ "$SIGNING_KEY_FOUND" = true ]
     [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/my_custom_key.pub" ]
+}
+
+@test "detect_existing_keys handles IdentityFile with inline comment" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/my_key" -N "" -q
+
+    cat > "${TEST_HOME}/.ssh/config" <<SSHEOF
+Host github.com
+    IdentityFile ${TEST_HOME}/.ssh/my_key # signing key
+SSHEOF
+
+    source_functions
+    detect_existing_keys
+
+    [ "$SIGNING_KEY_FOUND" = true ]
+    [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/my_key.pub" ]
+}
+
+@test "detect_existing_keys handles quoted IdentityFile path" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/my_key" -N "" -q
+
+    cat > "${TEST_HOME}/.ssh/config" <<SSHEOF
+Host github.com
+    IdentityFile "${TEST_HOME}/.ssh/my_key"
+SSHEOF
+
+    source_functions
+    detect_existing_keys
+
+    [ "$SIGNING_KEY_FOUND" = true ]
+    [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/my_key.pub" ]
 }
 
 @test "detect_existing_keys finds configured key via user.signingkey" {
