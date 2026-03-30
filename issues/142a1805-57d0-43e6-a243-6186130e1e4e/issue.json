@@ -3,11 +3,12 @@
   "display_id": 4,
   "title": "git-harden.sh",
   "description": "Created by crosslink kickoff",
-  "status": "open",
+  "status": "closed",
   "priority": "medium",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-27T17:10:10.536893Z",
-  "updated_at": "2026-03-27T17:10:11.516412Z",
+  "updated_at": "2026-03-30T22:11:43.733337Z",
+  "closed_at": "2026-03-30T22:11:43.733337Z",
   "labels": [
     "feature"
   ]
