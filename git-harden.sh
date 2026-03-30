@@ -209,14 +209,15 @@ version_gte() {
     # shellcheck disable=SC2086
     set -- $1 $2
     IFS="$IFS_SAVE"
-    local a1="${1:-0}" a2="${2:-0}" a3="${3:-0}"
-    local b1="${4:-0}" b2="${5:-0}" b3="${6:-0}"
+    # Force base-10 interpretation to avoid octal issues with leading zeros
+    local a1=$((10#${1:-0})) a2=$((10#${2:-0})) a3=$((10#${3:-0}))
+    local b1=$((10#${4:-0})) b2=$((10#${5:-0})) b3=$((10#${6:-0}))
 
-    if [ "$a1" -gt "$b1" ] 2>/dev/null; then return 0; fi
-    if [ "$a1" -lt "$b1" ] 2>/dev/null; then return 1; fi
-    if [ "$a2" -gt "$b2" ] 2>/dev/null; then return 0; fi
-    if [ "$a2" -lt "$b2" ] 2>/dev/null; then return 1; fi
-    if [ "$a3" -ge "$b3" ] 2>/dev/null; then return 0; fi
+    if [ "$a1" -gt "$b1" ]; then return 0; fi
+    if [ "$a1" -lt "$b1" ]; then return 1; fi
+    if [ "$a2" -gt "$b2" ]; then return 0; fi
+    if [ "$a2" -lt "$b2" ]; then return 1; fi
+    if [ "$a3" -ge "$b3" ]; then return 0; fi
     return 1
 }
 

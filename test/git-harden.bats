@@ -108,6 +108,18 @@ source_functions() {
     assert_failure
 }
 
+@test "version_gte: handles leading zeros without octal error" {
+    source_functions
+    run version_gte "2.08.0" "2.07.0"
+    assert_success
+}
+
+@test "version_gte: leading zero comparison works correctly" {
+    source_functions
+    run version_gte "2.09.1" "2.09.0"
+    assert_success
+}
+
 # ===========================================================================
 # Version extraction (grep-based, not sed)
 # ===========================================================================
