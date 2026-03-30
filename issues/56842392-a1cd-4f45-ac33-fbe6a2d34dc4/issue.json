@@ -2,11 +2,12 @@
   "uuid": "56842392-a1cd-4f45-ac33-fbe6a2d34dc4",
   "display_id": 5,
   "title": "Implement git-harden.sh script",
-  "status": "open",
+  "status": "closed",
   "priority": "high",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-30T11:38:12.610599Z",
-  "updated_at": "2026-03-30T11:38:13.832172Z",
+  "updated_at": "2026-03-30T22:11:44.853878Z",
+  "closed_at": "2026-03-30T22:11:44.853878Z",
   "labels": [
     "feature"
   ]
