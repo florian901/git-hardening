@@ -1,0 +1,8 @@
+{
+  "uuid": "06a574fa-ee5a-4bce-bb97-cb6d60eae956",
+  "issue_uuid": "766ad77d-424d-4660-b29e-57c0a5c2e672",
+  "author": "anon-31e9bd66",
+  "content": "Delivered: Force base-10 with 10# prefix in version_gte arithmetic. 2 new tests for leading-zero versions (64 total, all passing).",
+  "created_at": "2026-03-30T21:44:28.443445Z",
+  "kind": "result"
+}
