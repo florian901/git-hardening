@@ -904,11 +904,45 @@ print_admin_recommendations() {
 }
 
 # ------------------------------------------------------------------------------
+# Safety review gate
+# ------------------------------------------------------------------------------
+
+safety_review_gate() {
+    # Skip in -y mode (user takes responsibility) or --audit (read-only)
+    if [ "$AUTO_YES" = true ] || [ "$AUDIT_ONLY" = true ]; then
+        return
+    fi
+
+    local script_path
+    script_path="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+
+    printf '\n%b── Safety Review ──%b\n' "$BOLD" "$RESET" >&2
+    printf '  Before running scripts that modify your system configuration,\n' >&2
+    printf '  you should review them with a tool you trust.\n\n' >&2
+
+    if ! prompt_yn "Have you reviewed this script (or had an AI assistant review it) for safety?"; then
+        printf '\n  You can review this script by piping it to an AI coding assistant:\n\n' >&2
+        printf '  %bClaude Code:%b\n' "$BOLD" "$RESET" >&2
+        printf '    cat "%s" | claude "Review this shell script for security issues.\n' "$script_path" >&2
+        printf '    Check that it only modifies git and SSH config, makes no network\n' >&2
+        printf '    calls, and does not exfiltrate data. List every file it writes to."\n\n' >&2
+        printf '  %bGemini CLI:%b\n' "$BOLD" "$RESET" >&2
+        printf '    cat "%s" | gemini "Review this shell script for security issues.\n' "$script_path" >&2
+        printf '    Check that it only modifies git and SSH config, makes no network\n' >&2
+        printf '    calls, and does not exfiltrate data. List every file it writes to."\n\n' >&2
+        printf '  %bManual review:%b\n' "$BOLD" "$RESET" >&2
+        printf '    less "%s"\n\n' "$script_path" >&2
+        exit 0
+    fi
+}
+
+# ------------------------------------------------------------------------------
 # Main
 # ------------------------------------------------------------------------------
 
 main() {
     parse_args "$@"
+    safety_review_gate
     detect_platform
     check_dependencies
 

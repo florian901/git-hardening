@@ -620,6 +620,44 @@ SSHEOF
 }
 
 # ===========================================================================
+# Safety review gate
+# ===========================================================================
+
+@test "safety gate is skipped with -y" {
+    source_functions
+    AUTO_YES=true
+    AUDIT_ONLY=false
+
+    run safety_review_gate
+    assert_success
+    refute_output --partial "Safety Review"
+}
+
+@test "safety gate is skipped with --audit" {
+    source_functions
+    AUTO_YES=false
+    AUDIT_ONLY=true
+
+    run safety_review_gate
+    assert_success
+    refute_output --partial "Safety Review"
+}
+
+@test "safety gate exits 0 with instructions when user says no" {
+    source_functions
+    AUTO_YES=false
+    AUDIT_ONLY=false
+
+    # Override prompt_yn to simulate "no" answer
+    prompt_yn() { return 1; }
+
+    run safety_review_gate
+    assert_success  # exit 0, not an error
+    assert_output --partial "claude"
+    assert_output --partial "gemini"
+}
+
+# ===========================================================================
 # End-to-end: --audit mode
 # ===========================================================================
 
