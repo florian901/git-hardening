@@ -2,11 +2,12 @@
   "uuid": "cd7ea37a-aa03-4a67-ad7b-64432d08d681",
   "display_id": 12,
   "title": "Add OSINT advisory about signing key reuse to signing wizard",
-  "status": "open",
+  "status": "closed",
   "priority": "medium",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-30T21:58:38.274462Z",
-  "updated_at": "2026-03-30T21:58:39.393329Z",
+  "updated_at": "2026-03-30T22:11:52.968481Z",
+  "closed_at": "2026-03-30T22:11:52.968481Z",
   "labels": [
     "feature"
   ]
