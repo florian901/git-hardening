@@ -1,0 +1,8 @@
+{
+  "uuid": "7980b34d-c677-4c51-aa68-a708249ca9ae",
+  "issue_uuid": "6fe723a2-5841-4ac7-b947-67cdf4fcb8a2",
+  "author": "anon-31e9bd66",
+  "content": "Delivered: test/e2e.sh runner script with --runtime flag, single-distro mode, --rebuild flag, summary table, --network=none isolation, non-root containers, shellcheck clean.",
+  "created_at": "2026-03-30T22:52:59.592119Z",
+  "kind": "result"
+}
