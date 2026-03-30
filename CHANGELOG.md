@@ -31,4 +31,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Safe tilde expansion without `eval`
 - SSH config value parsing handles inline comments and quoted paths
 - Version comparison uses base-10 arithmetic to prevent octal interpretation
-- Containers run with `--network=none` and non-root user (e2e spec)
+- Temp file cleanup trap in SSH config updates
+- `--` separator before path arguments in `ssh-keygen` calls
+- Removed unused exported `SIGNING_KEY_PATH` variable
