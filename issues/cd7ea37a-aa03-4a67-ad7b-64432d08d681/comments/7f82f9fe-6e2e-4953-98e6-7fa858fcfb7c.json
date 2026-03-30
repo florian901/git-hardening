@@ -1,0 +1,8 @@
+{
+  "uuid": "7f82f9fe-6e2e-4953-98e6-7fa858fcfb7c",
+  "issue_uuid": "cd7ea37a-aa03-4a67-ad7b-64432d08d681",
+  "author": "anon-31e9bd66",
+  "content": "Delivered: Added OSINT privacy note to signing wizard (shown before key selection) and added per-org signing key recommendation to admin recommendations section.",
+  "created_at": "2026-03-30T21:59:26.783406Z",
+  "kind": "result"
+}
