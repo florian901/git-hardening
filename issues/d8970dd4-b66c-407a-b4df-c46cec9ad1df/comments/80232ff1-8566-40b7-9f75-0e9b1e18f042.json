@@ -1,0 +1,8 @@
+{
+  "uuid": "80232ff1-8566-40b7-9f75-0e9b1e18f042",
+  "issue_uuid": "d8970dd4-b66c-407a-b4df-c46cec9ad1df",
+  "author": "anon-31e9bd66",
+  "content": "Plan: Add a safety_review_gate() function called at the start of main(), before any config changes. Skipped with -y (assumes user has already reviewed). On 'no', print instructions for piping script to Claude Code or Gemini CLI for review, then exit 0.",
+  "created_at": "2026-03-30T21:16:16.421434Z",
+  "kind": "plan"
+}
