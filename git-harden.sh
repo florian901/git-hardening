@@ -681,8 +681,14 @@ detect_fido2_hardware() {
 signing_wizard() {
     print_header "SSH Signing Setup Wizard"
 
+    printf '\n  %bPrivacy note:%b Your signing key is public — it appears in every signed\n' "$YELLOW" "$RESET" >&2
+    printf '  commit and on your GitHub/GitLab profile. Using the same key across\n' >&2
+    printf '  personal and work accounts links those identities (OSINT risk). If\n' >&2
+    printf '  identity separation matters, generate a dedicated key per context and\n' >&2
+    printf '  use git'\''s includeIf to configure per-org signing keys.\n' >&2
+
     if [ "$SIGNING_KEY_FOUND" = true ]; then
-        printf '  Found existing key: %s\n' "$SIGNING_PUB_PATH" >&2
+        printf '\n  Found existing key: %s\n' "$SIGNING_PUB_PATH" >&2
         if prompt_yn "Use this key for git signing?"; then
             git config --global user.signingkey "$SIGNING_PUB_PATH"
             print_info "Set user.signingkey = $SIGNING_PUB_PATH"
@@ -924,6 +930,8 @@ print_admin_recommendations() {
     printf '  • Require signed commits via branch protection (Require signed commits)\n' >&2
     printf '  • Audit deploy keys and service account access quarterly\n' >&2
     printf '  • If using hook frameworks (husky, lefthook, pre-commit), pin versions and review changes\n' >&2
+    printf '  • Use separate signing keys per org to prevent cross-platform identity correlation (OSINT)\n' >&2
+    printf '    Use git includeIf with gitdir: or hasconfig:remote.*.url: for per-org signing keys\n' >&2
     printf '\n' >&2
 }
 
