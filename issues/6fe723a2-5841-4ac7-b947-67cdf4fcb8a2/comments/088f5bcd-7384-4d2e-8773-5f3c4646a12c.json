@@ -1,0 +1,8 @@
+{
+  "uuid": "088f5bcd-7384-4d2e-8773-5f3c4646a12c",
+  "issue_uuid": "6fe723a2-5841-4ac7-b947-67cdf4fcb8a2",
+  "author": "anon-31e9bd66",
+  "content": "Plan: Implement test/e2e.sh following project shell standards (AGENTS.md). Features: --runtime flag, single-distro mode, TAP parsing, summary table, --network=none, --rm, non-root, error handling for missing runtime.",
+  "created_at": "2026-03-30T22:32:18.648565Z",
+  "kind": "plan"
+}
