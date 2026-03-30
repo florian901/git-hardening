@@ -2,11 +2,12 @@
   "uuid": "91415850-4320-495d-a779-4cec0b77f409",
   "display_id": 6,
   "title": "Add BATS test suite for git-harden.sh",
-  "status": "open",
+  "status": "closed",
   "priority": "high",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-30T20:38:02.786870Z",
-  "updated_at": "2026-03-30T20:38:03.893174Z",
+  "updated_at": "2026-03-30T22:11:46.084264Z",
+  "closed_at": "2026-03-30T22:11:46.084264Z",
   "labels": [
     "feature"
   ]
