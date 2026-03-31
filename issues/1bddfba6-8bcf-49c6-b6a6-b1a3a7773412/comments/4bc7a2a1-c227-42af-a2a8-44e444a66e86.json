@@ -1,0 +1,8 @@
+{
+  "uuid": "4bc7a2a1-c227-42af-a2a8-44e444a66e86",
+  "issue_uuid": "1bddfba6-8bcf-49c6-b6a6-b1a3a7773412",
+  "author": "anon-31e9bd66",
+  "content": "Rewriting CHANGELOG with proper v0.2.0 section separated from v0.1.0, and updating README to document all new features.",
+  "created_at": "2026-03-31T11:49:39.708442Z",
+  "kind": "plan"
+}
