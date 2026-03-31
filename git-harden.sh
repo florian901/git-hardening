@@ -10,7 +10,7 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.2.1"
+readonly VERSION="0.2.2"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
