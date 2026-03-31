@@ -42,10 +42,8 @@ REBUILD=false
 SKIP_HOST=false
 TARGET_DISTRO=""
 
-# Results tracking
-RESULTS_DISTROS=""
-RESULTS_STATUS=""
-RESULTS_DURATION=""
+# Results tracking (temp dir for parallel result files)
+RESULTS_DIR=""
 
 # ------------------------------------------------------------------------------
 # Helpers
@@ -215,7 +213,8 @@ run_host_interactive() {
     fi
 }
 
-# Generic entry that times a named test phase and records results
+# Generic entry that times a named test phase and records results.
+# Output is written to a log file; result is recorded in RESULTS_DIR.
 run_distro_entry() {
     local distro="$1"
     shift
@@ -223,10 +222,10 @@ run_distro_entry() {
     local start_time
     start_time="$(date +%s)"
 
-    printf '\n%b══ %s ══%b\n' "$C_BOLD" "$distro" "$C_RESET" >&2
+    local log_file="${RESULTS_DIR}/${distro}.log"
 
     local status="PASS"
-    if ! "$@"; then
+    if ! "$@" > "$log_file" 2>&1; then
         status="FAIL"
     fi
 
@@ -234,34 +233,20 @@ run_distro_entry() {
     end_time="$(date +%s)"
     local duration=$(( end_time - start_time ))
 
-    RESULTS_DISTROS="${RESULTS_DISTROS}${distro}\n"
-    RESULTS_STATUS="${RESULTS_STATUS}${status}\n"
-    RESULTS_DURATION="${RESULTS_DURATION}${duration}s\n"
+    # Write result file (read by print_summary)
+    printf '%s %s %ds\n' "$distro" "$status" "$duration" > "${RESULTS_DIR}/${distro}.result"
 
+    # Print inline status
     if [ "$status" = "PASS" ]; then
         printf '%b  ✓ %s passed (%ds)%b\n' "$C_GREEN" "$distro" "$duration" "$C_RESET" >&2
     else
-        printf '%b  ✗ %s %s (%ds)%b\n' "$C_RED" "$distro" "$status" "$duration" "$C_RESET" >&2
+        printf '%b  ✗ %s FAIL (%ds)%b\n' "$C_RED" "$distro" "$duration" "$C_RESET" >&2
+        # Show last 20 lines of log on failure
+        printf '%b  Log tail:%b\n' "$C_YELLOW" "$C_RESET" >&2
+        tail -20 "$log_file" >&2
     fi
 }
 
-run_container_phases() {
-    local distro="$1"
-    if ! build_image "$distro"; then
-        return 1
-    fi
-    if ! run_tests "$distro"; then
-        return 1
-    fi
-    if ! run_interactive_tests "$distro"; then
-        return 1
-    fi
-}
-
-run_distro() {
-    local distro="$1"
-    run_distro_entry "$distro" run_container_phases "$distro"
-}
 
 # ------------------------------------------------------------------------------
 # Summary
@@ -269,29 +254,22 @@ run_distro() {
 
 print_summary() {
     printf '\n%b══ Summary ══%b\n' "$C_BOLD" "$C_RESET" >&2
-    printf '%-12s %-20s %s\n' "DISTRO" "STATUS" "DURATION" >&2
-    printf '%-12s %-20s %s\n' "------" "------" "--------" >&2
+    printf '%-12s %-8s %s\n' "DISTRO" "STATUS" "DURATION" >&2
+    printf '%-12s %-8s %s\n' "------" "------" "--------" >&2
 
-    local distros_arr status_arr duration_arr
-    IFS=$'\n' read -r -d '' -a distros_arr <<< "$(printf '%b' "$RESULTS_DISTROS")" || true
-    IFS=$'\n' read -r -d '' -a status_arr <<< "$(printf '%b' "$RESULTS_STATUS")" || true
-    IFS=$'\n' read -r -d '' -a duration_arr <<< "$(printf '%b' "$RESULTS_DURATION")" || true
-
-    local i=0
     local any_failed=false
-    while [ "$i" -lt "${#distros_arr[@]}" ]; do
-        local d="${distros_arr[$i]}"
-        local s="${status_arr[$i]}"
-        local t="${duration_arr[$i]}"
-        [ -z "$d" ] && { i=$((i + 1)); continue; }
+    local result_file
+    for result_file in "${RESULTS_DIR}"/*.result; do
+        [ -f "$result_file" ] || continue
+        local d s t
+        read -r d s t < "$result_file"
 
         local color="$C_GREEN"
         if [ "$s" != "PASS" ]; then
             color="$C_RED"
             any_failed=true
         fi
-        printf '%b%-12s %-20s %s%b\n' "$color" "$d" "$s" "$t" "$C_RESET" >&2
-        i=$((i + 1))
+        printf '%b%-12s %-8s %s%b\n' "$color" "$d" "$s" "$t" "$C_RESET" >&2
     done
 
     if [ "$any_failed" = true ]; then
@@ -310,6 +288,10 @@ main() {
 
     info "Using runtime: ${RUNTIME}"
 
+    # Set up results directory
+    RESULTS_DIR="$(mktemp -d)"
+    trap 'rm -rf "$RESULTS_DIR"' EXIT
+
     # Run interactive tests on the host first (covers macOS ssh-keygen)
     if [ "$SKIP_HOST" = true ]; then
         info "Skipping host interactive tests (--skip-host)"
@@ -319,8 +301,9 @@ main() {
         info "tmux not found — skipping host interactive tests (install with: brew install tmux)"
     fi
 
+    # Determine which distros to run
+    local run_distros=()
     if [ -n "$TARGET_DISTRO" ]; then
-        # Validate distro name
         local valid=false
         for d in "${DISTROS[@]}"; do
             if [ "$d" = "$TARGET_DISTRO" ]; then
@@ -331,15 +314,54 @@ main() {
         if [ "$valid" = false ]; then
             die "Unknown distro: ${TARGET_DISTRO}. Available: ${DISTROS[*]}"
         fi
-
-        run_distro "$TARGET_DISTRO"
+        run_distros=("$TARGET_DISTRO")
     else
-        for d in "${DISTROS[@]}"; do
-            run_distro "$d"
+        run_distros=("${DISTROS[@]}")
+    fi
+
+    # Phase 1: Build images sequentially (benefits from shared layer cache)
+    info "Building ${#run_distros[@]} container image(s)..."
+    for d in "${run_distros[@]}"; do
+        if ! build_image "$d"; then
+            printf '%b  ✗ %s build failed%b\n' "$C_RED" "$d" "$C_RESET" >&2
+            printf '%s FAIL 0s\n' "$d" > "${RESULTS_DIR}/${d}.result"
+        fi
+    done
+
+    # Phase 2: Run tests in parallel
+    local pids=()
+    local pid_distros=()
+    for d in "${run_distros[@]}"; do
+        # Skip distros that failed to build
+        [ -f "${RESULTS_DIR}/${d}.result" ] && continue
+
+        run_distro_entry "$d" run_container_test_phases "$d" &
+        pids+=($!)
+        pid_distros+=("$d")
+    done
+
+    if [ ${#pids[@]} -gt 0 ]; then
+        info "Running ${#pids[@]} distro(s) in parallel: ${pid_distros[*]}"
+        # Wait for all background jobs
+        local i=0
+        while [ "$i" -lt "${#pids[@]}" ]; do
+            wait "${pids[$i]}" 2>/dev/null || true
+            i=$((i + 1))
         done
     fi
 
     print_summary
+}
+
+# Container test phases (without build — build is done in phase 1)
+run_container_test_phases() {
+    local distro="$1"
+    if ! run_tests "$distro"; then
+        return 1
+    fi
+    if ! run_interactive_tests "$distro"; then
+        return 1
+    fi
 }
 
 main "$@"
