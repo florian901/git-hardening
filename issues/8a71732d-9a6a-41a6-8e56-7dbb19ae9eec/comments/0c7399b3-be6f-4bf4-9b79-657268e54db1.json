@@ -1,0 +1,8 @@
+{
+  "uuid": "0c7399b3-be6f-4bf4-9b79-657268e54db1",
+  "issue_uuid": "8a71732d-9a6a-41a6-8e56-7dbb19ae9eec",
+  "author": "anon-31e9bd66",
+  "content": "Fixed: detect brew openssh via ssh-sk-helper presence instead of running ssh-keygen. No blocking, no FIDO touch during detection.",
+  "created_at": "2026-03-31T15:45:52.221886Z",
+  "kind": "result"
+}
