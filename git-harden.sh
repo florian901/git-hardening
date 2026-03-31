@@ -1214,15 +1214,24 @@ generate_fido2_key() {
 
     # On macOS, the system ssh-keygen lacks FIDO2 support. Homebrew's openssh
     # bundles ssh-sk-helper and builds FIDO2 into its own ssh-keygen binary.
+    # Detect by checking for ssh-sk-helper (NOT by running ssh-keygen, which
+    # would block waiting for a FIDO touch).
     local keygen_cmd="ssh-keygen"
     if [ "$PLATFORM" = "macos" ]; then
         local brew_keygen=""
-        local brew_path
+        local brew_path brew_dir
         for brew_path in /opt/homebrew/bin/ssh-keygen /usr/local/bin/ssh-keygen; do
-            # System ssh-keygen prints "No FIDO SecurityKeyProvider" — brew's doesn't
-            if [ -x "$brew_path" ] && ! "$brew_path" -t ed25519-sk -f /dev/null -N "" 2>&1 | grep -q "SecurityKeyProvider"; then
-                brew_keygen="$brew_path"
-                break
+            [ -x "$brew_path" ] || continue
+            # Resolve symlink to find the cellar libexec with ssh-sk-helper
+            local real_path
+            real_path="$(readlink "$brew_path" 2>/dev/null || true)"
+            if [ -n "$real_path" ]; then
+                # Relative symlink: resolve against parent dir
+                brew_dir="$(cd "$(dirname "$brew_path")" && cd "$(dirname "$real_path")" && pwd)"
+                if [ -x "${brew_dir}/../libexec/ssh-sk-helper" ]; then
+                    brew_keygen="$brew_path"
+                    break
+                fi
             fi
         done
         if [ -z "$brew_keygen" ]; then
