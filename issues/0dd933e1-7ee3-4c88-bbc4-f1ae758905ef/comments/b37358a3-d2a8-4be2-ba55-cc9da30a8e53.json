@@ -1,0 +1,8 @@
+{
+  "uuid": "b37358a3-d2a8-4be2-ba55-cc9da30a8e53",
+  "issue_uuid": "0dd933e1-7ee3-4c88-bbc4-f1ae758905ef",
+  "author": "anon-31e9bd66",
+  "content": "Writing feature spec based on gap analysis of two research reports (Claude Opus 4.6 and Gemini 3.1 Pro). Six new feature areas identified: gitleaks pre-commit hook, global gitignore, plaintext credential detection, SSH key hygiene audit, 8 new git config settings, and safe.directory wildcard detection.",
+  "created_at": "2026-03-31T10:00:22.375971Z",
+  "kind": "plan"
+}
