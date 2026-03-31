@@ -2,11 +2,12 @@
   "uuid": "d41855c2-2525-4c19-8900-6ae2ebad6a6f",
   "display_id": 38,
   "title": "Release v0.2.2",
-  "status": "open",
+  "status": "closed",
   "priority": "high",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-31T15:48:03.069404Z",
-  "updated_at": "2026-03-31T15:48:04.344118Z",
+  "updated_at": "2026-03-31T15:49:20.614103Z",
+  "closed_at": "2026-03-31T15:49:20.614103Z",
   "labels": [
     "feature"
   ]
