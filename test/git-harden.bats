@@ -1148,7 +1148,7 @@ EOF
 # v0.2.0: Version bump
 # ===========================================================================
 
-@test "--version reports 0.2.0" {
+@test "--version reports 0.2.1" {
     run bash "$SCRIPT" --version
-    assert_output --partial "0.2.0"
+    assert_output --partial "0.2.1"
 }

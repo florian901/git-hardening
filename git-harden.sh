@@ -10,7 +10,7 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.2.0"
+readonly VERSION="0.2.1"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
@@ -873,7 +873,7 @@ apply_precommit_hook() {
     if [ "$has_gitleaks" = false ]; then
         print_warn "gitleaks not found — install it for pre-commit secret scanning:"
         printf '    macOS:  brew install gitleaks\n' >&2
-        printf '    Linux:  brew install gitleaks (or download from GitHub releases)\n' >&2
+        printf '    Linux:  apt install gitleaks / dnf install gitleaks (or download from GitHub releases)\n' >&2
     fi
 
     if prompt_yn "Install gitleaks pre-commit hook at $hook_path?"; then
@@ -1212,29 +1212,27 @@ generate_fido2_key() {
         fi
     fi
 
-    # Detect FIDO2 middleware library (required on macOS)
-    local sk_provider=""
+    # On macOS, the system ssh-keygen lacks FIDO2 support. Homebrew's openssh
+    # bundles ssh-sk-helper and builds FIDO2 into its own ssh-keygen binary.
+    local keygen_cmd="ssh-keygen"
     if [ "$PLATFORM" = "macos" ]; then
-        # The FIDO2 middleware (libsk-libfido2.dylib) is built by Homebrew's
-        # openssh formula, NOT by libfido2 alone. Search common install paths.
-        local provider_path
-        for provider_path in \
-            /opt/homebrew/lib/libsk-libfido2.dylib \
-            /usr/local/lib/libsk-libfido2.dylib \
-            /opt/homebrew/Cellar/openssh/*/libexec/libsk-libfido2.dylib; do
-            if [ -f "$provider_path" ]; then
-                sk_provider="$provider_path"
+        local brew_keygen=""
+        local brew_path
+        for brew_path in /opt/homebrew/bin/ssh-keygen /usr/local/bin/ssh-keygen; do
+            # System ssh-keygen prints "No FIDO SecurityKeyProvider" — brew's doesn't
+            if [ -x "$brew_path" ] && ! "$brew_path" -t ed25519-sk -f /dev/null -N "" 2>&1 | grep -q "SecurityKeyProvider"; then
+                brew_keygen="$brew_path"
                 break
             fi
         done
-        if [ -z "$sk_provider" ]; then
-            print_warn "FIDO2 middleware (libsk-libfido2.dylib) not found."
-            printf '  macOS system ssh-keygen requires the OpenSSH FIDO middleware.\n' >&2
-            printf '  Install with: brew install openssh\n' >&2
-            printf '  This builds libsk-libfido2.dylib against the libfido2 you already have.\n' >&2
+        if [ -z "$brew_keygen" ]; then
+            print_warn "macOS system ssh-keygen lacks FIDO2 support."
+            printf '  Install Homebrew OpenSSH (includes built-in FIDO2):\n' >&2
+            printf '    brew install openssh\n' >&2
             printf '  Then re-run this script.\n' >&2
             return
         fi
+        keygen_cmd="$brew_keygen"
     fi
 
     printf '  Generating ed25519-sk SSH key (touch your security key when prompted)...\n' >&2
@@ -1249,14 +1247,8 @@ generate_fido2_key() {
     mkdir -p "$SSH_DIR"
     chmod 700 "$SSH_DIR"
 
-    # Pass -w <provider> on macOS; on Linux the built-in support usually works
-    local keygen_args=(-t ed25519-sk -C "$email" -f "$key_path")
-    if [ -n "$sk_provider" ]; then
-        keygen_args+=(-w "$sk_provider")
-    fi
-
     # Do NOT suppress stderr — per AC-7
-    ssh-keygen "${keygen_args[@]}" </dev/tty
+    "$keygen_cmd" -t ed25519-sk -C "$email" -f "$key_path" </dev/tty
 
     if [ -f "${key_path}.pub" ]; then
         SIGNING_KEY_FOUND=true

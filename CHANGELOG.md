@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.1] - 2026-03-31
+
+### Fixed
+- FIDO2 key generation on macOS — use Homebrew's `ssh-keygen` binary which has built-in FIDO2 support, instead of searching for the removed `libsk-libfido2.dylib` middleware
+- Linux gitleaks install hint now shows `apt`/`dnf` instead of `brew`
+
+### Changed
+- Group interactive apply prompts by category (6 groups instead of ~25 individual prompts), each showing a table of pending changes with one-line explanations
+
 ## [0.2.0] - 2026-03-31
 
 ### Added
