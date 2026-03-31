@@ -1,0 +1,8 @@
+{
+  "uuid": "8b0d6e19-946b-4544-a5cd-d6252a1cd73d",
+  "issue_uuid": "82821bdb-d858-41cf-8d98-eae77d95696d",
+  "author": "anon-31e9bd66",
+  "content": "Delivered: 4 interactive tmux test scripts (full-accept, safety-gate-decline, signing-generate, signing-skip) plus helpers.sh and run-all.sh runner. All pass shellcheck.",
+  "created_at": "2026-03-31T09:24:04.340126Z",
+  "kind": "result"
+}
