@@ -39,6 +39,7 @@ fi
 # Mutable state
 RUNTIME=""
 REBUILD=false
+SKIP_HOST=false
 TARGET_DISTRO=""
 
 # Results tracking
@@ -75,6 +76,10 @@ parse_args() {
                 REBUILD=true
                 shift
                 ;;
+            --skip-host)
+                SKIP_HOST=true
+                shift
+                ;;
             --help|-h)
                 usage
                 exit 0
@@ -99,6 +104,7 @@ Run BATS tests inside containers across Linux distributions.
 Options:
   --runtime <docker|podman>   Container runtime (auto-detected if omitted)
   --rebuild                   Force image rebuild ignoring cache
+  --skip-host                 Skip host interactive tests (run containers only)
   --help, -h                  Show this help
 
 Distros: ubuntu, debian, fedora, alpine, arch
@@ -305,7 +311,9 @@ main() {
     info "Using runtime: ${RUNTIME}"
 
     # Run interactive tests on the host first (covers macOS ssh-keygen)
-    if command -v tmux >/dev/null 2>&1; then
+    if [ "$SKIP_HOST" = true ]; then
+        info "Skipping host interactive tests (--skip-host)"
+    elif command -v tmux >/dev/null 2>&1; then
         run_distro_entry "host" run_host_interactive
     else
         info "tmux not found — skipping host interactive tests (install with: brew install tmux)"
