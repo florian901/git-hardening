@@ -202,28 +202,32 @@ run_interactive_tests() {
     fi
 }
 
-run_distro() {
+run_host_interactive() {
+    info "Running interactive tests on host ($(uname -s))..."
+    if ! bash "${SCRIPT_DIR}/run-interactive.sh" 2>&1; then
+        return 1
+    fi
+}
+
+# Generic entry that times a named test phase and records results
+run_distro_entry() {
     local distro="$1"
+    shift
+    # Remaining args are the function + args to run
     local start_time
     start_time="$(date +%s)"
 
     printf '\n%b══ %s ══%b\n' "$C_BOLD" "$distro" "$C_RESET" >&2
 
     local status="PASS"
-
-    if ! build_image "$distro"; then
-        status="FAIL (build)"
-    elif ! run_tests "$distro"; then
-        status="FAIL (bats)"
-    elif ! run_interactive_tests "$distro"; then
-        status="FAIL (interactive)"
+    if ! "$@"; then
+        status="FAIL"
     fi
 
     local end_time
     end_time="$(date +%s)"
     local duration=$(( end_time - start_time ))
 
-    # Append to results
     RESULTS_DISTROS="${RESULTS_DISTROS}${distro}\n"
     RESULTS_STATUS="${RESULTS_STATUS}${status}\n"
     RESULTS_DURATION="${RESULTS_DURATION}${duration}s\n"
@@ -233,6 +237,24 @@ run_distro() {
     else
         printf '%b  ✗ %s %s (%ds)%b\n' "$C_RED" "$distro" "$status" "$duration" "$C_RESET" >&2
     fi
+}
+
+run_container_phases() {
+    local distro="$1"
+    if ! build_image "$distro"; then
+        return 1
+    fi
+    if ! run_tests "$distro"; then
+        return 1
+    fi
+    if ! run_interactive_tests "$distro"; then
+        return 1
+    fi
+}
+
+run_distro() {
+    local distro="$1"
+    run_distro_entry "$distro" run_container_phases "$distro"
 }
 
 # ------------------------------------------------------------------------------
@@ -281,6 +303,13 @@ main() {
     detect_runtime
 
     info "Using runtime: ${RUNTIME}"
+
+    # Run interactive tests on the host first (covers macOS ssh-keygen)
+    if command -v tmux >/dev/null 2>&1; then
+        run_distro_entry "host" run_host_interactive
+    else
+        info "tmux not found — skipping host interactive tests (install with: brew install tmux)"
+    fi
 
     if [ -n "$TARGET_DISTRO" ]; then
         # Validate distro name
