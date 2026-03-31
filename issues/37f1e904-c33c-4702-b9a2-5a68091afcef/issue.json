@@ -2,11 +2,12 @@
   "uuid": "37f1e904-c33c-4702-b9a2-5a68091afcef",
   "display_id": 39,
   "title": "Fix e2e.sh distro loop not splitting on spaces",
-  "status": "open",
+  "status": "closed",
   "priority": "high",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-31T16:02:07.983180Z",
-  "updated_at": "2026-03-31T16:02:09.477315Z",
+  "updated_at": "2026-03-31T16:05:23.424992Z",
+  "closed_at": "2026-03-31T16:05:23.424992Z",
   "labels": [
     "fix"
   ]
