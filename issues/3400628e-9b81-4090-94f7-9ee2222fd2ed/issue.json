@@ -1,0 +1,10 @@
+{
+  "uuid": "3400628e-9b81-4090-94f7-9ee2222fd2ed",
+  "display_id": 36,
+  "title": "Fix FIDO2 key generation on macOS and Linux install hints",
+  "status": "open",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T13:45:55.809204Z",
+  "updated_at": "2026-03-31T13:45:55.809204Z"
+}
