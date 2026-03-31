@@ -1,0 +1,397 @@
+# Reasoning: Why Each Default Was Chosen
+
+Every setting `git-harden.sh` audits or applies exists because of a specific attack vector or operational risk. This document explains the trade-off behind each one.
+
+Settings are grouped the same way they appear in the script's audit output.
+
+---
+
+## Identity
+
+### `user.useConfigOnly = true`
+
+**What it does:** Prevents git from falling back to system-level identity (hostname, login name) when `user.name` and `user.email` aren't set in `.gitconfig`.
+
+**Attack/risk mitigated:** Accidental commits as `root@localhost` or `builduser@ci-runner-7` that pollute history with unattributable authorship. Common on fresh VMs, containers, and CI environments.
+
+**What could break:** Commits will fail if you haven't run `git config user.name` and `git config user.email`. This is intentional friction — the first commit on a new machine requires explicit identity setup.
+
+**Why this default:** The cost of one extra setup step is negligible. The cost of unattributable commits in a regulated codebase is an audit finding.
+
+---
+
+## Object Integrity
+
+### `transfer.fsckObjects = true` / `fetch.fsckObjects = true` / `receive.fsckObjects = true`
+
+**What it does:** Forces git to validate the structural integrity and hash consistency of every object (blob, tree, commit, tag) during transfer, fetch, and receive operations. Malformed objects are rejected.
+
+**Attack/risk mitigated:** Malicious or corrupted packfiles that exploit parsing vulnerabilities in the git binary. Historical CVEs include integer overflows in packfile handling and crafted objects that trigger code execution. Also catches silent data corruption from disk/network errors.
+
+**What could break:** Adds ~5-10% overhead to clone and fetch operations on large repositories. Some very old repositories with technically malformed (but benign) objects may fail to clone until the upstream runs `git fsck --full` and fixes them.
+
+**Why this default:** The performance cost is small. The alternative — silently accepting corrupted objects — has no upside.
+
+### `transfer.bundleURI = false`
+
+**What it does:** Disables the bundle URI mechanism, which allows git servers to redirect clients to pre-packaged bundle files for faster initial clones.
+
+**Attack/risk mitigated:** Reduces attack surface. Bundle URIs could redirect clients to attacker-controlled servers serving malicious bundles. The feature is relatively new (Git 2.39+) and not widely audited.
+
+**What could break:** Initial clone performance for repositories hosted behind CDN-backed bundle URIs. GitHub does not currently use this feature for public repositories.
+
+**Why this default:** No measurable benefit for most users. The feature's security properties are still maturing.
+
+### `fetch.prune = true`
+
+**What it does:** Automatically removes local remote-tracking references (e.g., `origin/feature-x`) when the corresponding remote branch has been deleted.
+
+**Attack/risk mitigated:** Stale remote refs can be confusing and misleading. In a security context, a deleted branch that still appears locally may cause a developer to base work on abandoned or reverted code.
+
+**What could break:** Nothing. This matches the behavior of `git fetch --prune`. Pruning only affects remote-tracking refs, not local branches.
+
+**Why this default:** Pure hygiene with zero downside.
+
+---
+
+## Protocol Restrictions
+
+### `protocol.version = 2`
+
+**What it does:** Uses Git wire protocol v2 for client-server communication. Protocol v2 is more efficient (the server doesn't advertise all refs upfront) and has a smaller attack surface.
+
+**Attack/risk mitigated:** Protocol v0/v1 sends the full ref advertisement on every connection, which leaks information about all branches and tags. Protocol v2 uses a capability-based negotiation that only transfers requested data.
+
+**What could break:** Nothing in practice. Protocol v2 has been supported since Git 2.26 (April 2020) and all major hosting platforms support it. The client falls back gracefully if the server doesn't support v2.
+
+**Why this default:** Strictly better. No known compatibility issues with any major git host.
+
+### `protocol.allow = never` (default-deny)
+
+### `protocol.https.allow = always` / `protocol.ssh.allow = always`
+
+### `protocol.file.allow = user` / `protocol.git.allow = never` / `protocol.ext.allow = never`
+
+**What it does:** Implements a default-deny protocol policy. Only HTTPS and SSH are permitted. The `file://` protocol is restricted to user-initiated operations. The unencrypted `git://` protocol and the `ext://` external transport helper are blocked entirely.
+
+**Attack/risk mitigated:**
+- `git://` transmits data unencrypted and unauthenticated — trivial MITM.
+- `ext://` allows arbitrary command execution via transport helpers — this is by design, not a bug, but it's a dangerous capability that submodule URLs can exploit (e.g., CVE-2023-29007).
+- `file://` is restricted because embedded bare repositories in cloned repos can be used for attacks (CVE-2022-39253).
+
+**What could break:** Repositories that use `git://` URLs for remotes (rare — GitHub deprecated `git://` in 2022). The `url.https://.insteadOf` rewrite handles this automatically for HTTP URLs.
+
+**Why this default:** The blocked protocols have no legitimate use case that can't be served by HTTPS or SSH. The risk/benefit ratio is extreme.
+
+---
+
+## Filesystem Protection
+
+### `core.protectNTFS = true` / `core.protectHFS = true`
+
+**What it does:** Blocks path manipulation attacks that exploit NTFS 8.3 short-name aliases (e.g., `GIT~1` resolving to `.git`) and HFS+ Unicode normalization (e.g., `.git` composed differently). Enabled on all platforms, not just Windows/macOS.
+
+**Attack/risk mitigated:** CVE-2019-1352 (NTFS), various HFS+ attacks. A malicious repository can craft filenames that resolve to `.git/hooks/` on case-insensitive or normalizing filesystems, achieving code execution on clone.
+
+**What could break:** Repositories containing filenames that happen to collide with NTFS 8.3 short names (extremely rare outside deliberate attacks).
+
+**Why this default:** Enabled even on Linux because developers may clone repos onto external drives or share via mixed-OS teams.
+
+### `core.fsmonitor = false`
+
+**What it does:** Disables the filesystem monitor integration (fsmonitor, Watchman). This feature speeds up `git status` in large repos by using OS-level file change notifications.
+
+**Attack/risk mitigated:** The fsmonitor hook (`core.fsmonitor--hook-version`) can execute arbitrary commands. A malicious repository could set this in its local config. Disabling it globally prevents this vector.
+
+**What could break:** Performance of `git status` in very large repositories (100k+ files) where fsmonitor provides significant speedups. Developers working on such repos can override this per-repo.
+
+**Why this default:** Most repositories are not large enough to notice the difference. The attack surface is not worth the performance gain for typical use.
+
+### `core.symlinks = false` (interactive-only, skipped in `-y` mode)
+
+**What it does:** Tells git to not create symbolic links in the working tree. Instead, symlinks are stored as plain text files containing the link target path.
+
+**Attack/risk mitigated:** CVE-2024-32002 — repositories with crafted submodules could trick git into writing files outside the repository via symlink following during clone, achieving remote code execution on Windows and macOS.
+
+**What could break:** Any project that relies on symlinks: Node.js monorepos (`node_modules/.bin/`), shared configuration files, many build systems. This is the most likely setting to cause real workflow breakage.
+
+**Why this default:** **Not applied in `-y` mode** specifically because of breakage risk. In interactive mode, the user is asked with a clear warning. We already mitigate the primary CVE via `submodule.recurse = false`, so this is defense-in-depth, not the only protection.
+
+---
+
+## Hook Control
+
+### `core.hooksPath = ~/.config/git/hooks`
+
+**What it does:** Redirects git hook execution from each repository's `.git/hooks/` directory to a centralized, user-controlled directory.
+
+**Attack/risk mitigated:** Malicious repositories can include hooks (e.g., `pre-commit`, `post-checkout`) that execute on clone, commit, or checkout. By redirecting to a user-managed directory, repo-local hooks are ignored unless explicitly installed.
+
+**What could break:** Project-specific hooks defined in `.git/hooks/` or installed by frameworks like `husky`, `lefthook`, or `pre-commit`. Teams using these must either: (a) install their hooks into the global hooks directory, or (b) override `core.hooksPath` per-repo via `git config --local`.
+
+**Why this default:** The attack is trivial to execute and devastating (arbitrary code execution). Teams that need repo-local hooks can override per-repo.
+
+---
+
+## Pre-commit Hook (gitleaks)
+
+### Gitleaks pre-commit hook installation
+
+**What it does:** Installs a pre-commit hook at `~/.config/git/hooks/pre-commit` that runs `gitleaks protect --staged` before every commit, scanning the staged diff for secrets (API keys, passwords, private keys, etc.).
+
+**Attack/risk mitigated:** Secret leakage — the single most exploited vulnerability class in git. GitGuardian's 2026 report found 29 million new secrets on public GitHub in 2025. Median time-to-discovery by attackers: 20 seconds.
+
+**What could break:** False positives on test fixtures or example credentials may require bypassing with `SKIP_GITLEAKS=1 git commit`. Adds ~1-2 seconds to each commit.
+
+**Why this default:** Both research reports rank pre-commit secret scanning as the #1 workstation-level defense. The hook is safe without gitleaks installed (guards with `command -v`). The `SKIP_GITLEAKS` bypass avoids the need for `--no-verify` which skips ALL hooks.
+
+---
+
+## Repository Safety
+
+### `safe.bareRepository = explicit`
+
+**What it does:** Requires `--git-dir` to be explicitly specified when working with bare repositories. Prevents git from automatically detecting bare repositories in the current directory tree.
+
+**Attack/risk mitigated:** An attacker who can write to a shared filesystem (e.g., `/tmp`, network drives) can plant a bare `.git` directory that git will auto-detect, allowing them to influence git operations of other users in that directory.
+
+**What could break:** Scripts or workflows that `cd` into bare repositories without specifying `--git-dir`. Server-side hooks on self-hosted git servers may need adjustment.
+
+**Why this default:** Bare repository auto-detection in untrusted directories is a documented attack vector. Most developers never interact with bare repos directly.
+
+### `submodule.recurse = false`
+
+**What it does:** Prevents git from automatically initializing and updating submodules during clone, checkout, and pull operations.
+
+**Attack/risk mitigated:** CVE-2024-32002 (clone-time RCE via crafted submodules), CVE-2023-29007 (config injection via overlong submodule URLs), and the general risk of pulling untrusted code automatically. Submodules are the primary vector for filesystem-based git attacks.
+
+**What could break:** Projects using submodules require manual `git submodule update --init`. This is a one-time setup cost per clone.
+
+**Why this default:** Submodule auto-recursion is the enabler for multiple critical CVEs. Explicit initialization is a small price for eliminating an entire attack class.
+
+### `safe.directory = *` detection and removal
+
+**What it does:** Detects and offers to remove the `safe.directory = *` wildcard, which completely disables git's directory ownership safety check.
+
+**Attack/risk mitigated:** CVE-2022-24765 — on shared systems, any user can plant a `.git` directory in a location another user will `cd` into, achieving arbitrary config injection and potentially code execution via hooks.
+
+**What could break:** Removing the wildcard may surface ownership errors for repositories on network drives or external media. These should be added individually: `safe.directory = /path/to/specific/repo`.
+
+**Why this default:** The wildcard is always wrong. It exists because people encounter the ownership error and google a quick fix without understanding what they're disabling.
+
+---
+
+## Pull/Merge Hardening
+
+### `pull.ff = only` / `merge.ff = only`
+
+**What it does:** Refuses non-fast-forward merges and pulls. If the remote branch has diverged, git will error instead of creating a merge commit or silently rebasing.
+
+**Attack/risk mitigated:** Force-pushed branches (rewritten history) are surfaced as errors rather than silently merged. This makes history rewriting attacks visible — the developer must explicitly decide how to handle the divergence.
+
+**What could break:** Workflows that routinely use merge commits will need to switch to `git pull --rebase` or `git merge --no-ff` explicitly. Some teams prefer merge commits for feature branch integration.
+
+**Why this default:** Silent non-fast-forward merges hide potentially dangerous history rewrites. Making divergence explicit is strictly safer. Teams that want merge commits can override per-repo.
+
+---
+
+## Transport Security
+
+### `url."https://".insteadOf = http://`
+
+**What it does:** Automatically rewrites any `http://` remote URL to `https://`, ensuring all HTTP-based git operations use TLS encryption.
+
+**Attack/risk mitigated:** Plaintext HTTP transmits credentials and code in the clear, enabling trivial MITM attacks on any network between the developer and the git server.
+
+**What could break:** Repositories hosted on servers that genuinely only support HTTP (no TLS). This is increasingly rare and is itself a security concern.
+
+**Why this default:** There is no legitimate reason to use unencrypted HTTP for git operations in 2026.
+
+### `http.sslVerify = true`
+
+**What it does:** Enforces TLS certificate verification for all HTTPS git operations. This is git's default, but the script audits it because `http.sslVerify = false` is a common "quick fix" that people forget to undo.
+
+**Attack/risk mitigated:** Disabling SSL verification allows MITM attacks even over HTTPS — the attacker presents any certificate and git accepts it.
+
+**What could break:** Self-signed certificates on internal git servers. The proper fix is to add the CA certificate to git's trust store (`http.sslCAInfo`), not to disable verification globally.
+
+**Why this default:** Ensuring the default hasn't been overridden. This is a safety net, not a new restriction.
+
+---
+
+## Credential Storage
+
+### Platform-specific credential helper (`osxkeychain` / `libsecret`)
+
+**What it does:** Configures git to store credentials in the OS keychain (macOS Keychain, Linux libsecret/GNOME Keyring) instead of plaintext files.
+
+**Attack/risk mitigated:** `git-credential-store` writes passwords to `~/.git-credentials` in plaintext. Modern infostealer malware specifically targets this file. OS keychains encrypt at rest and require authentication to access.
+
+**What could break:** Nothing. Credential helpers are transparent to git operations. The only friction is initial keychain authentication on first use.
+
+**Why this default:** Plaintext credential storage is the #1 workstation-level credential theft vector according to both research reports.
+
+---
+
+## Credential Hygiene (audit-only)
+
+### Plaintext file detection (`~/.git-credentials`, `~/.netrc`, `~/.npmrc`, `~/.pypirc`)
+
+**What it does:** Warns if plaintext credential files exist on the filesystem. Does not modify or delete them.
+
+**Attack/risk mitigated:** These files are primary targets for infostealer malware and are trivially readable by any process running as the user.
+
+**What could break:** Nothing — audit only.
+
+**Why audit-only:** Deleting credential files could lock the user out of services. The script warns and lets the user decide.
+
+---
+
+## Global Gitignore
+
+### `core.excludesFile = ~/.config/git/ignore`
+
+**What it does:** Creates a global gitignore with patterns for common secret files (`.env`, `*.pem`, `*.key`, `credentials.json`), Terraform state (`*.tfstate`), and OS/IDE artifacts.
+
+**Attack/risk mitigated:** Accidental commits of secrets and credentials. No amount of scanning catches what was never tracked in the first place.
+
+**What could break:** Nothing — `.gitignore` only affects untracked files. Files already tracked are unaffected. The `!.env.example` negation allows committing example env files.
+
+**Why this default:** A global gitignore is the simplest possible defense against the most common category of git security incidents.
+
+---
+
+## Defaults
+
+### `init.defaultBranch = main`
+
+**What it does:** Sets the default branch name for new repositories to `main` instead of `master`.
+
+**Attack/risk mitigated:** None directly. This is an industry standardization that reduces confusion and aligns with GitHub's default (changed in October 2020).
+
+**What could break:** Scripts that hardcode `master`. These should be updated regardless.
+
+**Why this default:** Consistency with the ecosystem. Every major git hosting platform now defaults to `main`.
+
+---
+
+## Forensic Readiness
+
+### `gc.reflogExpire = 180.days` / `gc.reflogExpireUnreachable = 90.days`
+
+**What it does:** Extends git's reflog retention from the defaults (90 days reachable / 30 days unreachable) to 180/90 days. The reflog records every HEAD movement — commits, checkouts, resets, rebases.
+
+**Attack/risk mitigated:** In a post-compromise investigation, the reflog is the primary tool for reconstructing what happened. Extended retention gives incident responders more time to discover and investigate force-push attacks, unauthorized commits, and branch manipulation.
+
+**What could break:** Slightly more disk usage from retained reflog entries. The impact is negligible — reflogs are small text records.
+
+**Why this default:** The Claude research report specifically recommends this for forensic readiness. The disk cost is trivial compared to the investigative value.
+
+---
+
+## Visibility
+
+### `log.showSignature = true`
+
+**What it does:** Shows GPG/SSH signature verification status in `git log` output by default.
+
+**Attack/risk mitigated:** Makes unsigned or invalid signatures visible in normal workflow. Without this, developers must remember to use `git log --show-signature` to check.
+
+**What could break:** Log output is slightly more verbose. Some terminal environments may not render the verification status cleanly.
+
+**Why this default:** Signature verification is only useful if people see the results. Making it visible by default closes the gap between "we sign commits" and "we verify signatures."
+
+---
+
+## Signing Configuration
+
+### `gpg.format = ssh`
+
+**What it does:** Uses SSH keys (instead of GPG) for commit and tag signing.
+
+**Attack/risk mitigated:** Same as GPG signing — proves key possession at commit time, preventing commit author impersonation (the PHP git server compromise of 2021 is the canonical example).
+
+**Why SSH over GPG:** SSH keys are already managed by every developer. GPG requires a separate keyring, key server interaction, and has a notoriously steep learning curve. SSH signing (available since Git 2.34) provides equivalent cryptographic guarantees with dramatically less operational friction.
+
+**Trade-off:** GPG has native support for key expiration and revocation. SSH signing on GitHub lacks automatic expiration — a compromised SSH key's signatures remain "Verified" even after the key is removed from the account. For high-security environments, GPG may be preferable despite the friction.
+
+### `commit.gpgsign = true` / `tag.gpgsign = true` / `tag.forceSignAnnotated = true`
+
+**What it does:** Automatically signs all commits and tags with the configured signing key.
+
+**Attack/risk mitigated:** Without signing, anyone who can push to a repository can impersonate any other developer by setting `user.name` and `user.email` to their values. Signed commits prove the private key holder created the commit.
+
+**What could break:** Commits will fail if no signing key is configured. The script only enables these settings when a key is available.
+
+**Why this default:** Commit signing is an accountability control. In the PHP compromise, malicious commits were attributed to Rasmus Lerdorf and Nikita Popov — signing would have immediately flagged them as forgeries.
+
+### `gpg.ssh.allowedSignersFile = ~/.config/git/allowed_signers`
+
+**What it does:** Points git to a local file mapping email addresses to their authorized public keys, enabling local signature verification without a network round-trip.
+
+**What could break:** Nothing — the file is additive. Without it, local verification simply doesn't work (signatures are only verified on the hosting platform).
+
+---
+
+## SSH Configuration
+
+### `StrictHostKeyChecking = accept-new`
+
+**What it does:** Automatically accepts host keys on first connection (TOFU — Trust On First Use) but rejects changed keys on subsequent connections.
+
+**Trade-off:** `ask` (the default) prompts on every new host — most users blindly type "yes" without verifying the fingerprint, providing no real security benefit. `no` accepts anything, including MITM attacks. `accept-new` is the pragmatic middle ground: it stops the prompt fatigue while still detecting host key changes (the actual attack scenario).
+
+### `HashKnownHosts = yes`
+
+**What it does:** Stores host entries in `~/.ssh/known_hosts` as hashed values instead of plaintext hostnames.
+
+**Attack/risk mitigated:** If the known_hosts file is exfiltrated, the attacker cannot enumerate which servers the developer connects to. Hashing makes the file useless for reconnaissance.
+
+**What could break:** Manual inspection of `known_hosts` becomes impossible. `ssh-keygen -F hostname` still works for lookups.
+
+### `IdentitiesOnly = yes`
+
+**What it does:** Only offers SSH keys explicitly configured in `~/.ssh/config` (via `IdentityFile`) or specified on the command line. Without this, ssh-agent offers ALL loaded keys to every server.
+
+**Attack/risk mitigated:** A malicious SSH server can enumerate which keys a client holds by observing which public keys are offered during authentication. With many keys loaded, this leaks information about which services the developer has access to.
+
+**What could break:** Connections that rely on ssh-agent offering the right key automatically will need explicit `IdentityFile` entries in `~/.ssh/config`. This is good practice regardless.
+
+### `AddKeysToAgent = yes`
+
+**What it does:** Automatically adds keys to the SSH agent after first use, so the passphrase is only entered once per session.
+
+**Why this default:** Reduces friction for passphrase-protected keys. Without this, developers either skip passphrases entirely (worse security) or get frustrated re-entering them (leads to workarounds).
+
+### `PubkeyAcceptedAlgorithms = ssh-ed25519,sk-ssh-ed25519@openssh.com,...`
+
+**What it does:** Restricts which public key algorithms the SSH client will offer and accept. Limited to ed25519, ed25519-sk (FIDO2), and ECDSA NIST P-256 variants (including sk).
+
+**Attack/risk mitigated:** Prevents negotiation down to weak algorithms (DSA, RSA with SHA-1). Forces modern cryptography.
+
+**What could break:** Connections to legacy servers that only support RSA. These servers should be upgraded; RSA-SHA1 is deprecated by OpenSSH since version 8.7.
+
+**Why these algorithms:** Ed25519 is the recommended default (fast, small keys, no parameter pitfalls). ECDSA P-256 is included because some FIDO2 hardware keys only support it. RSA is excluded because accepting it creates a fallback path to weaker cryptography.
+
+---
+
+## SSH Key Hygiene (audit-only)
+
+### Weak key detection (DSA, ECDSA, short RSA)
+
+**What it does:** Scans `~/.ssh/*.pub` and keys referenced in `~/.ssh/config` for deprecated or weak key types.
+
+**Why audit-only:** Key migration requires generating new keys, updating authorized_keys on all servers, and reconfiguring services. This is too impactful to automate.
+
+---
+
+## Admin Recommendations (informational only)
+
+These settings require server/org-level access and cannot be applied by a workstation tool:
+
+- **Branch protection rules** — prevent direct pushes to main
+- **Vigilant mode** — flag unsigned commits visibly on the hosting platform
+- **Force-push restrictions** — prevent history rewriting on protected branches
+- **Fine-grained, short-lived tokens** — reduce blast radius of token compromise
+- **Signed commit requirements** — enforce signing at the server level
+- **Separate signing keys per org** — prevent cross-platform identity correlation (OSINT)
