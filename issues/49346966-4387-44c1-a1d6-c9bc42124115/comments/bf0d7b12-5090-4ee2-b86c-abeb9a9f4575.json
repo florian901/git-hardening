@@ -1,0 +1,8 @@
+{
+  "uuid": "bf0d7b12-5090-4ee2-b86c-abeb9a9f4575",
+  "issue_uuid": "49346966-4387-44c1-a1d6-c9bc42124115",
+  "author": "anon-31e9bd66",
+  "content": "Create docs/REASONING.md covering every setting the script audits/applies. For each: what it does, what attack it mitigates, what breaks if you enable it, and why we chose this default. Source from the research reports and the spec.",
+  "created_at": "2026-03-31T17:52:11.538267Z",
+  "kind": "plan"
+}
