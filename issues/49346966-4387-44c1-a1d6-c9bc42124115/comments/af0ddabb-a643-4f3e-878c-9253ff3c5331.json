@@ -1,0 +1,8 @@
+{
+  "uuid": "af0ddabb-a643-4f3e-878c-9253ff3c5331",
+  "issue_uuid": "49346966-4387-44c1-a1d6-c9bc42124115",
+  "author": "anon-31e9bd66",
+  "content": "Created docs/REASONING.md covering all settings: identity, object integrity, protocols, filesystem, hooks, pre-commit, repo safety, pull/merge, transport, credentials, gitignore, defaults, forensics, visibility, signing, SSH config, key hygiene, and admin recommendations. Each entry covers what/why/what-breaks/trade-off.",
+  "created_at": "2026-03-31T17:59:30.606495Z",
+  "kind": "result"
+}
