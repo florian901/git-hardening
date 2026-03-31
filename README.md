@@ -142,14 +142,30 @@ The script prints (but does not apply) server/org-level recommendations:
 ## Running Tests
 
 ```bash
-# Run the BATS test suite (90 tests)
+# Init test framework submodules (first time only)
+git submodule update --init --recursive
+
+# Unit tests (BATS) — runs in isolated $HOME, never touches real config
 ./test/run.sh
 
-# Requires bats-core submodules — init them if needed
-git submodule update --init --recursive
+# Interactive tests (tmux) — tests the full interactive flow on macOS/Linux
+./test/run-interactive.sh
+
+# Full e2e matrix — containers + interactive tests across distros
+# Requires docker or podman
+./test/e2e.sh                                    # All distros + host
+./test/e2e.sh --skip-host ubuntu                 # Single distro, skip host
+./test/e2e.sh --runtime podman --skip-host       # All distros via podman
+./test/e2e.sh --rebuild alpine                   # Force image rebuild
 ```
 
-Tests run in an isolated `$HOME` (via `mktemp`) and never touch your real git or SSH config.
+| Test tier | What it covers | Requirements |
+|-----------|---------------|--------------|
+| `test/run.sh` | 92 BATS unit tests — config audit, apply, signing, key detection | `bats-core` submodule |
+| `test/run-interactive.sh` | 4 tmux-driven tests — full accept, safety gate, signing wizard | `tmux` |
+| `test/e2e.sh` | Container matrix (Ubuntu, Debian, Fedora, Alpine, Arch) + host interactive | `docker` or `podman` |
+
+All tests run in isolated environments and never modify your real git or SSH configuration.
 
 ## License
 
