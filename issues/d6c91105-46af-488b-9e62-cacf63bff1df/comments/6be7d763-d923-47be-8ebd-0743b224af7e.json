@@ -1,0 +1,8 @@
+{
+  "uuid": "6be7d763-d923-47be-8ebd-0743b224af7e",
+  "issue_uuid": "d6c91105-46af-488b-9e62-cacf63bff1df",
+  "author": "anon-31e9bd66",
+  "content": "Implemented audit_global_gitignore and apply_global_gitignore. Audit checks core.excludesFile config and scans for security patterns. Apply creates ~/.config/git/ignore with security-focused patterns.",
+  "created_at": "2026-03-31T10:44:07.989372Z",
+  "kind": "result"
+}
