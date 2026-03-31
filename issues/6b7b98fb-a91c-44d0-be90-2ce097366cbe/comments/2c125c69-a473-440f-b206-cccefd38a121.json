@@ -1,0 +1,8 @@
+{
+  "uuid": "2c125c69-a473-440f-b206-cccefd38a121",
+  "issue_uuid": "6b7b98fb-a91c-44d0-be90-2ce097366cbe",
+  "author": "anon-31e9bd66",
+  "content": "Implemented audit_ssh_key_hygiene. Scans ~/.ssh/*.pub plus IdentityFile directives from ~/.ssh/config. Classifies ed25519/ed25519-sk as OK, RSA by bit length, DSA/ECDSA as warnings. Audit-only.",
+  "created_at": "2026-03-31T10:44:20.554741Z",
+  "kind": "result"
+}
