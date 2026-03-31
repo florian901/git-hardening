@@ -16,6 +16,12 @@ main() {
 
     printf 'Test: Signing wizard - skip\n' >&2
 
+    # Remove any keys from prior tests so wizard shows key generation options
+    rm -f "${HOME}/.ssh/id_ed25519" "${HOME}/.ssh/id_ed25519.pub"
+    rm -f "${HOME}/.ssh/id_ed25519_sk" "${HOME}/.ssh/id_ed25519_sk.pub"
+    git config --global --unset user.signingkey 2>/dev/null || true
+    git config --global --unset commit.gpgsign 2>/dev/null || true
+
     start_session
 
     # Safety review gate
@@ -26,9 +32,9 @@ main() {
     wait_for "Proceed with hardening"
     send "y" Enter
 
-    # Accept settings until signing wizard
+    # Accept settings until signing wizard (v0.2.0 adds more prompts)
     local pane_content
-    for _ in $(seq 1 30); do
+    for _ in $(seq 1 50); do
         sleep 0.3
         pane_content="$(tmux capture-pane -t "$TMUX_SESSION" -p 2>/dev/null || true)"
         if printf '%s' "$pane_content" | grep -qF "Signing key options"; then
@@ -41,7 +47,7 @@ main() {
     done
 
     # Signing wizard — skip
-    wait_for "Signing key options" 15
+    wait_for "Signing key options" 20
     send "s" Enter
 
     # Wait for completion

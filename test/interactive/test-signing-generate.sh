@@ -29,9 +29,9 @@ main() {
     wait_for "Proceed with hardening"
     send "y" Enter
 
-    # Accept settings until signing wizard
+    # Accept settings until signing wizard (v0.2.0 adds more prompts)
     local pane_content
-    for _ in $(seq 1 30); do
+    for _ in $(seq 1 50); do
         sleep 0.3
         pane_content="$(tmux capture-pane -t "$TMUX_SESSION" -p 2>/dev/null || true)"
         if printf '%s' "$pane_content" | grep -qF "Signing key options"; then
@@ -44,7 +44,7 @@ main() {
     done
 
     # Signing wizard — option 1: generate ed25519
-    wait_for "Signing key options" 15
+    wait_for "Signing key options" 20
     send "1" Enter
 
     # ssh-keygen prompts for passphrase — enter empty twice
@@ -52,6 +52,10 @@ main() {
     send "" Enter
     wait_for "Enter same passphrase" 10
     send "" Enter
+
+    # Signing wizard asks "Enable commit and tag signing?" — accept
+    wait_for "Enable commit and tag signing" 10
+    send "y" Enter
 
     # Wait for completion
     sleep 3

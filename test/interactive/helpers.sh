@@ -6,7 +6,7 @@ set -o nounset
 set -o pipefail
 IFS=$'\n\t'
 
-readonly TMUX_SESSION="test"
+TMUX_SESSION="test-$$"
 readonly SCRIPT_PATH="${HOME}/git-harden.sh"
 
 # Colors
@@ -43,10 +43,24 @@ send() {
     tmux send-keys -t "$TMUX_SESSION" "$@"
 }
 
-# Start git-harden.sh in a tmux session
+# Start git-harden.sh in a tmux session.
+# Explicitly pass HOME and GIT_CONFIG_GLOBAL — tmux spawns a login shell
+# which resets HOME from the passwd entry, breaking the isolated test env.
 start_session() {
     tmux kill-session -t "$TMUX_SESSION" 2>/dev/null || true
-    tmux new-session -d -s "$TMUX_SESSION" "bash ${SCRIPT_PATH}"
+    sleep 0.5
+    tmux new-session -d -s "$TMUX_SESSION" \
+        "export HOME='${HOME}'; export GIT_CONFIG_GLOBAL='${GIT_CONFIG_GLOBAL:-}'; bash '${SCRIPT_PATH}'"
+    # Keep the pane alive after the script exits so capture_output can read it
+    tmux set-option -t "$TMUX_SESSION" remain-on-exit on
+    sleep 0.5
+    # Verify session started
+    if ! tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
+        printf 'ERROR: tmux session "%s" failed to start\n' "$TMUX_SESSION" >&2
+        printf 'SCRIPT_PATH=%s\n' "$SCRIPT_PATH" >&2
+        printf 'HOME=%s\n' "$HOME" >&2
+        return 1
+    fi
 }
 
 # Wait for the script to exit and capture final output

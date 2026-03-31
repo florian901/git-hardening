@@ -10,10 +10,11 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.1.0"
+readonly VERSION="0.2.0"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
+readonly GLOBAL_GITIGNORE="${HOME}/.config/git/ignore"
 readonly SSH_DIR="${HOME}/.ssh"
 readonly SSH_CONFIG="${SSH_DIR}/config"
 
@@ -307,12 +308,18 @@ audit_git_setting() {
 }
 
 audit_git_config() {
+    print_header "Identity"
+    audit_git_setting "user.useConfigOnly" "true"
+
     print_header "Object Integrity"
     audit_git_setting "transfer.fsckObjects" "true"
     audit_git_setting "fetch.fsckObjects" "true"
     audit_git_setting "receive.fsckObjects" "true"
+    audit_git_setting "transfer.bundleURI" "false"
+    audit_git_setting "fetch.prune" "true"
 
     print_header "Protocol Restrictions"
+    audit_git_setting "protocol.version" "2"
     audit_git_setting "protocol.allow" "never"
     audit_git_setting "protocol.https.allow" "always"
     audit_git_setting "protocol.ssh.allow" "always"
@@ -324,6 +331,7 @@ audit_git_config() {
     audit_git_setting "core.protectNTFS" "true"
     audit_git_setting "core.protectHFS" "true"
     audit_git_setting "core.fsmonitor" "false"
+    audit_git_setting "core.symlinks" "false"
 
     print_header "Hook Control"
     # shellcheck disable=SC2088 # Intentional: git config stores literal ~
@@ -332,6 +340,13 @@ audit_git_config() {
     print_header "Repository Safety"
     audit_git_setting "safe.bareRepository" "explicit"
     audit_git_setting "submodule.recurse" "false"
+
+    # Detect dangerous safe.directory = * wildcard (CVE-2022-24765)
+    local safe_dirs
+    safe_dirs="$(git config --global --get-all safe.directory 2>/dev/null || true)"
+    if printf '%s\n' "$safe_dirs" | grep -qx '\*'; then
+        print_warn "safe.directory = * disables ownership checks (CVE-2022-24765). Remove this setting."
+    fi
 
     print_header "Pull/Merge Hardening"
     audit_git_setting "pull.ff" "only"
@@ -372,8 +387,179 @@ audit_git_config() {
         print_warn "credential.helper = $cred_current (expected: $DETECTED_CRED_HELPER)"
     fi
 
+    print_header "Defaults"
+    audit_git_setting "init.defaultBranch" "main"
+
+    print_header "Forensic Readiness"
+    audit_git_setting "gc.reflogExpire" "180.days"
+    audit_git_setting "gc.reflogExpireUnreachable" "90.days"
+
     print_header "Visibility"
     audit_git_setting "log.showSignature" "true"
+}
+
+audit_precommit_hook() {
+    print_header "Pre-commit Hook"
+
+    local hook_path="${HOOKS_DIR}/pre-commit"
+
+    if [ ! -f "$hook_path" ]; then
+        print_miss "No pre-commit hook at $hook_path"
+        return
+    fi
+
+    if [ ! -x "$hook_path" ]; then
+        print_warn "Pre-commit hook exists but is not executable: $hook_path"
+        return
+    fi
+
+    if grep -q 'gitleaks' "$hook_path" 2>/dev/null; then
+        print_ok "Pre-commit hook with gitleaks at $hook_path"
+    else
+        print_warn "Pre-commit hook exists but does not reference gitleaks (user-managed)"
+    fi
+}
+
+audit_global_gitignore() {
+    print_header "Global Gitignore"
+
+    local excludes_file
+    excludes_file="$(git config --global --get core.excludesFile 2>/dev/null || true)"
+
+    if [ -z "$excludes_file" ]; then
+        print_miss "core.excludesFile (no global gitignore configured)"
+        return
+    fi
+
+    # Expand tilde
+    local expanded_path
+    expanded_path="${excludes_file/#\~/$HOME}"
+
+    if [ ! -f "$expanded_path" ]; then
+        print_warn "core.excludesFile = $excludes_file (file does not exist)"
+        return
+    fi
+
+    # Check for key security patterns
+    local has_security_patterns=false
+    if grep -q '\.env' "$expanded_path" 2>/dev/null && \
+       grep -q '\*\.pem' "$expanded_path" 2>/dev/null; then
+        has_security_patterns=true
+    fi
+
+    if [ "$has_security_patterns" = true ]; then
+        print_ok "core.excludesFile = $excludes_file (contains security patterns)"
+    else
+        print_warn "core.excludesFile = $excludes_file (lacks secret patterns: .env, *.pem, *.key — consider adding them)"
+    fi
+}
+
+audit_credential_hygiene() {
+    print_header "Credential Hygiene"
+
+    # shellcheck disable=SC2088 # Intentional: ~ used as display text
+    # ~/.git-credentials — plaintext git passwords
+    if [ -f "${HOME}/.git-credentials" ]; then
+        print_warn "~/.git-credentials exists (plaintext git credentials — migrate to credential helper and delete this file)"
+    fi
+
+    # shellcheck disable=SC2088 # Intentional: ~ used as display text
+    # ~/.netrc — plaintext network credentials
+    if [ -f "${HOME}/.netrc" ]; then
+        print_warn "~/.netrc exists (plaintext network credentials — may contain git hosting tokens)"
+    fi
+
+    # ~/.npmrc — check for actual auth tokens
+    if [ -f "${HOME}/.npmrc" ]; then
+        if grep -qE '_authToken=.+' "${HOME}/.npmrc" 2>/dev/null; then
+            # shellcheck disable=SC2088 # Intentional: ~ used as display text
+            print_warn "~/.npmrc contains auth token (plaintext npm registry token — use env vars instead)"
+        fi
+    fi
+
+    # ~/.pypirc — check for password field
+    if [ -f "${HOME}/.pypirc" ]; then
+        if grep -qE '^[[:space:]]*password' "${HOME}/.pypirc" 2>/dev/null; then
+            # shellcheck disable=SC2088 # Intentional: ~ used as display text
+            print_warn "~/.pypirc contains password (plaintext PyPI credentials — use keyring or token-based auth)"
+        fi
+    fi
+}
+
+audit_ssh_key_hygiene() {
+    print_header "SSH Key Hygiene"
+
+    local pub_files=()
+    local seen_files=""
+
+    # Collect ~/.ssh/*.pub files
+    local f
+    for f in "${SSH_DIR}"/*.pub; do
+        [ -f "$f" ] || continue
+        pub_files+=("$f")
+        seen_files="${seen_files}|${f}"
+    done
+
+    # Also collect keys from IdentityFile directives in ~/.ssh/config
+    if [ -f "$SSH_CONFIG" ]; then
+        local identity_path
+        while IFS= read -r identity_path; do
+            identity_path="$(strip_ssh_value "$identity_path")"
+            [ -z "$identity_path" ] && continue
+            identity_path="${identity_path/#\~/$HOME}"
+            local pub_path="${identity_path}.pub"
+            if [ -f "$pub_path" ]; then
+                # Skip if already seen
+                case "$seen_files" in
+                    *"|${pub_path}"*) continue ;;
+                esac
+                pub_files+=("$pub_path")
+                seen_files="${seen_files}|${pub_path}"
+            fi
+        done <<EOF
+$(grep -i '^[[:space:]]*IdentityFile[[:space:]=]' "$SSH_CONFIG" 2>/dev/null | sed 's/^[[:space:]]*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee][[:space:]=]*//')
+EOF
+    fi
+
+    if [ ${#pub_files[@]} -eq 0 ]; then
+        print_info "No SSH public keys found"
+        return
+    fi
+
+    local key_type bits label
+    for f in "${pub_files[@]}"; do
+        key_type="$(awk '{print $1}' "$f" 2>/dev/null || true)"
+        label="$(basename "$f")"
+
+        case "$key_type" in
+            ssh-ed25519)
+                print_ok "SSH key $label (ed25519)"
+                ;;
+            sk-ssh-ed25519@openssh.com|sk-ssh-ed25519*)
+                print_ok "SSH key $label (ed25519-sk, hardware-backed)"
+                ;;
+            sk-ecdsa-sha2-nistp256@openssh.com|sk-ecdsa-sha2*)
+                print_ok "SSH key $label (ecdsa-sk, hardware-backed)"
+                ;;
+            ssh-rsa)
+                bits="$(ssh-keygen -l -f "$f" 2>/dev/null | awk '{print $1}' || true)"
+                if [ -n "$bits" ] && [ "$bits" -lt 2048 ] 2>/dev/null; then
+                    print_warn "SSH key $label (RSA ${bits}-bit — weak, migrate to ed25519 immediately)"
+                else
+                    print_warn "SSH key $label (RSA ${bits:-?}-bit — consider migrating to ed25519)"
+                fi
+                ;;
+            ssh-dss)
+                print_warn "SSH key $label (DSA — deprecated, migrate to ed25519)"
+                ;;
+            ecdsa-sha2-*)
+                print_warn "SSH key $label (ECDSA — consider migrating to ed25519)"
+                ;;
+            *)
+                print_info "SSH key $label (unknown type: $key_type)"
+                ;;
+        esac
+    done
 }
 
 audit_signing() {
@@ -417,7 +603,7 @@ audit_ssh_directive() {
     local expected="$2"
 
     local current
-    current="$(grep -i "^[[:space:]]*${directive}[[:space:]]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^ ]*[[:space:]]*//' || true)"
+    current="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
     current="$(strip_ssh_value "$current")"
 
     if [ -z "$current" ]; then
@@ -511,12 +697,18 @@ apply_git_setting() {
 apply_git_config() {
     print_header "Applying Git Config Hardening"
 
+    # Identity
+    apply_git_setting "user.useConfigOnly" "true"
+
     # Object integrity
     apply_git_setting "transfer.fsckObjects" "true"
     apply_git_setting "fetch.fsckObjects" "true"
     apply_git_setting "receive.fsckObjects" "true"
+    apply_git_setting "transfer.bundleURI" "false"
+    apply_git_setting "fetch.prune" "true"
 
     # Protocol restrictions
+    apply_git_setting "protocol.version" "2"
     apply_git_setting "protocol.allow" "never"
     apply_git_setting "protocol.https.allow" "always"
     apply_git_setting "protocol.ssh.allow" "always"
@@ -529,6 +721,18 @@ apply_git_config() {
     apply_git_setting "core.protectHFS" "true"
     apply_git_setting "core.fsmonitor" "false"
 
+    # core.symlinks: interactive-only (may break symlink-dependent workflows)
+    if [ "$AUTO_YES" = false ]; then
+        local current_symlinks
+        current_symlinks="$(git config --global --get core.symlinks 2>/dev/null || true)"
+        if [ "$current_symlinks" != "false" ]; then
+            if prompt_yn "Disable symlinks to prevent symlink-based attacks (CVE-2024-32002)? Note: may break projects that use symlinks (e.g. Node.js monorepos)."; then
+                git config --global core.symlinks false
+                print_info "Set core.symlinks = false"
+            fi
+        fi
+    fi
+
     # Hook control
     mkdir -p "$HOOKS_DIR"
     # shellcheck disable=SC2088 # Intentional: git config stores literal ~
@@ -537,6 +741,17 @@ apply_git_config() {
     # Repository safety
     apply_git_setting "safe.bareRepository" "explicit"
     apply_git_setting "submodule.recurse" "false"
+
+    # Remove dangerous safe.directory = * wildcard if present
+    local safe_dirs
+    safe_dirs="$(git config --global --get-all safe.directory 2>/dev/null || true)"
+    if printf '%s\n' "$safe_dirs" | grep -qx '\*'; then
+        if prompt_yn "Remove dangerous safe.directory = * (disables ownership checks, CVE-2022-24765)?"; then
+            git config --global --unset 'safe.directory' '\*' 2>/dev/null || \
+                git config --global --unset-all 'safe.directory' '\*' 2>/dev/null || true
+            print_info "Removed safe.directory = *"
+        fi
+    fi
 
     # Pull/merge hardening
     apply_git_setting "pull.ff" "only"
@@ -568,8 +783,130 @@ apply_git_config() {
         fi
     fi
 
+    # Defaults
+    apply_git_setting "init.defaultBranch" "main"
+
+    # Forensic readiness
+    apply_git_setting "gc.reflogExpire" "180.days"
+    apply_git_setting "gc.reflogExpireUnreachable" "90.days"
+
     # Visibility
     apply_git_setting "log.showSignature" "true"
+}
+
+apply_precommit_hook() {
+    print_header "Pre-commit Hook (gitleaks)"
+
+    local hook_path="${HOOKS_DIR}/pre-commit"
+
+    # Never overwrite existing hooks
+    if [ -f "$hook_path" ]; then
+        if grep -q 'gitleaks' "$hook_path" 2>/dev/null; then
+            return
+        fi
+        print_info "Existing pre-commit hook found — not overwriting"
+        return
+    fi
+
+    # Check for gitleaks
+    local has_gitleaks=false
+    if command -v gitleaks >/dev/null 2>&1; then
+        has_gitleaks=true
+    fi
+
+    if [ "$has_gitleaks" = false ]; then
+        print_warn "gitleaks not found — install it for pre-commit secret scanning:"
+        printf '    macOS:  brew install gitleaks\n' >&2
+        printf '    Linux:  brew install gitleaks (or download from GitHub releases)\n' >&2
+    fi
+
+    if prompt_yn "Install gitleaks pre-commit hook at $hook_path?"; then
+        mkdir -p "$HOOKS_DIR"
+        cat > "$hook_path" << 'HOOK_EOF'
+#!/usr/bin/env bash
+# Installed by git-harden.sh — global pre-commit secret scanning
+# To bypass for a single commit: SKIP_GITLEAKS=1 git commit
+set -o errexit
+set -o nounset
+set -o pipefail
+
+if [ "${SKIP_GITLEAKS:-0}" = "1" ]; then
+    exit 0
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks protect --staged --redact --verbose
+fi
+HOOK_EOF
+        chmod +x "$hook_path"
+        print_info "Installed gitleaks pre-commit hook at $hook_path"
+    fi
+}
+
+apply_global_gitignore() {
+    print_header "Global Gitignore"
+
+    local excludes_file
+    excludes_file="$(git config --global --get core.excludesFile 2>/dev/null || true)"
+
+    if [ -n "$excludes_file" ]; then
+        local expanded_path
+        expanded_path="${excludes_file/#\~/$HOME}"
+        print_info "core.excludesFile already set to $excludes_file"
+        if [ -f "$expanded_path" ]; then
+            local has_security_patterns=false
+            if grep -q '\.env' "$expanded_path" 2>/dev/null && \
+               grep -q '\*\.pem' "$expanded_path" 2>/dev/null; then
+                has_security_patterns=true
+            fi
+            if [ "$has_security_patterns" = false ]; then
+                print_warn "Your global gitignore lacks secret patterns (.env, *.pem, *.key) — consider adding them"
+            fi
+        fi
+        return
+    fi
+
+    if prompt_yn "Create global gitignore with security patterns at $GLOBAL_GITIGNORE?"; then
+        mkdir -p "$(dirname "$GLOBAL_GITIGNORE")"
+        cat > "$GLOBAL_GITIGNORE" << 'GITIGNORE_EOF'
+# === Security: secrets & credentials ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+credentials.json
+service-account*.json
+.git-credentials
+.netrc
+.npmrc
+.pypirc
+
+# === Security: Terraform state (contains secrets) ===
+*.tfstate
+*.tfstate.backup
+
+# === OS artifacts ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === IDE artifacts ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+GITIGNORE_EOF
+        print_info "Created $GLOBAL_GITIGNORE"
+
+        # shellcheck disable=SC2088 # Intentional: git config stores literal ~
+        git config --global core.excludesFile "~/.config/git/ignore"
+        print_info "Set core.excludesFile = ~/.config/git/ignore"
+    fi
 }
 
 apply_signing_config() {
@@ -586,12 +923,7 @@ apply_signing_config() {
     if [ "$AUTO_YES" = true ]; then
         # In -y mode: only enable signing if key exists
         if [ "$SIGNING_KEY_FOUND" = true ] && [ -n "$SIGNING_PUB_PATH" ] && [ -f "$SIGNING_PUB_PATH" ]; then
-            git config --global user.signingkey "$SIGNING_PUB_PATH"
-            print_info "Set user.signingkey = $SIGNING_PUB_PATH"
-            apply_git_setting "commit.gpgsign" "true"
-            apply_git_setting "tag.gpgsign" "true"
-            apply_git_setting "tag.forceSignAnnotated" "true"
-            setup_allowed_signers
+            enable_signing "$SIGNING_PUB_PATH"
         else
             print_info "No SSH signing key found. Skipping commit.gpgsign and tag.gpgsign."
             print_info "Run git-harden.sh interactively (without -y) to set up signing."
@@ -660,20 +992,39 @@ detect_existing_keys() {
                 esac
             fi
         done <<EOF
-$(grep -i '^[[:space:]]*IdentityFile[[:space:]]' "$SSH_CONFIG" 2>/dev/null | sed 's/^[[:space:]]*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee][[:space:]]*//')
+$(grep -i '^[[:space:]]*IdentityFile[[:space:]=]' "$SSH_CONFIG" 2>/dev/null | sed 's/^[[:space:]]*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee][[:space:]=]*//')
 EOF
     fi
 }
 
 detect_fido2_hardware() {
+    # Check via ykman (cross-platform)
     if [ "$HAS_YKMAN" = true ]; then
         if ykman info >/dev/null 2>&1; then
             return 0
         fi
     fi
+    # Check via fido2-token (Linux)
     if [ "$HAS_FIDO2_TOKEN" = true ]; then
         if fido2-token -L 2>/dev/null | grep -q .; then
             return 0
+        fi
+    fi
+    # macOS: check IOKit USB registry for FIDO devices (works without ykman)
+    if [ "$PLATFORM" = "macos" ]; then
+        if ioreg -p IOUSB -l 2>/dev/null | grep -qi "fido\|yubikey\|security key\|titan"; then
+            return 0
+        fi
+    fi
+    # Linux: check /sys for FIDO HID devices (Yubico vendor 1050)
+    if [ "$PLATFORM" = "linux" ]; then
+        if [ -d /sys/bus/hid/devices ]; then
+            for dev_dir in /sys/bus/hid/devices/*; do
+                [ -d "$dev_dir" ] || continue
+                case "$(basename "$dev_dir")" in
+                    *1050:*) return 0 ;;
+                esac
+            done
         fi
     fi
     return 1
@@ -690,32 +1041,20 @@ signing_wizard() {
 
     if [ "$SIGNING_KEY_FOUND" = true ]; then
         printf '\n  Found existing key: %s\n' "$SIGNING_PUB_PATH" >&2
-        if prompt_yn "Use this key for git signing?"; then
-            git config --global user.signingkey "$SIGNING_PUB_PATH"
-            print_info "Set user.signingkey = $SIGNING_PUB_PATH"
-            apply_git_setting "commit.gpgsign" "true"
-            apply_git_setting "tag.gpgsign" "true"
-            apply_git_setting "tag.forceSignAnnotated" "true"
-            setup_allowed_signers
+        if prompt_yn "Use this key for git signing? (enables commit + tag signing)"; then
+            enable_signing "$SIGNING_PUB_PATH"
             return
         fi
     fi
 
     # Offer key generation options
-    local has_fido2=false
-    if detect_fido2_hardware; then
-        has_fido2=true
-    fi
-
     printf '\n  Signing key options:\n' >&2
     printf '    1) Generate a new ed25519 SSH key (software)\n' >&2
-    if [ "$has_fido2" = true ]; then
-        printf '    2) Generate a new ed25519-sk SSH key (FIDO2 hardware key)\n' >&2
-    fi
+    printf '    2) Generate a new ed25519-sk SSH key (FIDO2 hardware key)\n' >&2
     printf '    s) Skip signing setup\n' >&2
 
     local choice
-    printf '\n  Choose [1%s/s]: ' "$(if [ "$has_fido2" = true ]; then printf '/2'; fi)" >&2
+    printf '\n  Choose [1/2/s]: ' >&2
     read -r choice </dev/tty || choice="s"
 
     case "$choice" in
@@ -723,12 +1062,7 @@ signing_wizard() {
             generate_ssh_key
             ;;
         2)
-            if [ "$has_fido2" = true ]; then
-                generate_fido2_key
-            else
-                print_warn "FIDO2 not available. Skipping."
-                return
-            fi
+            generate_fido2_key
             ;;
         *)
             print_info "Skipping signing setup."
@@ -737,13 +1071,22 @@ signing_wizard() {
     esac
 
     if [ "$SIGNING_KEY_FOUND" = true ]; then
-        git config --global user.signingkey "$SIGNING_PUB_PATH"
-        print_info "Set user.signingkey = $SIGNING_PUB_PATH"
-        apply_git_setting "commit.gpgsign" "true"
-        apply_git_setting "tag.gpgsign" "true"
-        apply_git_setting "tag.forceSignAnnotated" "true"
-        setup_allowed_signers
+        if prompt_yn "Enable commit and tag signing with this key?"; then
+            enable_signing "$SIGNING_PUB_PATH"
+        fi
     fi
+}
+
+# Enable signing with a given public key path. Sets signingkey, gpgsign,
+# and forceSignAnnotated in one step (no individual prompts).
+enable_signing() {
+    local pub_path="$1"
+    git config --global user.signingkey "$pub_path"
+    git config --global commit.gpgsign true
+    git config --global tag.gpgsign true
+    git config --global tag.forceSignAnnotated true
+    print_info "Signing enabled: commits and tags will be signed with $pub_path"
+    setup_allowed_signers
 }
 
 generate_ssh_key() {
@@ -769,7 +1112,7 @@ generate_ssh_key() {
     mkdir -p "$SSH_DIR"
     chmod 700 "$SSH_DIR"
 
-    ssh-keygen -t ed25519 -C "$email" -f -- "$key_path" </dev/tty
+    ssh-keygen -t ed25519 -C "$email" -f "$key_path" </dev/tty
 
     if [ -f "${key_path}.pub" ]; then
         SIGNING_KEY_FOUND=true
@@ -792,6 +1135,40 @@ generate_fido2_key() {
         return
     fi
 
+    if ! detect_fido2_hardware; then
+        printf '\n  No FIDO2 security key detected.\n' >&2
+        printf '  Please insert your security key and press Enter to continue (or q to go back): ' >&2
+        local reply
+        read -r reply </dev/tty || reply="q"
+        if [ "$reply" = "q" ]; then
+            return
+        fi
+        if ! detect_fido2_hardware; then
+            print_warn "Still no FIDO2 hardware detected. Skipping."
+            return
+        fi
+    fi
+
+    # Detect FIDO2 middleware library (required on macOS)
+    local sk_provider=""
+    if [ "$PLATFORM" = "macos" ]; then
+        local provider_path
+        for provider_path in \
+            /opt/homebrew/lib/libsk-libfido2.dylib \
+            /usr/local/lib/libsk-libfido2.dylib; do
+            if [ -f "$provider_path" ]; then
+                sk_provider="$provider_path"
+                break
+            fi
+        done
+        if [ -z "$sk_provider" ]; then
+            print_warn "FIDO2 middleware not found. macOS requires libfido2 for hardware key support."
+            printf '  Install with: brew install libfido2\n' >&2
+            printf '  Then re-run this script.\n' >&2
+            return
+        fi
+    fi
+
     printf '  Generating ed25519-sk SSH key (touch your security key when prompted)...\n' >&2
 
     local email
@@ -804,8 +1181,14 @@ generate_fido2_key() {
     mkdir -p "$SSH_DIR"
     chmod 700 "$SSH_DIR"
 
+    # Pass -w <provider> on macOS; on Linux the built-in support usually works
+    local keygen_args=(-t ed25519-sk -C "$email" -f "$key_path")
+    if [ -n "$sk_provider" ]; then
+        keygen_args+=(-w "$sk_provider")
+    fi
+
     # Do NOT suppress stderr — per AC-7
-    ssh-keygen -t ed25519-sk -C "$email" -f -- "$key_path" </dev/tty
+    ssh-keygen "${keygen_args[@]}" </dev/tty
 
     if [ -f "${key_path}.pub" ]; then
         SIGNING_KEY_FOUND=true
@@ -856,7 +1239,7 @@ apply_ssh_directive() {
 
     # Check if directive already exists with correct value (case-insensitive directive match)
     local current
-    current="$(grep -i "^[[:space:]]*${directive}[[:space:]]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^ ]*[[:space:]]*//' || true)"
+    current="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
     current="$(strip_ssh_value "$current")"
 
     if [ "$current" = "$value" ]; then
@@ -873,7 +1256,7 @@ apply_ssh_directive() {
             # Replace first occurrence of the directive (case-insensitive)
             local replaced=false
             while IFS= read -r line || [ -n "$line" ]; do
-                if [ "$replaced" = false ] && printf '%s' "$line" | grep -qi "^[[:space:]]*${directive}[[:space:]]"; then
+                if [ "$replaced" = false ] && printf '%s' "$line" | grep -qi "^[[:space:]]*${directive}[[:space:]=]"; then
                     printf '%s %s\n' "$directive" "$value"
                     replaced=true
                 else
@@ -924,7 +1307,7 @@ apply_ssh_config() {
 print_admin_recommendations() {
     print_header "Admin / Org-Level Recommendations"
     printf '  These are informational and cannot be applied by this script:\n\n' >&2
-    printf '  • Enable branch protection rules on main/master branches\n' >&2
+    printf '  • Enable branch protection rules on main branches\n' >&2
     printf '  • Enable GitHub vigilant mode (Settings → SSH and GPG keys → Flag unsigned commits)\n' >&2
     printf '  • Restrict force-pushes (disable or limit to admins)\n' >&2
     printf '  • Rotate personal access tokens regularly; prefer fine-grained tokens\n' >&2
@@ -983,8 +1366,12 @@ main() {
     AUDIT_MISS=0
 
     audit_git_config
+    audit_precommit_hook
+    audit_global_gitignore
+    audit_credential_hygiene
     audit_signing
     audit_ssh_config
+    audit_ssh_key_hygiene
 
     local audit_exit=0
     print_audit_report || audit_exit=$?
@@ -1011,6 +1398,8 @@ main() {
 
     backup_git_config
     apply_git_config
+    apply_precommit_hook
+    apply_global_gitignore
     apply_signing_config
     apply_ssh_config
     print_admin_recommendations

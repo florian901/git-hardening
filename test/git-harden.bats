@@ -515,6 +515,37 @@ SSHEOF
     grep -q "HashKnownHosts no" "${TEST_HOME}/.ssh/config"
 }
 
+@test "audit recognises SSH directives using = separator" {
+    source_functions
+
+    cat > "${TEST_HOME}/.ssh/config" <<'SSHEOF'
+StrictHostKeyChecking=accept-new
+HashKnownHosts = yes
+SSHEOF
+
+    run audit_ssh_directive "StrictHostKeyChecking" "accept-new"
+    assert_output --partial "[OK]"
+
+    run audit_ssh_directive "HashKnownHosts" "yes"
+    assert_output --partial "[OK]"
+}
+
+@test "apply skips SSH directives using = separator when value matches" {
+    cat > "${TEST_HOME}/.ssh/config" <<'SSHEOF'
+StrictHostKeyChecking=accept-new
+SSHEOF
+
+    source_functions
+    AUTO_YES=true
+
+    apply_ssh_directive "StrictHostKeyChecking" "accept-new"
+
+    # Should still have exactly one occurrence
+    local count
+    count="$(grep -c "StrictHostKeyChecking" "${TEST_HOME}/.ssh/config")"
+    [ "$count" -eq 1 ]
+}
+
 # ===========================================================================
 # Signing: key detection
 # ===========================================================================
@@ -819,4 +850,303 @@ SSHEOF
     assert_success
     assert_output --partial "branch protection"
     assert_output --partial "vigilant mode"
+}
+
+# ===========================================================================
+# v0.2.0: New git config settings
+# ===========================================================================
+
+@test "audit reports new v0.2.0 settings as MISS on fresh config" {
+    source_functions
+    detect_platform
+    detect_credential_helper
+
+    run audit_git_config
+    assert_output --partial "user.useConfigOnly"
+    assert_output --partial "transfer.bundleURI"
+    assert_output --partial "fetch.prune"
+    assert_output --partial "protocol.version"
+    assert_output --partial "init.defaultBranch"
+    assert_output --partial "gc.reflogExpire"
+    assert_output --partial "gc.reflogExpireUnreachable"
+    assert_output --partial "core.symlinks"
+}
+
+@test "-y mode applies new v0.2.0 settings" {
+    run bash "$SCRIPT" -y
+    assert_success
+
+    [ "$(git config --global user.useConfigOnly)" = "true" ]
+    [ "$(git config --global transfer.bundleURI)" = "false" ]
+    [ "$(git config --global fetch.prune)" = "true" ]
+    [ "$(git config --global protocol.version)" = "2" ]
+    [ "$(git config --global init.defaultBranch)" = "main" ]
+    [ "$(git config --global gc.reflogExpire)" = "180.days" ]
+    [ "$(git config --global gc.reflogExpireUnreachable)" = "90.days" ]
+}
+
+@test "-y mode does NOT apply core.symlinks" {
+    run bash "$SCRIPT" -y
+    assert_success
+
+    local symlinks
+    symlinks="$(git config --global --get core.symlinks 2>/dev/null || echo "unset")"
+    [ "$symlinks" = "unset" ]
+}
+
+# ===========================================================================
+# v0.2.0: safe.directory wildcard detection
+# ===========================================================================
+
+@test "audit detects safe.directory = * wildcard" {
+    source_functions
+    detect_platform
+    detect_credential_helper
+
+    git config --global safe.directory '*'
+
+    run audit_git_config
+    assert_output --partial "safe.directory = * disables ownership checks"
+}
+
+@test "audit does not warn without safe.directory wildcard" {
+    source_functions
+    detect_platform
+    detect_credential_helper
+
+    git config --global safe.directory "/some/path"
+
+    run audit_git_config
+    refute_output --partial "safe.directory = * disables"
+}
+
+@test "-y mode removes safe.directory = * wildcard" {
+    git config --global safe.directory '*'
+
+    run bash "$SCRIPT" -y
+    assert_success
+
+    local safe_dirs
+    safe_dirs="$(git config --global --get-all safe.directory 2>/dev/null || echo "none")"
+    refute [ "$safe_dirs" = "*" ]
+}
+
+# ===========================================================================
+# v0.2.0: Pre-commit hook
+# ===========================================================================
+
+@test "audit reports MISS when no pre-commit hook exists" {
+    source_functions
+
+    run audit_precommit_hook
+    assert_output --partial "No pre-commit hook"
+}
+
+@test "audit reports OK when gitleaks hook exists" {
+    source_functions
+
+    mkdir -p "${HOME}/.config/git/hooks"
+    cat > "${HOME}/.config/git/hooks/pre-commit" << 'EOF'
+#!/usr/bin/env bash
+gitleaks protect --staged
+EOF
+    chmod +x "${HOME}/.config/git/hooks/pre-commit"
+
+    run audit_precommit_hook
+    assert_output --partial "[OK]"
+    assert_output --partial "gitleaks"
+}
+
+@test "audit reports WARN for non-gitleaks hook" {
+    source_functions
+
+    mkdir -p "${HOME}/.config/git/hooks"
+    printf '#!/usr/bin/env bash\necho custom hook\n' > "${HOME}/.config/git/hooks/pre-commit"
+    chmod +x "${HOME}/.config/git/hooks/pre-commit"
+
+    run audit_precommit_hook
+    assert_output --partial "does not reference gitleaks"
+}
+
+@test "apply does not overwrite existing pre-commit hook" {
+    source_functions
+    AUTO_YES=true
+
+    mkdir -p "${HOME}/.config/git/hooks"
+    printf '#!/usr/bin/env bash\necho my hook\n' > "${HOME}/.config/git/hooks/pre-commit"
+
+    run apply_precommit_hook
+    assert_output --partial "not overwriting"
+
+    # Verify original content preserved
+    run cat "${HOME}/.config/git/hooks/pre-commit"
+    assert_output --partial "my hook"
+}
+
+# ===========================================================================
+# v0.2.0: Global gitignore
+# ===========================================================================
+
+@test "audit reports MISS when no excludesFile configured" {
+    source_functions
+
+    run audit_global_gitignore
+    assert_output --partial "no global gitignore configured"
+}
+
+@test "audit reports OK when excludesFile has security patterns" {
+    source_functions
+
+    mkdir -p "${HOME}/.config/git"
+    printf '.env\n*.pem\n*.key\n' > "${HOME}/.config/git/ignore"
+    git config --global core.excludesFile "~/.config/git/ignore"
+
+    run audit_global_gitignore
+    assert_output --partial "[OK]"
+    assert_output --partial "contains security patterns"
+}
+
+@test "audit warns when excludesFile lacks security patterns" {
+    source_functions
+
+    mkdir -p "${HOME}/.config/git"
+    printf '*.log\n*.tmp\n' > "${HOME}/.config/git/ignore"
+    git config --global core.excludesFile "~/.config/git/ignore"
+
+    run audit_global_gitignore
+    assert_output --partial "lacks secret patterns"
+}
+
+@test "-y mode creates global gitignore" {
+    run bash "$SCRIPT" -y
+    assert_success
+
+    [ -f "${HOME}/.config/git/ignore" ]
+    run cat "${HOME}/.config/git/ignore"
+    assert_output --partial ".env"
+    assert_output --partial "*.pem"
+    assert_output --partial "*.key"
+    assert_output --partial "!.env.example"
+
+    [ "$(git config --global core.excludesFile)" = "~/.config/git/ignore" ]
+}
+
+@test "-y mode skips gitignore when excludesFile already set" {
+    git config --global core.excludesFile "/some/other/path"
+
+    run bash "$SCRIPT" -y
+    assert_success
+
+    [ "$(git config --global core.excludesFile)" = "/some/other/path" ]
+}
+
+# ===========================================================================
+# v0.2.0: Credential hygiene
+# ===========================================================================
+
+@test "audit warns about ~/.git-credentials" {
+    source_functions
+
+    printf 'https://user:token@github.com\n' > "${HOME}/.git-credentials"
+
+    run audit_credential_hygiene
+    assert_output --partial "git-credentials"
+    assert_output --partial "plaintext"
+}
+
+@test "audit warns about ~/.netrc" {
+    source_functions
+
+    printf 'machine github.com\nlogin user\npassword token\n' > "${HOME}/.netrc"
+
+    run audit_credential_hygiene
+    assert_output --partial ".netrc"
+}
+
+@test "audit warns about ~/.npmrc with auth token" {
+    source_functions
+
+    printf '//registry.npmjs.org/:_authToken=npm_abcdef123456\n' > "${HOME}/.npmrc"
+
+    run audit_credential_hygiene
+    assert_output --partial "npm registry token"
+}
+
+@test "audit does not warn about ~/.npmrc without token" {
+    source_functions
+
+    printf 'registry=https://registry.npmjs.org/\n' > "${HOME}/.npmrc"
+
+    run audit_credential_hygiene
+    refute_output --partial "npm registry token"
+}
+
+@test "audit warns about ~/.pypirc with password" {
+    source_functions
+
+    printf '[pypi]\nusername = user\npassword = secret123\n' > "${HOME}/.pypirc"
+
+    run audit_credential_hygiene
+    assert_output --partial "PyPI credentials"
+}
+
+@test "audit no warnings with clean credential state" {
+    source_functions
+
+    run audit_credential_hygiene
+    refute_output --partial "[WARN]"
+}
+
+# ===========================================================================
+# v0.2.0: SSH key hygiene
+# ===========================================================================
+
+@test "SSH key hygiene: ed25519 reported as OK" {
+    source_functions
+
+    ssh-keygen -t ed25519 -f "${HOME}/.ssh/test_ed25519" -N "" -q
+    run audit_ssh_key_hygiene
+    assert_output --partial "[OK]"
+    assert_output --partial "ed25519"
+}
+
+@test "SSH key hygiene: RSA key reported as WARN" {
+    source_functions
+
+    ssh-keygen -t rsa -b 2048 -f "${HOME}/.ssh/test_rsa" -N "" -q
+    run audit_ssh_key_hygiene
+    assert_output --partial "[WARN]"
+    assert_output --partial "RSA"
+    assert_output --partial "migrating to ed25519"
+}
+
+@test "SSH key hygiene: no keys produces info message" {
+    source_functions
+
+    # Remove the default keys created in setup (there are none)
+    rm -f "${HOME}/.ssh/"*.pub
+
+    run audit_ssh_key_hygiene
+    assert_output --partial "No SSH public keys found"
+}
+
+@test "SSH key hygiene: picks up keys from IdentityFile in ssh config" {
+    source_functions
+
+    mkdir -p "${HOME}/.ssh/custom"
+    ssh-keygen -t ed25519 -f "${HOME}/.ssh/custom/my_key" -N "" -q
+    printf 'IdentityFile ~/.ssh/custom/my_key\n' > "${HOME}/.ssh/config"
+
+    run audit_ssh_key_hygiene
+    assert_output --partial "[OK]"
+    assert_output --partial "my_key"
+}
+
+# ===========================================================================
+# v0.2.0: Version bump
+# ===========================================================================
+
+@test "--version reports 0.2.0" {
+    run bash "$SCRIPT" --version
+    assert_output --partial "0.2.0"
 }

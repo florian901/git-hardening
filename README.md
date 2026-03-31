@@ -38,16 +38,23 @@ The script runs in two phases:
 
 | Category | What it does |
 |---|---|
-| **Object integrity** | Validates all objects on fetch/push/receive (`transfer.fsckObjects`, etc.) |
-| **Protocol restrictions** | Default-deny policy: only HTTPS and SSH allowed. Blocks `git://` (unencrypted) and `ext://` (arbitrary command execution) |
-| **Filesystem protection** | Enables `core.protectNTFS`, `core.protectHFS`, disables `core.fsmonitor` |
+| **Identity** | `user.useConfigOnly=true` — prevents commits without explicit identity |
+| **Object integrity** | `fsckObjects` on transfer/fetch/receive, `transfer.bundleURI=false`, `fetch.prune=true` |
+| **Protocol restrictions** | Default-deny policy: only HTTPS and SSH. Blocks `git://` and `ext://`. Forces `protocol.version=2` |
+| **Filesystem protection** | `core.protectNTFS`, `core.protectHFS`, `core.fsmonitor=false`, `core.symlinks=false` (interactive-only) |
 | **Hook control** | Redirects `core.hooksPath` to `~/.config/git/hooks` so repo-local hooks can't execute |
-| **Repository safety** | `safe.bareRepository=explicit`, `submodule.recurse=false` |
-| **Pull/merge hardening** | `pull.ff=only`, `merge.ff=only` — refuses non-fast-forward merges, surfacing rewritten history |
+| **Pre-commit hook** | Installs gitleaks secret scanner as global pre-commit hook (with `SKIP_GITLEAKS` bypass) |
+| **Repository safety** | `safe.bareRepository=explicit`, `submodule.recurse=false`, detects/removes `safe.directory=*` wildcard |
+| **Pull/merge hardening** | `pull.ff=only`, `merge.ff=only` — refuses non-fast-forward merges |
 | **Transport security** | Rewrites `http://` to `https://`, enforces `http.sslVerify=true` |
 | **Credential storage** | Platform-detected secure helper (`osxkeychain` on macOS, `libsecret` on Linux). Warns if using plaintext `store` |
+| **Credential hygiene** | Warns about plaintext `~/.git-credentials`, `~/.netrc`, `~/.npmrc` (tokens), `~/.pypirc` (passwords) |
+| **Global gitignore** | Creates `~/.config/git/ignore` with patterns for secrets, credentials, and OS/IDE artifacts |
+| **Defaults** | `init.defaultBranch=main` |
+| **Forensic readiness** | Extended reflog retention (`gc.reflogExpire=180.days`, `gc.reflogExpireUnreachable=90.days`) |
 | **Commit signing** | SSH-based signing with interactive key setup wizard (software or FIDO2 hardware key) |
 | **SSH hardening** | `StrictHostKeyChecking=accept-new`, `HashKnownHosts=yes`, `IdentitiesOnly=yes`, modern algorithm restrictions |
+| **SSH key hygiene** | Audits `~/.ssh/*.pub` for weak key types (DSA, ECDSA, short RSA) |
 | **Visibility** | `log.showSignature=true` |
 
 A config backup is saved to `~/.config/git/pre-harden-backup-<timestamp>.txt` before any changes.
@@ -95,6 +102,7 @@ Options:
 - Bash 3.2+ (compatible with macOS default bash)
 
 Optional:
+- `gitleaks` for pre-commit secret scanning (hook is installed regardless; scans run only if gitleaks is on `$PATH`)
 - `ykman` or `fido2-token` for FIDO2 hardware key detection
 
 ## Threat Model
@@ -106,9 +114,11 @@ Optional:
 - **Protocol downgrade** — blocks plaintext `git://` and dangerous `ext://` protocol
 - **Hook-based RCE** — redirects hook execution away from repo-local `.git/hooks/`
 - **Submodule attacks** — disables auto-recursion; submodules must be explicitly initialized
-- **Credential theft** — ensures secure credential storage, warns about plaintext `store`
+- **Credential theft** — ensures secure credential storage, warns about plaintext `store`, detects leaked credentials in `~/.git-credentials`, `~/.netrc`, `~/.npmrc`, `~/.pypirc`
+- **Secret leakage** — gitleaks pre-commit hook blocks commits containing secrets before they enter git history
 - **Commit impersonation** — SSH signing proves key possession (anyone can fake `user.name`/`user.email`)
-- **Filesystem tricks** — blocks NTFS/HFS+ path manipulation attacks
+- **Filesystem tricks** — blocks NTFS/HFS+/symlink path manipulation attacks
+- **Weak SSH keys** — audits and warns about DSA, ECDSA, and short RSA keys
 
 ### What this does NOT protect against
 
@@ -132,7 +142,7 @@ The script prints (but does not apply) server/org-level recommendations:
 ## Running Tests
 
 ```bash
-# Run the BATS test suite (64 tests)
+# Run the BATS test suite (90 tests)
 ./test/run.sh
 
 # Requires bats-core submodules — init them if needed

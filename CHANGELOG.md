@@ -4,7 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.1.0] - 2026-03-31
+## [0.2.0] - 2026-03-31
+
+### Added
+- Gitleaks pre-commit hook installation — creates `~/.config/git/hooks/pre-commit` with `SKIP_GITLEAKS` bypass
+- Global gitignore creation (`~/.config/git/ignore`) with security patterns (`.env`, `*.pem`, `*.key`, credentials, Terraform state)
+- Audit of existing global gitignore for missing security patterns
+- 8 new git config settings: `user.useConfigOnly`, `protocol.version=2`, `transfer.bundleURI=false`, `init.defaultBranch=main`, `core.symlinks=false` (interactive-only), `fetch.prune=true`, `gc.reflogExpire=180.days`, `gc.reflogExpireUnreachable=90.days`
+- Combined signing enablement into single prompt (replaces 3 individual prompts)
+- 26 new BATS tests (90 total)
+
+### Security
+- SSH key hygiene audit — scans `~/.ssh/*.pub` and `IdentityFile` entries, warns about DSA/ECDSA/weak RSA keys
+- Plaintext credential file detection — warns about `~/.git-credentials`, `~/.netrc`, `~/.npmrc` (auth tokens), `~/.pypirc` (passwords)
+- `safe.directory = *` wildcard detection and removal (CVE-2022-24765)
+
+### Fixed
+- `ssh-keygen` calls fail on macOS with `--` end-of-options separator (removed)
+- Interactive tests fail on macOS due to tmux resetting `HOME` in login shells
+- Interactive tests race condition with tmux session cleanup between tests
+
+## [0.1.0] - 2026-03-30
 
 ### Added
 - Interactive shell script that audits and hardens global git config
@@ -32,5 +52,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - SSH config value parsing handles inline comments and quoted paths
 - Version comparison uses base-10 arithmetic to prevent octal interpretation
 - Temp file cleanup trap in SSH config updates
-- `--` separator before path arguments in `ssh-keygen` calls
-- Removed unused exported `SIGNING_KEY_PATH` variable
