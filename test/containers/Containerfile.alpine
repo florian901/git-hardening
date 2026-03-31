@@ -1,0 +1,25 @@
+FROM alpine:3.21
+
+RUN apk add --no-cache \
+        bash \
+        git \
+        openssh-client \
+        openssh-keygen \
+        tmux \
+        coreutils \
+        grep \
+        sed
+
+RUN adduser -D -s /bin/bash testuser
+
+COPY git-harden.sh /home/testuser/git-harden.sh
+COPY test/ /home/testuser/test/
+RUN chown -R testuser:testuser /home/testuser
+
+USER testuser
+WORKDIR /home/testuser
+
+RUN git config --global user.name "Test User" \
+    && git config --global user.email "test@example.com"
+
+CMD ["bash", "test/run.sh"]

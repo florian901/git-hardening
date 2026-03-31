@@ -1,0 +1,22 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        bash \
+        git \
+        openssh-client \
+        tmux \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -s /bin/bash testuser
+
+COPY git-harden.sh /home/testuser/git-harden.sh
+COPY test/ /home/testuser/test/
+RUN chown -R testuser:testuser /home/testuser
+
+USER testuser
+WORKDIR /home/testuser
+
+RUN git config --global user.name "Test User" \
+    && git config --global user.email "test@example.com"
+
+CMD ["bash", "test/run.sh"]
