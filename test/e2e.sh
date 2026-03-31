@@ -262,7 +262,7 @@ print_summary() {
     for result_file in "${RESULTS_DIR}"/*.result; do
         [ -f "$result_file" ] || continue
         local d s t
-        read -r d s t < "$result_file"
+        IFS=' ' read -r d s t < "$result_file"
 
         local color="$C_GREEN"
         if [ "$s" = "SKIP" ]; then
@@ -357,7 +357,9 @@ main() {
     done
 
     if [ ${#pids[@]} -gt 0 ]; then
-        info "Running ${#pids[@]} distro(s) in parallel: ${pid_distros[*]}"
+        local distro_list
+        distro_list="$(IFS=' '; printf '%s' "${pid_distros[*]}")"
+        info "Running ${#pids[@]} distro(s) in parallel: ${distro_list}"
         # Wait for all background jobs
         local i=0
         while [ "$i" -lt "${#pids[@]}" ]; do
