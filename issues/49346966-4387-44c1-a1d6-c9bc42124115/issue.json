@@ -2,11 +2,12 @@
   "uuid": "49346966-4387-44c1-a1d6-c9bc42124115",
   "display_id": 48,
   "title": "Add REASONING.md documenting trade-offs for each hardening default",
-  "status": "open",
+  "status": "closed",
   "priority": "medium",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-31T17:52:04.186430Z",
-  "updated_at": "2026-03-31T17:52:05.105202Z",
+  "updated_at": "2026-03-31T17:59:31.682480Z",
+  "closed_at": "2026-03-31T17:59:31.682480Z",
   "labels": [
     "feature"
   ]
