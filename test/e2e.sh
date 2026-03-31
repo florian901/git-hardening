@@ -166,7 +166,7 @@ build_image() {
 
     info "Building ${image_name}..."
     if ! "$RUNTIME" build \
-        "${build_args[@]}" \
+        ${build_args[@]+"${build_args[@]}"} \
         -f "$containerfile" \
         -t "$image_name" \
         "$REPO_ROOT" 2>&1; then
