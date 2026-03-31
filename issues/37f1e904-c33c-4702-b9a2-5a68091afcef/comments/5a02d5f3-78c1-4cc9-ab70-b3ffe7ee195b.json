@@ -1,0 +1,8 @@
+{
+  "uuid": "5a02d5f3-78c1-4cc9-ab70-b3ffe7ee195b",
+  "issue_uuid": "37f1e904-c33c-4702-b9a2-5a68091afcef",
+  "author": "anon-31e9bd66",
+  "content": "Fixed: converted DISTROS from string to bash array, updated all loops to use ${DISTROS[@]}.",
+  "created_at": "2026-03-31T16:04:15.516456Z",
+  "kind": "result"
+}
