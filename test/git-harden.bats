@@ -370,11 +370,12 @@ SSHEOF
 # Apply: git config settings (-y mode)
 # ===========================================================================
 
-@test "-y mode applies git config settings" {
+@test "-y mode applies setting group" {
     source_functions
     AUTO_YES=true
 
-    run apply_git_setting "transfer.fsckObjects" "true"
+    run apply_setting_group "Test Group" "Test description" \
+        "transfer.fsckObjects" "true" "Verify objects on transfer"
     assert_success
 
     local result
@@ -382,16 +383,17 @@ SSHEOF
     [ "$result" = "true" ]
 }
 
-@test "apply skips already-correct setting" {
+@test "apply_setting_group skips already-correct settings" {
     git config --global transfer.fsckObjects true
 
     source_functions
     AUTO_YES=true
 
-    run apply_git_setting "transfer.fsckObjects" "true"
+    run apply_setting_group "Test Group" "Test description" \
+        "transfer.fsckObjects" "true" "Verify objects on transfer"
     assert_success
-    # Should produce no output (no "Set" message)
-    refute_output --partial "Set"
+    # No changes needed — group should not print "Applied"
+    refute_output --partial "Applied"
 }
 
 # ===========================================================================

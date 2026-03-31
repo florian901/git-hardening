@@ -676,71 +676,118 @@ backup_git_config() {
     print_info "Config backed up to $backup_file"
 }
 
-apply_git_setting() {
+# Check if a git config setting needs changing. Returns 0 if it does.
+setting_needs_change() {
     local key="$1"
     local value="$2"
-    local label="${3:-$key}"
-
     local current
     current="$(git config --global --get "$key" 2>/dev/null || true)"
+    [ "$current" != "$value" ]
+}
 
-    if [ "$current" = "$value" ]; then
+# Apply a group of git config settings with a single prompt.
+# Arguments: group_name description key1 value1 explanation1 key2 value2 explanation2 ...
+apply_setting_group() {
+    local group_name="$1"
+    local description="$2"
+    shift 2
+
+    # Collect pending changes (settings that need updating)
+    local pending_keys=""
+    local pending_vals=""
+    local pending_explanations=""
+    local count=0
+
+    while [ $# -ge 3 ]; do
+        local key="$1" value="$2" explanation="$3"
+        shift 3
+        if setting_needs_change "$key" "$value"; then
+            pending_keys="${pending_keys}${key}"$'\n'
+            pending_vals="${pending_vals}${value}"$'\n'
+            pending_explanations="${pending_explanations}${explanation}"$'\n'
+            count=$((count + 1))
+        fi
+    done
+
+    # Nothing to do
+    if [ "$count" -eq 0 ]; then
         return 0
     fi
 
-    if prompt_yn "Set $label = $value?"; then
-        git config --global "$key" "$value"
-        print_info "Set $label = $value"
+    print_header "$group_name"
+    printf '  %s\n\n' "$description" >&2
+
+    # Show what will change
+    local i=0
+    while [ "$i" -lt "$count" ]; do
+        local key val expl
+        key="$(printf '%s' "$pending_keys" | sed -n "$((i + 1))p")"
+        val="$(printf '%s' "$pending_vals" | sed -n "$((i + 1))p")"
+        expl="$(printf '%s' "$pending_explanations" | sed -n "$((i + 1))p")"
+        printf '    %-40s %s\n' "${key} = ${val}" "# ${expl}" >&2
+        i=$((i + 1))
+    done
+    printf '\n' >&2
+
+    if prompt_yn "Apply these ${count} settings?"; then
+        i=0
+        while [ "$i" -lt "$count" ]; do
+            local key val
+            key="$(printf '%s' "$pending_keys" | sed -n "$((i + 1))p")"
+            val="$(printf '%s' "$pending_vals" | sed -n "$((i + 1))p")"
+            git config --global "$key" "$val"
+            i=$((i + 1))
+        done
+        print_info "Applied ${count} settings"
     fi
 }
 
 apply_git_config() {
-    print_header "Applying Git Config Hardening"
 
-    # Identity
-    apply_git_setting "user.useConfigOnly" "true"
+    # --- Group 1: Object Integrity ---
+    apply_setting_group "Object Integrity" \
+        "Validate all transferred git objects to catch corruption or malicious payloads." \
+        "transfer.fsckObjects"  "true"       "Verify objects on transfer" \
+        "fetch.fsckObjects"     "true"       "Verify objects on fetch" \
+        "receive.fsckObjects"   "true"       "Verify objects on receive" \
+        "transfer.bundleURI"    "false"      "Disable bundle URI fetching (attack surface)" \
+        "fetch.prune"           "true"       "Auto-remove stale remote tracking refs"
 
-    # Object integrity
-    apply_git_setting "transfer.fsckObjects" "true"
-    apply_git_setting "fetch.fsckObjects" "true"
-    apply_git_setting "receive.fsckObjects" "true"
-    apply_git_setting "transfer.bundleURI" "false"
-    apply_git_setting "fetch.prune" "true"
+    # --- Group 2: Protocol Restrictions ---
+    apply_setting_group "Protocol Restrictions" \
+        "Default-deny policy: only HTTPS and SSH allowed." \
+        "protocol.version"      "2"          "Use wire protocol v2 (faster, smaller surface)" \
+        "protocol.allow"        "never"      "Default-deny all protocols" \
+        "protocol.https.allow"  "always"     "Allow HTTPS" \
+        "protocol.ssh.allow"    "always"     "Allow SSH" \
+        "protocol.file.allow"   "user"       "Allow local file protocol (user-initiated only)" \
+        "protocol.git.allow"    "never"      "Block unencrypted git:// protocol" \
+        "protocol.ext.allow"    "never"      "Block ext:// (arbitrary command execution)"
 
-    # Protocol restrictions
-    apply_git_setting "protocol.version" "2"
-    apply_git_setting "protocol.allow" "never"
-    apply_git_setting "protocol.https.allow" "always"
-    apply_git_setting "protocol.ssh.allow" "always"
-    apply_git_setting "protocol.file.allow" "user"
-    apply_git_setting "protocol.git.allow" "never"
-    apply_git_setting "protocol.ext.allow" "never"
+    # --- Group 3: Filesystem & Repository Safety ---
+    # shellcheck disable=SC2088 # Intentional: git config stores literal ~
+    local hooks_path_val="~/.config/git/hooks"
 
-    # Filesystem protection
-    apply_git_setting "core.protectNTFS" "true"
-    apply_git_setting "core.protectHFS" "true"
-    apply_git_setting "core.fsmonitor" "false"
+    apply_setting_group "Filesystem & Repository Safety" \
+        "Prevent path traversal, malicious hooks, and unsafe repo configurations." \
+        "core.protectNTFS"      "true"              "Block NTFS 8.3 short-name attacks" \
+        "core.protectHFS"       "true"              "Block HFS+ Unicode normalization attacks" \
+        "core.fsmonitor"        "false"             "Disable filesystem monitor (attack surface)" \
+        "core.hooksPath"        "$hooks_path_val"   "Redirect hooks to central dir" \
+        "safe.bareRepository"   "explicit"          "Require --git-dir for bare repos" \
+        "submodule.recurse"     "false"             "Don't auto-recurse into submodules"
 
     # core.symlinks: interactive-only (may break symlink-dependent workflows)
     if [ "$AUTO_YES" = false ]; then
         local current_symlinks
         current_symlinks="$(git config --global --get core.symlinks 2>/dev/null || true)"
         if [ "$current_symlinks" != "false" ]; then
-            if prompt_yn "Disable symlinks to prevent symlink-based attacks (CVE-2024-32002)? Note: may break projects that use symlinks (e.g. Node.js monorepos)."; then
+            if prompt_yn "Disable symlinks (CVE-2024-32002)? May break Node.js monorepos, etc."; then
                 git config --global core.symlinks false
                 print_info "Set core.symlinks = false"
             fi
         fi
     fi
-
-    # Hook control
-    mkdir -p "$HOOKS_DIR"
-    # shellcheck disable=SC2088 # Intentional: git config stores literal ~
-    apply_git_setting "core.hooksPath" "~/.config/git/hooks"
-
-    # Repository safety
-    apply_git_setting "safe.bareRepository" "explicit"
-    apply_git_setting "submodule.recurse" "false"
 
     # Remove dangerous safe.directory = * wildcard if present
     local safe_dirs
@@ -753,25 +800,38 @@ apply_git_config() {
         fi
     fi
 
-    # Pull/merge hardening
-    apply_git_setting "pull.ff" "only"
-    apply_git_setting "merge.ff" "only"
+    mkdir -p "$HOOKS_DIR"
 
-    # Transport security
+    # --- Group 4: Pull/Merge & Transport ---
+    # url.https.insteadOf needs special handling — check first
     local instead_of
     instead_of="$(git config --global --get 'url.https://.insteadOf' 2>/dev/null || true)"
+
+    apply_setting_group "Pull/Merge & Transport Security" \
+        "Refuse non-fast-forward merges and force HTTPS." \
+        "pull.ff"               "only"       "Reject non-fast-forward pulls" \
+        "merge.ff"              "only"       "Reject non-fast-forward merges" \
+        "http.sslVerify"        "true"       "Enforce TLS certificate validation"
+
+    # url rewrite is separate (not a simple key=value)
     if [ "$instead_of" != "http://" ]; then
-        if prompt_yn "Set url.\"https://\".insteadOf = http://?"; then
+        if prompt_yn "Rewrite http:// URLs to https:// automatically?"; then
             git config --global 'url.https://.insteadOf' 'http://'
             print_info "Set url.\"https://\".insteadOf = http://"
         fi
     fi
 
-    apply_git_setting "http.sslVerify" "true"
-
-    # Credential storage
+    # --- Group 5: Credential, Identity & Defaults ---
     local cred_current
     cred_current="$(git config --global --get credential.helper 2>/dev/null || true)"
+
+    apply_setting_group "Identity, Credentials & Defaults" \
+        "Prevent accidental identity, enforce secure credential storage." \
+        "user.useConfigOnly"    "true"       "Block commits without explicit user.name/email" \
+        "init.defaultBranch"    "main"       "Default branch name for new repos" \
+        "log.showSignature"     "true"       "Show signature status in git log"
+
+    # Credential helper needs special logic (warn about 'store')
     if [ "$cred_current" != "$DETECTED_CRED_HELPER" ]; then
         local cred_prompt="Set credential.helper = $DETECTED_CRED_HELPER?"
         if [ "$cred_current" = "store" ]; then
@@ -783,15 +843,11 @@ apply_git_config() {
         fi
     fi
 
-    # Defaults
-    apply_git_setting "init.defaultBranch" "main"
-
-    # Forensic readiness
-    apply_git_setting "gc.reflogExpire" "180.days"
-    apply_git_setting "gc.reflogExpireUnreachable" "90.days"
-
-    # Visibility
-    apply_git_setting "log.showSignature" "true"
+    # --- Group 6: Forensic Readiness ---
+    apply_setting_group "Forensic Readiness" \
+        "Extend reflog retention for post-incident investigation." \
+        "gc.reflogExpire"              "180.days"  "Keep reachable reflog 180 days (default: 90)" \
+        "gc.reflogExpireUnreachable"   "90.days"   "Keep unreachable reflog 90 days (default: 30)"
 }
 
 apply_precommit_hook() {
@@ -913,9 +969,16 @@ apply_signing_config() {
     print_header "Signing Configuration"
 
     # Always safe to set format and allowed signers
-    apply_git_setting "gpg.format" "ssh"
+    if setting_needs_change "gpg.format" "ssh"; then
+        git config --global gpg.format ssh
+        print_info "Set gpg.format = ssh"
+    fi
     # shellcheck disable=SC2088 # Intentional: git config stores literal ~
-    apply_git_setting "gpg.ssh.allowedSignersFile" "~/.config/git/allowed_signers"
+    local signers_path="~/.config/git/allowed_signers"
+    if setting_needs_change "gpg.ssh.allowedSignersFile" "$signers_path"; then
+        git config --global gpg.ssh.allowedSignersFile "$signers_path"
+        print_info "Set gpg.ssh.allowedSignersFile = $signers_path"
+    fi
 
     # Detect existing signing key
     detect_existing_keys
@@ -1152,18 +1215,23 @@ generate_fido2_key() {
     # Detect FIDO2 middleware library (required on macOS)
     local sk_provider=""
     if [ "$PLATFORM" = "macos" ]; then
+        # The FIDO2 middleware (libsk-libfido2.dylib) is built by Homebrew's
+        # openssh formula, NOT by libfido2 alone. Search common install paths.
         local provider_path
         for provider_path in \
             /opt/homebrew/lib/libsk-libfido2.dylib \
-            /usr/local/lib/libsk-libfido2.dylib; do
+            /usr/local/lib/libsk-libfido2.dylib \
+            /opt/homebrew/Cellar/openssh/*/libexec/libsk-libfido2.dylib; do
             if [ -f "$provider_path" ]; then
                 sk_provider="$provider_path"
                 break
             fi
         done
         if [ -z "$sk_provider" ]; then
-            print_warn "FIDO2 middleware not found. macOS requires libfido2 for hardware key support."
-            printf '  Install with: brew install libfido2\n' >&2
+            print_warn "FIDO2 middleware (libsk-libfido2.dylib) not found."
+            printf '  macOS system ssh-keygen requires the OpenSSH FIDO middleware.\n' >&2
+            printf '  Install with: brew install openssh\n' >&2
+            printf '  This builds libsk-libfido2.dylib against the libfido2 you already have.\n' >&2
             printf '  Then re-run this script.\n' >&2
             return
         fi
