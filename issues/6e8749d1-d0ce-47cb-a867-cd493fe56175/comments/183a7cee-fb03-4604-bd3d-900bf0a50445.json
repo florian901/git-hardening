@@ -1,0 +1,8 @@
+{
+  "uuid": "183a7cee-fb03-4604-bd3d-900bf0a50445",
+  "issue_uuid": "6e8749d1-d0ce-47cb-a867-cd493fe56175",
+  "author": "anon-31e9bd66",
+  "content": "Build images sequentially (shared cache), then run all container tests in parallel with output captured to temp files. Results printed in order at the end. Failed distros show last 20 lines of log.",
+  "created_at": "2026-03-31T16:43:23.938596Z",
+  "kind": "result"
+}
