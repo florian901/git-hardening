@@ -1,0 +1,8 @@
+{
+  "uuid": "82975608-7105-4e9d-aade-2c5b3b11d29e",
+  "issue_uuid": "87ad499d-4d8b-431d-b0f1-84618278c875",
+  "author": "anon-31e9bd66",
+  "content": "Used ${build_args[@]+\"${build_args[@]}\"} — standard bash workaround for empty arrays with nounset.",
+  "created_at": "2026-03-31T16:08:19.891047Z",
+  "kind": "result"
+}
