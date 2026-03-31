@@ -1,0 +1,8 @@
+{
+  "uuid": "1e445de6-e993-4c49-82fa-3520f6741f97",
+  "issue_uuid": "84b606e9-d671-4804-aa49-ec842586d995",
+  "author": "anon-31e9bd66",
+  "content": "Test 38 creates ~/.ssh in setup() without chmod, then checks permissions after apply_ssh_config. But apply_ssh_config only chmods if the dir doesn't exist. Fix: remove ~/.ssh before this test so apply_ssh_config creates it fresh with correct perms.",
+  "created_at": "2026-03-31T16:21:41.527241Z",
+  "kind": "plan"
+}
