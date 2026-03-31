@@ -1,0 +1,8 @@
+{
+  "uuid": "48716524-8945-40aa-9f1c-4ac9b8a20793",
+  "issue_uuid": "4141f9dc-8a0c-4750-ac43-923d459e65f6",
+  "author": "anon-31e9bd66",
+  "content": "Skip arch on non-x86_64 with SKIP status (yellow in summary). Arch Linux doesn't publish ARM64 images.",
+  "created_at": "2026-03-31T16:53:34.020151Z",
+  "kind": "result"
+}
