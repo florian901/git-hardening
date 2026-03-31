@@ -1,0 +1,8 @@
+{
+  "uuid": "d8f222fc-3814-44ea-bad4-64d52c70642f",
+  "issue_uuid": "cd645342-07cd-4510-b3c8-af5a78fd8437",
+  "author": "anon-31e9bd66",
+  "content": "Decision: Interactive tests run in an isolated HOME via mktemp, NOT in the user's real HOME. This matches the BATS isolation pattern and prevents touching real git/SSH config. The script copies git-harden.sh into the temp home and sets HOME before invoking run-all.sh.",
+  "created_at": "2026-03-31T09:40:41.084571Z",
+  "kind": "decision"
+}
