@@ -265,7 +265,9 @@ print_summary() {
         read -r d s t < "$result_file"
 
         local color="$C_GREEN"
-        if [ "$s" != "PASS" ]; then
+        if [ "$s" = "SKIP" ]; then
+            color="$C_YELLOW"
+        elif [ "$s" != "PASS" ]; then
             color="$C_RED"
             any_failed=true
         fi
@@ -318,6 +320,20 @@ main() {
     else
         run_distros=("${DISTROS[@]}")
     fi
+
+    # Filter out distros without images for this architecture
+    local arch
+    arch="$(uname -m)"
+    local filtered_distros=()
+    for d in "${run_distros[@]}"; do
+        if [ "$d" = "arch" ] && [ "$arch" != "x86_64" ]; then
+            info "Skipping arch (no image for ${arch})"
+            printf '%s SKIP 0s\n' "$d" > "${RESULTS_DIR}/${d}.result"
+            continue
+        fi
+        filtered_distros+=("$d")
+    done
+    run_distros=("${filtered_distros[@]}")
 
     # Phase 1: Build images sequentially (benefits from shared layer cache)
     info "Building ${#run_distros[@]} container image(s)..."
