@@ -1,0 +1,8 @@
+{
+  "uuid": "aee9a2f9-a3c4-4443-87dd-926ff9221ff3",
+  "issue_uuid": "6ddf6723-198f-4719-9422-f8ca9aa1fb4f",
+  "author": "anon-31e9bd66",
+  "content": "Adding tests for: new git config settings, safe.directory wildcard, global gitignore, credential hygiene, SSH key hygiene, and gitleaks pre-commit hook.",
+  "created_at": "2026-03-31T10:49:20.011113Z",
+  "kind": "plan"
+}
