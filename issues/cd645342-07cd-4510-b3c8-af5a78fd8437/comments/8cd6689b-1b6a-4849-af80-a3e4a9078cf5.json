@@ -1,0 +1,8 @@
+{
+  "uuid": "8cd6689b-1b6a-4849-af80-a3e4a9078cf5",
+  "issue_uuid": "cd645342-07cd-4510-b3c8-af5a78fd8437",
+  "author": "anon-31e9bd66",
+  "content": "Plan: Add test/run-interactive.sh that runs the tmux interactive tests on the host in an isolated HOME (same mktemp pattern as BATS). Checks for tmux, creates temp HOME, copies script, runs test/interactive/run-all.sh, cleans up. Also update test/e2e.sh to run host interactive tests as a first step before the container matrix.",
+  "created_at": "2026-03-31T09:40:33.921872Z",
+  "kind": "plan"
+}
