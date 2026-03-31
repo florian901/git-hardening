@@ -1,0 +1,8 @@
+{
+  "uuid": "27c85fd2-15a4-4d95-8b7e-1c755557f03a",
+  "issue_uuid": "ba3282e1-b547-4700-be43-286974a09997",
+  "author": "anon-31e9bd66",
+  "content": "All 7 subissues complete (#26-#32). v0.2.0 implementation done: 8 new git config settings, safe.directory wildcard detection, global gitignore, gitleaks pre-commit hook, credential hygiene audit, SSH key hygiene audit. 90/90 tests passing, shellcheck clean.",
+  "created_at": "2026-03-31T10:51:39.680832Z",
+  "kind": "result"
+}
