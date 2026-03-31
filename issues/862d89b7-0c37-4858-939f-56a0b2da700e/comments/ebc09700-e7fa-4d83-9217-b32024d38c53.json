@@ -1,0 +1,8 @@
+{
+  "uuid": "ebc09700-e7fa-4d83-9217-b32024d38c53",
+  "issue_uuid": "862d89b7-0c37-4858-939f-56a0b2da700e",
+  "author": "anon-31e9bd66",
+  "content": "Fixed: IFS=newline was breaking read and array join in summary. Added IFS=' ' to read and used subshell IFS for distro list display.",
+  "created_at": "2026-03-31T17:40:06.254835Z",
+  "kind": "result"
+}
