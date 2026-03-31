@@ -1,0 +1,8 @@
+{
+  "uuid": "6a4498ea-7486-43a1-8995-3979a673b2f8",
+  "issue_uuid": "079a080a-51b2-4d1a-90e1-b5b22ca8c39d",
+  "author": "anon-31e9bd66",
+  "content": "Added --skip-host flag, updated usage text.",
+  "created_at": "2026-03-31T16:11:17.127551Z",
+  "kind": "result"
+}
