@@ -178,12 +178,26 @@ run_tests() {
     local distro="$1"
     local image_name="${IMAGE_PREFIX}:${distro}"
 
-    info "Running tests on ${distro}..."
+    info "Running BATS tests on ${distro}..."
     if ! "$RUNTIME" run \
         --rm \
         --network=none \
         "$image_name" \
         bash test/run.sh 2>&1; then
+        return 1
+    fi
+}
+
+run_interactive_tests() {
+    local distro="$1"
+    local image_name="${IMAGE_PREFIX}:${distro}"
+
+    info "Running interactive tests on ${distro}..."
+    if ! "$RUNTIME" run \
+        --rm \
+        --network=none \
+        "$image_name" \
+        bash test/interactive/run-all.sh 2>&1; then
         return 1
     fi
 }
@@ -200,7 +214,9 @@ run_distro() {
     if ! build_image "$distro"; then
         status="FAIL (build)"
     elif ! run_tests "$distro"; then
-        status="FAIL (tests)"
+        status="FAIL (bats)"
+    elif ! run_interactive_tests "$distro"; then
+        status="FAIL (interactive)"
     fi
 
     local end_time
