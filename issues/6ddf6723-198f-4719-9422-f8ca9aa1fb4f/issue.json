@@ -6,13 +6,14 @@
   "priority": "high",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-03-31T10:40:45.646745Z",
-  "updated_at": "2026-03-31T10:40:54.632631Z",
+  "updated_at": "2026-03-31T10:40:55.867046Z",
   "labels": [
     "feature"
   ],
   "blockers": [
     "63c20074-41d7-4df9-ae18-4cab530e5911",
     "6a779240-6242-4866-9e6a-380000da54da",
-    "d6c91105-46af-488b-9e62-cacf63bff1df"
+    "d6c91105-46af-488b-9e62-cacf63bff1df",
+    "fe30e167-6d25-4a44-9330-a7991511ceb1"
   ]
 }
