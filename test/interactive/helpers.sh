@@ -49,8 +49,12 @@ send() {
 start_session() {
     tmux kill-session -t "$TMUX_SESSION" 2>/dev/null || true
     sleep 0.5
+    local env_setup="export HOME='${HOME}';"
+    if [ -n "${GIT_CONFIG_GLOBAL:-}" ]; then
+        env_setup="${env_setup} export GIT_CONFIG_GLOBAL='${GIT_CONFIG_GLOBAL}';"
+    fi
     tmux new-session -d -s "$TMUX_SESSION" \
-        "export HOME='${HOME}'; export GIT_CONFIG_GLOBAL='${GIT_CONFIG_GLOBAL:-}'; bash '${SCRIPT_PATH}'"
+        "${env_setup} bash '${SCRIPT_PATH}'"
     # Keep the pane alive after the script exits so capture_output can read it
     tmux set-option -t "$TMUX_SESSION" remain-on-exit on
     sleep 0.5
