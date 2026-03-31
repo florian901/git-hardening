@@ -1,0 +1,8 @@
+{
+  "uuid": "fc72da90-ac68-4692-8532-9cbe47145686",
+  "issue_uuid": "d41855c2-2525-4c19-8900-6ae2ebad6a6f",
+  "author": "anon-31e9bd66",
+  "content": "Bump version to 0.2.2, update CHANGELOG with v0.2.2 section consolidating the two post-0.2.1 fixes, update version test.",
+  "created_at": "2026-03-31T15:48:10.640348Z",
+  "kind": "plan"
+}
