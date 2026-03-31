@@ -1,0 +1,8 @@
+{
+  "uuid": "79450157-51d4-4e83-99bf-55d21ae741a6",
+  "issue_uuid": "0dd933e1-7ee3-4c88-bbc4-f1ae758905ef",
+  "author": "anon-31e9bd66",
+  "content": "Applied four fixes from code review: (1) gitignore audit now checks existing files for missing security patterns, (2) SSH key hygiene scans IdentityFile directives from ~/.ssh/config, (3) .npmrc regex tightened to _authToken=.+, (4) core.symlinks=false is interactive-only with default=yes, skipped in -y mode.",
+  "created_at": "2026-03-31T10:39:33.923478Z",
+  "kind": "decision"
+}
