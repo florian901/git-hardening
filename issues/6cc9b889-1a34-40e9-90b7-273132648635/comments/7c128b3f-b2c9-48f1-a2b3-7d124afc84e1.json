@@ -1,0 +1,8 @@
+{
+  "uuid": "7c128b3f-b2c9-48f1-a2b3-7d124afc84e1",
+  "issue_uuid": "6cc9b889-1a34-40e9-90b7-273132648635",
+  "author": "anon-31e9bd66",
+  "content": "Replaced per-setting prompts with 6 grouped prompts. Each group shows a table of pending changes with one-line explanations. Reduces ~25 y/n prompts to ~6. 92/92 BATS + 4/4 interactive tests passing.",
+  "created_at": "2026-03-31T13:29:08.239462Z",
+  "kind": "result"
+}
