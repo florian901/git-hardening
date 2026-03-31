@@ -4,11 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.2.2] - 2026-03-31
+## [0.2.3] - 2026-03-31
 
 ### Fixed
 - FIDO2 key generation on macOS — detect Homebrew's openssh via `ssh-sk-helper` (no freeze), use its `ssh-keygen` binary for hardware key generation
 - Linux gitleaks install hint now shows `apt`/`dnf` instead of `brew`
+- e2e test runner distro loop broken by `IFS` setting — use bash array
 
 ### Changed
 - Group interactive apply prompts into 6 categories with one-line explanations (replaces ~25 individual prompts)

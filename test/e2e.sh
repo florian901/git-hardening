@@ -18,8 +18,8 @@ readonly REPO_ROOT
 readonly CONTAINER_DIR="${SCRIPT_DIR}/containers"
 readonly IMAGE_PREFIX="git-harden-test"
 
-# Distro matrix: name=image
-readonly DISTROS="ubuntu debian fedora alpine arch"
+# Distro matrix
+readonly DISTROS=(ubuntu debian fedora alpine arch)
 
 # Colors (empty if not a terminal)
 if [ -t 2 ]; then
@@ -314,19 +314,19 @@ main() {
     if [ -n "$TARGET_DISTRO" ]; then
         # Validate distro name
         local valid=false
-        for d in $DISTROS; do
+        for d in "${DISTROS[@]}"; do
             if [ "$d" = "$TARGET_DISTRO" ]; then
                 valid=true
                 break
             fi
         done
         if [ "$valid" = false ]; then
-            die "Unknown distro: ${TARGET_DISTRO}. Available: ${DISTROS}"
+            die "Unknown distro: ${TARGET_DISTRO}. Available: ${DISTROS[*]}"
         fi
 
         run_distro "$TARGET_DISTRO"
     else
-        for d in $DISTROS; do
+        for d in "${DISTROS[@]}"; do
             run_distro "$d"
         done
     fi
