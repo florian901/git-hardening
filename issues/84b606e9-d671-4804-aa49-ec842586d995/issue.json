@@ -1,0 +1,10 @@
+{
+  "uuid": "84b606e9-d671-4804-aa49-ec842586d995",
+  "display_id": 42,
+  "title": "Fix SSH dir permissions test failing in containers",
+  "status": "open",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T16:21:32.804102Z",
+  "updated_at": "2026-03-31T16:21:32.804102Z"
+}
