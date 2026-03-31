@@ -1,0 +1,8 @@
+{
+  "uuid": "5215ded4-9f9c-4d45-8831-ee57ae0488df",
+  "issue_uuid": "cd645342-07cd-4510-b3c8-af5a78fd8437",
+  "author": "anon-31e9bd66",
+  "content": "Delivered: Added test/run-interactive.sh for host-side interactive tests in isolated HOME. Updated test/e2e.sh to run host interactive tests as first entry in the summary (before container matrix). Gracefully skips if tmux not installed.",
+  "created_at": "2026-03-31T10:35:33.471093Z",
+  "kind": "result"
+}
