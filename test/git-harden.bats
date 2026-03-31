@@ -449,19 +449,27 @@ SSHEOF
     source_functions
     AUTO_YES=true
 
-    run apply_ssh_config
-    assert_success
+    apply_ssh_config
 
     # Check directory exists with correct mode
     [ -d "${TEST_HOME}/.ssh" ]
     [ -f "${TEST_HOME}/.ssh/config" ]
 
+    # stat format differs: macOS uses -f '%Lp', Linux uses -c '%a'
     local dir_perms
-    dir_perms="$(stat -f '%Lp' "${TEST_HOME}/.ssh" 2>/dev/null || stat -c '%a' "${TEST_HOME}/.ssh" 2>/dev/null)"
+    if stat -f '%Lp' "${TEST_HOME}/.ssh" >/dev/null 2>&1; then
+        dir_perms="$(stat -f '%Lp' "${TEST_HOME}/.ssh")"
+    else
+        dir_perms="$(stat -c '%a' "${TEST_HOME}/.ssh")"
+    fi
     [ "$dir_perms" = "700" ]
 
     local file_perms
-    file_perms="$(stat -f '%Lp' "${TEST_HOME}/.ssh/config" 2>/dev/null || stat -c '%a' "${TEST_HOME}/.ssh/config" 2>/dev/null)"
+    if stat -f '%Lp' "${TEST_HOME}/.ssh/config" >/dev/null 2>&1; then
+        file_perms="$(stat -f '%Lp' "${TEST_HOME}/.ssh/config")"
+    else
+        file_perms="$(stat -c '%a' "${TEST_HOME}/.ssh/config")"
+    fi
     [ "$file_perms" = "600" ]
 }
 
