@@ -1,0 +1,8 @@
+{
+  "uuid": "3501cd29-fe40-419c-9225-f571be320393",
+  "issue_uuid": "f18d1bc1-a500-453d-9260-6cd49f6b92a5",
+  "author": "anon-31e9bd66",
+  "content": "start_session exports GIT_CONFIG_GLOBAL='' (empty string) when not set. An empty value tells git 'no global config' vs unset which uses ~/.gitconfig. Fix: only export GIT_CONFIG_GLOBAL if it was already set.",
+  "created_at": "2026-03-31T16:33:01.816553Z",
+  "kind": "observation"
+}
