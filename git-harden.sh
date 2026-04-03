@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # git-harden.sh — Audit and harden global git configuration
-# Usage: git-harden.sh [--audit] [-y] [--help]
+# Usage: git-harden.sh [--audit] [-y] [--reset-signing] [--help]
 
 set -o errexit
 set -o nounset
@@ -10,7 +10,7 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.2.3"
+readonly VERSION="0.3.0"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
@@ -38,6 +38,7 @@ fi
 # Mode flags (mutable — set by parse_args)
 AUTO_YES=false
 AUDIT_ONLY=false
+RESET_SIGNING=false
 PLATFORM=""
 
 # Audit counters
@@ -56,6 +57,10 @@ DETECTED_CRED_HELPER=""
 # Optional tool availability
 HAS_YKMAN=false
 HAS_FIDO2_TOKEN=false
+
+# Set when a dependency is missing — suppresses trailing output so install
+# instructions remain visible
+MISSING_DEPENDENCY=false
 
 # ------------------------------------------------------------------------------
 # Helpers
@@ -155,6 +160,10 @@ parse_args() {
                 AUDIT_ONLY=true
                 shift
                 ;;
+            --reset-signing)
+                RESET_SIGNING=true
+                shift
+                ;;
             --help|-h)
                 usage
                 exit 0
@@ -177,10 +186,11 @@ Usage: git-harden.sh [OPTIONS]
 Audit and harden your global git configuration.
 
 Options:
-  --audit       Run audit only (no changes), exit 0 if all OK, 2 if issues found
-  -y, --yes     Auto-apply all recommended settings (no prompts)
-  --help, -h    Show this help message
-  --version     Show version
+  --audit           Run audit only (no changes), exit 0 if all OK, 2 if issues found
+  -y, --yes         Auto-apply all recommended settings (no prompts)
+  --reset-signing   Remove signing key config and optionally delete key files
+  --help, -h        Show this help message
+  --version         Show version
 
 Exit codes:
   0  All settings OK, or changes successfully applied
@@ -1042,11 +1052,11 @@ detect_existing_keys() {
 
             pub_path="${identity_path}.pub"
             if [ -f "$pub_path" ]; then
-                # Only use ed25519 or ed25519-sk keys for signing
+                # Only use ed25519, ed25519-sk, or ecdsa-sk keys for signing
                 local key_type_str
                 key_type_str="$(head -1 "$pub_path" 2>/dev/null || true)"
                 case "$key_type_str" in
-                    ssh-ed25519*|sk-ssh-ed25519*)
+                    ssh-ed25519*|sk-ssh-ed25519*|sk-ecdsa-sha2*)
                         SIGNING_KEY_FOUND=true
 
                         SIGNING_PUB_PATH="$pub_path"
@@ -1079,16 +1089,17 @@ detect_fido2_hardware() {
             return 0
         fi
     fi
-    # Linux: check /sys for FIDO HID devices (Yubico vendor 1050)
+    # Linux: check hidraw report descriptors for the FIDO HID usage page (0xF1D0).
+    # Bytes 06 d0 f1 at the start of the descriptor = HID usage page 0xF1D0.
+    # This works for any FIDO key vendor (Yubico, SoloKeys, Google Titan, etc.).
     if [ "$PLATFORM" = "linux" ]; then
-        if [ -d /sys/bus/hid/devices ]; then
-            for dev_dir in /sys/bus/hid/devices/*; do
-                [ -d "$dev_dir" ] || continue
-                case "$(basename "$dev_dir")" in
-                    *1050:*) return 0 ;;
-                esac
-            done
-        fi
+        local rdesc
+        for rdesc in /sys/class/hidraw/hidraw*/device/report_descriptor; do
+            [ -f "$rdesc" ] || continue
+            if od -A n -t x1 -N 3 "$rdesc" 2>/dev/null | grep -qi '06 d0 f1'; then
+                return 0
+            fi
+        done
     fi
     return 1
 }
@@ -1113,7 +1124,7 @@ signing_wizard() {
     # Offer key generation options
     printf '\n  Signing key options:\n' >&2
     printf '    1) Generate a new ed25519 SSH key (software)\n' >&2
-    printf '    2) Generate a new ed25519-sk SSH key (FIDO2 hardware key)\n' >&2
+    printf '    2) Generate a hardware-backed SSH key (FIDO2/U2F security key)\n' >&2
     printf '    s) Skip signing setup\n' >&2
 
     local choice
@@ -1137,6 +1148,73 @@ signing_wizard() {
         if prompt_yn "Enable commit and tag signing with this key?"; then
             enable_signing "$SIGNING_PUB_PATH"
         fi
+    fi
+}
+
+reset_signing() {
+    print_header "Reset Signing Configuration"
+
+    local signing_key
+    signing_key="$(git config --global --get user.signingkey 2>/dev/null || true)"
+
+    if [ -n "$signing_key" ]; then
+        printf '  Current signing key: %s\n' "$signing_key" >&2
+
+        # Remove git config entries
+        git config --global --unset user.signingkey 2>/dev/null || true
+        git config --global --unset commit.gpgsign 2>/dev/null || true
+        git config --global --unset tag.gpgsign 2>/dev/null || true
+        git config --global --unset tag.forceSignAnnotated 2>/dev/null || true
+        print_info "Removed signing configuration from git config"
+
+        # Remove allowed_signers entry if the key file exists
+        local key_path="${signing_key/#\~/$HOME}"
+        if [ -f "$key_path" ] && [ -f "$ALLOWED_SIGNERS_FILE" ]; then
+            local pub_key
+            pub_key="$(cat "$key_path")"
+            local tmpfile
+            tmpfile="$(mktemp -t git-harden-signers.XXXXXX)"
+            grep -vF "$pub_key" "$ALLOWED_SIGNERS_FILE" > "$tmpfile" 2>/dev/null || true
+            mv "$tmpfile" "$ALLOWED_SIGNERS_FILE"
+            print_info "Removed key from $ALLOWED_SIGNERS_FILE"
+        fi
+    else
+        print_info "No signing key in git config"
+    fi
+
+    # Collect all signing key files that would block fresh generation
+    local key_files=()
+    local candidate
+    for candidate in \
+        "${SSH_DIR}/id_ed25519_sk" "${SSH_DIR}/id_ed25519_sk.pub" \
+        "${SSH_DIR}/id_ecdsa_sk"   "${SSH_DIR}/id_ecdsa_sk.pub" \
+        "${SSH_DIR}/id_ed25519"    "${SSH_DIR}/id_ed25519.pub"; do
+        [ -f "$candidate" ] && key_files+=("$candidate")
+    done
+
+    if (( ${#key_files[@]} > 0 )); then
+        local backup_suffix
+        backup_suffix=".bak.$(date +%Y%m%dT%H%M%S)"
+
+        printf '\n  Key files found:\n' >&2
+        local kf
+        for kf in "${key_files[@]}"; do
+            printf '    %s\n' "$kf" >&2
+        done
+
+        if prompt_yn "Delete these key files? (No = keep as .bak)"; then
+            for kf in "${key_files[@]}"; do
+                rm -f "$kf"
+            done
+            print_info "Key files deleted"
+        else
+            for kf in "${key_files[@]}"; do
+                mv "$kf" "${kf}${backup_suffix}"
+            done
+            print_info "Key files backed up with suffix ${backup_suffix}"
+        fi
+    else
+        print_info "No signing key files found"
     fi
 }
 
@@ -1187,14 +1265,57 @@ generate_ssh_key() {
     fi
 }
 
+detect_fido2_sk_type() {
+    # Determine whether the security key supports ed25519-sk (FIDO2) or only
+    # ecdsa-sk (FIDO U2F). Prints "ed25519-sk" or "ecdsa-sk" to stdout.
+    #
+    # Detection order:
+    #   1. ykman — checks for FIDO2 application support (vs U2F-only)
+    #   2. fido2-token — probes device for ed25519 algorithm support
+    #   3. Default to ed25519-sk — ssh-keygen will fail fast if unsupported
+    if [ "$HAS_YKMAN" = true ]; then
+        local ykman_out
+        ykman_out="$(ykman info 2>/dev/null || true)"
+        if printf '%s' "$ykman_out" | grep -qi 'FIDO2'; then
+            printf 'ed25519-sk'
+            return
+        fi
+        if printf '%s' "$ykman_out" | grep -qi 'FIDO\|U2F'; then
+            printf 'ecdsa-sk'
+            return
+        fi
+    fi
+    if [ "$HAS_FIDO2_TOKEN" = true ]; then
+        local device
+        device="$(fido2-token -L 2>/dev/null | head -1 | cut -d: -f1-2 || true)"
+        if [ -n "$device" ] && fido2-token -I "$device" 2>/dev/null | grep -qi 'ed25519'; then
+            printf 'ed25519-sk'
+            return
+        fi
+        if [ -n "$device" ]; then
+            printf 'ecdsa-sk'
+            return
+        fi
+    fi
+    # Default — try ed25519-sk; generate_fido2_key handles the fallback
+    printf 'ed25519-sk'
+}
+
 generate_fido2_key() {
-    local key_path="${SSH_DIR}/id_ed25519_sk"
+    # Check for existing hardware-backed keys (both types)
+    local key_path_ed="${SSH_DIR}/id_ed25519_sk"
+    local key_path_ec="${SSH_DIR}/id_ecdsa_sk"
 
-    if [ -f "$key_path" ]; then
-        print_warn "$key_path already exists. Not overwriting."
+    if [ -f "$key_path_ed" ]; then
+        print_warn "$key_path_ed already exists. Not overwriting."
         SIGNING_KEY_FOUND=true
-
-        SIGNING_PUB_PATH="${key_path}.pub"
+        SIGNING_PUB_PATH="${key_path_ed}.pub"
+        return
+    fi
+    if [ -f "$key_path_ec" ]; then
+        print_warn "$key_path_ec already exists. Not overwriting."
+        SIGNING_KEY_FOUND=true
+        SIGNING_PUB_PATH="${key_path_ec}.pub"
         return
     fi
 
@@ -1209,6 +1330,61 @@ generate_fido2_key() {
         if ! detect_fido2_hardware; then
             print_warn "Still no FIDO2 hardware detected. Skipping."
             return
+        fi
+    fi
+
+    # On Linux, ssh-keygen needs libfido2 for hardware-backed keys.
+    # Check ldconfig cache first, then fall back to dpkg/rpm query.
+    if [ "$PLATFORM" = "linux" ]; then
+        local has_libfido2=false
+        if ldconfig -p 2>/dev/null | grep -q libfido2; then
+            has_libfido2=true
+        elif command -v dpkg-query >/dev/null 2>&1 && dpkg-query -W libfido2-1 >/dev/null 2>&1; then
+            has_libfido2=true
+        elif command -v rpm >/dev/null 2>&1 && rpm -q libfido2 >/dev/null 2>&1; then
+            has_libfido2=true
+        fi
+        if [ "$has_libfido2" = false ]; then
+            print_warn "libfido2 is not installed (required for hardware-backed SSH keys)."
+            printf '  Install it with:\n' >&2
+            if command -v apt-get >/dev/null 2>&1; then
+                printf '    sudo apt-get install libfido2-1\n' >&2
+            elif command -v dnf >/dev/null 2>&1; then
+                printf '    sudo dnf install libfido2\n' >&2
+            elif command -v pacman >/dev/null 2>&1; then
+                printf '    sudo pacman -S libfido2\n' >&2
+            else
+                printf '    Install the libfido2 package for your distribution\n' >&2
+            fi
+            printf '  Then re-run this script.\n' >&2
+            MISSING_DEPENDENCY=true
+            return
+        fi
+    fi
+
+    # Qubes OS: USB passthrough (vhci_hcd) corrupts CTAP2 protocol messages.
+    # Keys with a FIDO2 PIN require CTAP2, which fails over vhci_hcd.
+    # Warn the user — PIN-protected keys won't work without a functioning
+    # qubes-ctap proxy.
+    if [ "$PLATFORM" = "linux" ] && [ -d /sys/bus/hid/devices ]; then
+        local has_vhci=false
+        local dev_dir
+        for dev_dir in /sys/class/hidraw/hidraw*; do
+            [ -d "$dev_dir" ] || continue
+            if grep -q 'vhci_hcd' "${dev_dir}/device/uevent" 2>/dev/null; then
+                has_vhci=true
+                break
+            fi
+        done
+        if [ "$has_vhci" = true ]; then
+            print_warn "Qubes OS detected — FIDO2 key is attached via USB passthrough (vhci_hcd)."
+            printf '  CTAP2 (PIN-protected keys) may fail over USB passthrough.\n' >&2
+            printf '  Keys without a PIN (U2F-only) should work.\n' >&2
+            printf '  For PIN-protected keys, generate on the host and copy the key pair,\n' >&2
+            printf '  or ensure qubes-ctap-proxy is fully configured.\n' >&2
+            if ! prompt_yn "Continue anyway?"; then
+                return
+            fi
         fi
     fi
 
@@ -1239,12 +1415,15 @@ generate_fido2_key() {
             printf '  Install Homebrew OpenSSH (includes built-in FIDO2):\n' >&2
             printf '    brew install openssh\n' >&2
             printf '  Then re-run this script.\n' >&2
+            MISSING_DEPENDENCY=true
             return
         fi
         keygen_cmd="$brew_keygen"
     fi
 
-    printf '  Generating ed25519-sk SSH key (touch your security key when prompted)...\n' >&2
+    # Detect best key type for this hardware
+    local sk_type
+    sk_type="$(detect_fido2_sk_type)"
 
     local email
     email="$(git config --global --get user.email 2>/dev/null || true)"
@@ -1256,16 +1435,87 @@ generate_fido2_key() {
     mkdir -p "$SSH_DIR"
     chmod 700 "$SSH_DIR"
 
-    # Do NOT suppress stderr — per AC-7
-    "$keygen_cmd" -t ed25519-sk -C "$email" -f "$key_path" </dev/tty
+    # Build an ordered list of key generation attempts as parallel arrays.
+    # Each index holds one attempt: type, path, and whether to use -O resident.
+    local attempt_types=() attempt_paths=() attempt_resident=()
+    if [ "$sk_type" = "ecdsa-sk" ]; then
+        attempt_types+=("ecdsa-sk")   attempt_paths+=("$key_path_ec") attempt_resident+=(false)
+        attempt_types+=("ecdsa-sk")   attempt_paths+=("$key_path_ec") attempt_resident+=(true)
+    else
+        attempt_types+=("ed25519-sk") attempt_paths+=("$key_path_ed") attempt_resident+=(false)
+        attempt_types+=("ecdsa-sk")   attempt_paths+=("$key_path_ec") attempt_resident+=(false)
+        attempt_types+=("ecdsa-sk")   attempt_paths+=("$key_path_ec") attempt_resident+=(true)
+    fi
+
+    local key_path="" key_type_label="" resident=""
+    local keygen_stderr keygen_rc
+    local attempt_num=0 i
+
+    for i in "${!attempt_types[@]}"; do
+        key_type_label="${attempt_types[$i]}"
+        key_path="${attempt_paths[$i]}"
+        resident="${attempt_resident[$i]}"
+
+        attempt_num=$((attempt_num + 1))
+        if (( attempt_num > 1 )); then
+            local fallback_desc="$key_type_label"
+            if [ "$resident" = true ]; then
+                fallback_desc="${key_type_label} (-O resident)"
+            fi
+            print_warn "Falling back to ${fallback_desc}"
+        fi
+
+        local label="$key_type_label"
+        if [ "$resident" = true ]; then
+            label="${key_type_label} resident"
+        fi
+        printf '  Generating %s SSH key (touch your security key when prompted)...\n' "$label" >&2
+
+        # Do NOT suppress stderr — per AC-7
+        # Capture stderr to detect recoverable failures while still showing it
+        local tmpstderr keygen_args
+        tmpstderr="$(mktemp -t git-harden-keygen.XXXXXX)"
+        keygen_args=(-t "$key_type_label" -C "$email" -f "$key_path")
+        if [ "$resident" = true ]; then
+            keygen_args+=(-O resident)
+        fi
+        "$keygen_cmd" "${keygen_args[@]}" </dev/tty 2>"$tmpstderr" && keygen_rc=0 || keygen_rc=$?
+        keygen_stderr="$(cat "$tmpstderr")"
+        rm -f "$tmpstderr"
+
+        if [ -n "$keygen_stderr" ]; then
+            printf '%s\n' "$keygen_stderr" >&2
+        fi
+
+        # Success
+        if (( keygen_rc == 0 )) && [ -f "${key_path}.pub" ]; then
+            break
+        fi
+
+        # Check for recoverable errors worth retrying with next attempt
+        if printf '%s' "$keygen_stderr" | grep -qi 'feature not supported\|unknown key type\|not supported\|invalid format'; then
+            # Clean up any partial files before next attempt
+            rm -f "$key_path" "${key_path}.pub"
+            # Brief pause to let the authenticator reset its CTAP2 state
+            # (back-to-back requests can cause spurious "invalid format")
+            sleep 1
+            continue
+        fi
+
+        # Non-recoverable failure (user cancelled, wrong PIN, etc.)
+        break
+    done
 
     if [ -f "${key_path}.pub" ]; then
         SIGNING_KEY_FOUND=true
-
         SIGNING_PUB_PATH="${key_path}.pub"
         print_info "Key generated: ${key_path}.pub"
     else
-        print_warn "Key generation may have failed — ${key_path}.pub not found"
+        print_warn "Key generation failed. Common causes:"
+        printf '  • Security key firmware does not support SSH key enrollment\n' >&2
+        printf '  • Container/VM without full USB passthrough to the FIDO device\n' >&2
+        printf '  • Outdated libfido2 — try updating to the latest version\n' >&2
+        printf '  You can generate a software ed25519 key instead (option 1).\n' >&2
     fi
 }
 
@@ -1429,6 +1679,11 @@ main() {
     detect_platform
     check_dependencies
 
+    if [ "$RESET_SIGNING" = true ]; then
+        reset_signing
+        exit 0
+    fi
+
     # --- Audit phase ---
     AUDIT_OK=0
     AUDIT_WARN=0
@@ -1452,7 +1707,9 @@ main() {
     # If everything is already OK, nothing to do
     if [ "$audit_exit" -eq 0 ]; then
         print_info "All settings already match recommendations. Nothing to do."
-        print_admin_recommendations
+        if [ "$MISSING_DEPENDENCY" = false ]; then
+            print_admin_recommendations
+        fi
         exit 0
     fi
 
@@ -1471,7 +1728,9 @@ main() {
     apply_global_gitignore
     apply_signing_config
     apply_ssh_config
-    print_admin_recommendations
+    if [ "$MISSING_DEPENDENCY" = false ]; then
+        print_admin_recommendations
+    fi
 
     print_info "Hardening complete. Re-run with --audit to verify."
 }
