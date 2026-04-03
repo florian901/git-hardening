@@ -10,7 +10,7 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.3.0"
+readonly VERSION="0.3.1"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
@@ -1552,46 +1552,95 @@ setup_allowed_signers() {
 # SSH config hardening
 # ------------------------------------------------------------------------------
 
-apply_ssh_directive() {
+ssh_directive_needs_change() {
     local directive="$1"
     local value="$2"
 
-    # Check if directive already exists with correct value (case-insensitive directive match)
     local current
     current="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
     current="$(strip_ssh_value "$current")"
 
-    if [ "$current" = "$value" ]; then
-        return
-    fi
+    [ "$current" != "$value" ]
+}
+
+apply_single_ssh_directive() {
+    local directive="$1"
+    local value="$2"
+
+    local current
+    current="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
+    current="$(strip_ssh_value "$current")"
 
     if [ -n "$current" ]; then
-        # Directive exists but with wrong value
-        if prompt_yn "Update SSH directive: $directive $current -> $value?"; then
-            # Use temp file to avoid sed -i portability issues
-            local tmpfile
-            tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
-            trap 'rm -f "$tmpfile"' EXIT
-            # Replace first occurrence of the directive (case-insensitive)
-            local replaced=false
-            while IFS= read -r line || [ -n "$line" ]; do
-                if [ "$replaced" = false ] && printf '%s' "$line" | grep -qi "^[[:space:]]*${directive}[[:space:]=]"; then
-                    printf '%s %s\n' "$directive" "$value"
-                    replaced=true
-                else
-                    printf '%s\n' "$line"
-                fi
-            done < "$SSH_CONFIG" > "$tmpfile"
-            mv "$tmpfile" "$SSH_CONFIG"
-            chmod 600 "$SSH_CONFIG"
-            print_info "Updated $directive = $value in $SSH_CONFIG"
-        fi
+        # Replace existing directive
+        local tmpfile
+        tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
+        local replaced=false
+        while IFS= read -r line || [ -n "$line" ]; do
+            if [ "$replaced" = false ] && printf '%s' "$line" | grep -qi "^[[:space:]]*${directive}[[:space:]=]"; then
+                printf '%s %s\n' "$directive" "$value"
+                replaced=true
+            else
+                printf '%s\n' "$line"
+            fi
+        done < "$SSH_CONFIG" > "$tmpfile"
+        mv "$tmpfile" "$SSH_CONFIG"
+        chmod 600 "$SSH_CONFIG"
     else
-        # Directive missing entirely
-        if prompt_yn "Add SSH directive: $directive $value?"; then
-            printf '%s %s\n' "$directive" "$value" >> "$SSH_CONFIG"
-            print_info "Added $directive $value to $SSH_CONFIG"
+        printf '%s %s\n' "$directive" "$value" >> "$SSH_CONFIG"
+    fi
+}
+
+apply_ssh_directive_group() {
+    local group_name="$1"
+    local description="$2"
+    shift 2
+
+    # Collect pending changes (directives that need updating)
+    local pending_keys=""
+    local pending_vals=""
+    local pending_explanations=""
+    local count=0
+
+    while [ $# -ge 3 ]; do
+        local key="$1" value="$2" explanation="$3"
+        shift 3
+        if ssh_directive_needs_change "$key" "$value"; then
+            pending_keys="${pending_keys}${key}"$'\n'
+            pending_vals="${pending_vals}${value}"$'\n'
+            pending_explanations="${pending_explanations}${explanation}"$'\n'
+            count=$((count + 1))
         fi
+    done
+
+    if [ "$count" -eq 0 ]; then
+        return 0
+    fi
+
+    printf '\n  %b%s%b\n' "$BOLD" "$group_name" "$RESET" >&2
+    printf '  %s\n\n' "$description" >&2
+
+    local i=0
+    while [ "$i" -lt "$count" ]; do
+        local key val expl
+        key="$(printf '%s' "$pending_keys" | sed -n "$((i + 1))p")"
+        val="$(printf '%s' "$pending_vals" | sed -n "$((i + 1))p")"
+        expl="$(printf '%s' "$pending_explanations" | sed -n "$((i + 1))p")"
+        printf '    %-45s %s\n' "${key} ${val}" "# ${expl}" >&2
+        i=$((i + 1))
+    done
+    printf '\n' >&2
+
+    if prompt_yn "Apply these ${count} directives?"; then
+        i=0
+        while [ "$i" -lt "$count" ]; do
+            local key val
+            key="$(printf '%s' "$pending_keys" | sed -n "$((i + 1))p")"
+            val="$(printf '%s' "$pending_vals" | sed -n "$((i + 1))p")"
+            apply_single_ssh_directive "$key" "$val"
+            i=$((i + 1))
+        done
+        print_info "Applied ${count} SSH directives"
     fi
 }
 
@@ -1612,11 +1661,28 @@ apply_ssh_config() {
         print_info "Created $SSH_CONFIG with mode 600"
     fi
 
-    apply_ssh_directive "StrictHostKeyChecking" "accept-new"
-    apply_ssh_directive "HashKnownHosts" "yes"
-    apply_ssh_directive "IdentitiesOnly" "yes"
-    apply_ssh_directive "AddKeysToAgent" "yes"
-    apply_ssh_directive "PubkeyAcceptedAlgorithms" "ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,sk-ecdsa-sha2-nistp256@openssh.com"
+    apply_ssh_directive_group "Host Verification" \
+        "Trust-on-first-use (TOFU): accept new host keys automatically, but reject
+  changed keys (the actual MITM scenario). The default 'ask' just trains users
+  to blindly type 'yes'. Hashing known_hosts prevents hostname enumeration if
+  the file is exfiltrated." \
+        "StrictHostKeyChecking"  "accept-new"  "Auto-accept new hosts, reject changed keys" \
+        "HashKnownHosts"         "yes"          "Hash hostnames in known_hosts (privacy)"
+
+    apply_ssh_directive_group "Key & Agent Management" \
+        "Without IdentitiesOnly, ssh-agent offers ALL loaded keys to every server —
+  a malicious server can enumerate which services you have access to.
+  AddKeysToAgent reduces passphrase fatigue so developers actually use them." \
+        "IdentitiesOnly"  "yes"  "Only offer keys explicitly configured (prevents key leakage)" \
+        "AddKeysToAgent"  "yes"  "Auto-add keys to ssh-agent after first use"
+
+    apply_ssh_directive_group "Algorithm Restrictions" \
+        "Disables RSA and DSA negotiation entirely. This prevents downgrade attacks
+  to weaker algorithms. May break connections to legacy servers that only
+  support RSA — those servers should be upgraded (RSA-SHA1 deprecated since
+  OpenSSH 8.7)." \
+        "PubkeyAcceptedAlgorithms" "ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,sk-ecdsa-sha2-nistp256@openssh.com" \
+            "Ed25519 + ECDSA (software and hardware-backed)"
 }
 
 # ------------------------------------------------------------------------------
