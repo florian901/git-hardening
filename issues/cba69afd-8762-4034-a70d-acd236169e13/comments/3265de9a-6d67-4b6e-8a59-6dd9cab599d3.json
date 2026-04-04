@@ -1,0 +1,8 @@
+{
+  "uuid": "3265de9a-6d67-4b6e-8a59-6dd9cab599d3",
+  "issue_uuid": "cba69afd-8762-4034-a70d-acd236169e13",
+  "author": "anon-31e9bd66",
+  "content": "Committing credential helper detection enhancement with GCM support, distro install hints, and keychain-aware audit",
+  "created_at": "2026-04-04T12:10:40.019360Z",
+  "kind": "note"
+}
