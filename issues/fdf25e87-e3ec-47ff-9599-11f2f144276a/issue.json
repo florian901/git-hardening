@@ -1,0 +1,10 @@
+{
+  "uuid": "fdf25e87-e3ec-47ff-9599-11f2f144276a",
+  "display_id": 50,
+  "title": "Refactor apply_setting_group to use bash arrays instead of sed indexing",
+  "status": "open",
+  "priority": "low",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-04-04T12:16:29.095087Z",
+  "updated_at": "2026-04-04T12:16:29.095087Z"
+}
