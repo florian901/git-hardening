@@ -4,9 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.4.0] - 2026-04-04
+
+### Added
+- GCM (Git Credential Manager) detection — preferred cross-platform credential helper
+- `is_keychain_credential_helper()` recognizes osxkeychain, GCM, libsecret, and gnome-keyring
+- Distro-specific install hints when no keychain-backed credential helper is found (Debian/Ubuntu, Fedora/RHEL, Arch, openSUSE, Alpine)
+- Audit labels keychain-backed helpers as `(keychain-backed)` for clarity
+
+### Changed
+- Harden step skips credential.helper prompt when user already has a keychain-backed helper
+- Audit messaging improved: clearer descriptions for missing, insecure, and unknown helpers
+- FIDO2 signing wizard, grouped SSH config directives, REASONING.md (prior unreleased work)
+
 ## [0.2.3] - 2026-03-31
 
 ### Fixed
+- Fix e2e.sh distro loop not splitting on spaces (#39)
 - FIDO2 key generation on macOS — detect Homebrew's openssh via `ssh-sk-helper` (no freeze), use its `ssh-keygen` binary for hardware key generation
 - Linux gitleaks install hint now shows `apt`/`dnf` instead of `brew`
 - e2e test runner distro loop broken by `IFS` setting — use bash array
@@ -17,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2026-03-31
 
 ### Added
+- Add REASONING.md documenting trade-offs for each hardening default (#48)
 - Gitleaks pre-commit hook installation — creates `~/.config/git/hooks/pre-commit` with `SKIP_GITLEAKS` bypass
 - Global gitignore creation (`~/.config/git/ignore`) with security patterns (`.env`, `*.pem`, `*.key`, credentials, Terraform state)
 - Audit of existing global gitignore for missing security patterns

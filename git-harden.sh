@@ -10,7 +10,7 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.3.1"
+readonly VERSION="0.4.0"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
@@ -266,13 +266,31 @@ check_dependencies() {
     detect_credential_helper
 }
 
+# Check if a credential.helper value corresponds to a keychain-backed store.
+# Returns 0 (true) if the helper stores credentials in the OS keychain.
+is_keychain_credential_helper() {
+    local helper="$1"
+    case "$helper" in
+        osxkeychain|manager|manager-core) return 0 ;;
+        *git-credential-libsecret*)       return 0 ;;
+        *git-credential-gnome-keyring*)   return 0 ;;
+        *)                                return 1 ;;
+    esac
+}
+
 detect_credential_helper() {
+    # Git Credential Manager (GCM) — cross-platform, preferred when available
+    if command -v git-credential-manager >/dev/null 2>&1; then
+        DETECTED_CRED_HELPER="manager"
+        return
+    fi
+
     case "$PLATFORM" in
         macos)
             DETECTED_CRED_HELPER="osxkeychain"
             ;;
         linux)
-            # Try to find libsecret credential helper
+            # Try libsecret (GNOME Keyring / KDE Wallet / any Secret Service provider)
             local libsecret_path=""
             for path in \
                 /usr/lib/git-core/git-credential-libsecret \
@@ -286,10 +304,49 @@ detect_credential_helper() {
 
             if [ -n "$libsecret_path" ]; then
                 DETECTED_CRED_HELPER="$libsecret_path"
-            else
-                DETECTED_CRED_HELPER="cache --timeout=3600"
-                print_info "libsecret not found; falling back to in-memory credential cache (1h TTL, not persistent)"
+                return
             fi
+
+            # Fallback: in-memory cache (not persistent across reboots)
+            DETECTED_CRED_HELPER="cache --timeout=3600"
+            print_info "No keychain-backed credential helper found; falling back to in-memory cache (1h TTL)"
+            credential_install_hint
+            ;;
+    esac
+}
+
+# Print distro-specific install hints for keychain credential storage.
+credential_install_hint() {
+    local distro_id=""
+    if [ -f /etc/os-release ]; then
+        # shellcheck disable=SC1091 # os-release is a system file, not part of this project
+        distro_id="$(. /etc/os-release && printf '%s' "${ID:-}")"
+    fi
+
+    printf '  %bTo store credentials in the OS keychain, install one of:%b\n' "$YELLOW" "$RESET" >&2
+    case "$distro_id" in
+        ubuntu|debian|pop|linuxmint)
+            printf '    • libsecret:  sudo apt install libsecret-1-dev git make && cd /usr/share/doc/git/contrib/credential/libsecret && sudo make\n' >&2
+            printf '    • GCM:        https://github.com/git-ecosystem/git-credential-manager/releases\n' >&2
+            ;;
+        fedora|rhel|centos|rocky|alma)
+            printf '    • libsecret:  sudo dnf install git-credential-libsecret\n' >&2
+            printf '    • GCM:        https://github.com/git-ecosystem/git-credential-manager/releases\n' >&2
+            ;;
+        arch|manjaro|endeavouros)
+            printf '    • libsecret:  sudo pacman -S libsecret\n' >&2
+            printf '    • GCM:        https://github.com/git-ecosystem/git-credential-manager/releases\n' >&2
+            ;;
+        opensuse*|suse*)
+            printf '    • libsecret:  sudo zypper install git-credential-libsecret\n' >&2
+            printf '    • GCM:        https://github.com/git-ecosystem/git-credential-manager/releases\n' >&2
+            ;;
+        alpine)
+            printf '    • GCM:        https://github.com/git-ecosystem/git-credential-manager/releases\n' >&2
+            ;;
+        *)
+            printf '    • libsecret:  install git-credential-libsecret via your package manager\n' >&2
+            printf '    • GCM:        https://github.com/git-ecosystem/git-credential-manager/releases\n' >&2
             ;;
     esac
 }
@@ -387,14 +444,15 @@ audit_git_config() {
     local cred_current
     cred_current="$(git config --global --get credential.helper 2>/dev/null || true)"
     if [ -z "$cred_current" ]; then
-        print_miss "credential.helper (expected: $DETECTED_CRED_HELPER)"
+        print_miss "credential.helper not set (credentials won't be cached)"
     elif [ "$cred_current" = "store" ]; then
-        print_warn "credential.helper = store (INSECURE: stores passwords in plaintext; expected: $DETECTED_CRED_HELPER)"
+        print_warn "credential.helper = store (INSECURE: stores passwords in plaintext ~/${cred_current})"
+    elif is_keychain_credential_helper "$cred_current"; then
+        print_ok "credential.helper = $cred_current (keychain-backed)"
     elif [ "$cred_current" = "$DETECTED_CRED_HELPER" ]; then
         print_ok "credential.helper = $cred_current"
     else
-        # Non-store, non-recommended — could be user's custom helper
-        print_warn "credential.helper = $cred_current (expected: $DETECTED_CRED_HELPER)"
+        print_warn "credential.helper = $cred_current (not a known keychain-backed helper)"
     fi
 
     print_header "Defaults"
@@ -703,21 +761,21 @@ apply_setting_group() {
     shift 2
 
     # Collect pending changes (settings that need updating)
-    local pending_keys=""
-    local pending_vals=""
-    local pending_explanations=""
-    local count=0
+    local pending_keys=()
+    local pending_vals=()
+    local pending_explanations=()
 
     while [ $# -ge 3 ]; do
         local key="$1" value="$2" explanation="$3"
         shift 3
         if setting_needs_change "$key" "$value"; then
-            pending_keys="${pending_keys}${key}"$'\n'
-            pending_vals="${pending_vals}${value}"$'\n'
-            pending_explanations="${pending_explanations}${explanation}"$'\n'
-            count=$((count + 1))
+            pending_keys+=("$key")
+            pending_vals+=("$value")
+            pending_explanations+=("$explanation")
         fi
     done
+
+    local count="${#pending_keys[@]}"
 
     # Nothing to do
     if [ "$count" -eq 0 ]; then
@@ -728,25 +786,15 @@ apply_setting_group() {
     printf '  %s\n\n' "$description" >&2
 
     # Show what will change
-    local i=0
-    while [ "$i" -lt "$count" ]; do
-        local key val expl
-        key="$(printf '%s' "$pending_keys" | sed -n "$((i + 1))p")"
-        val="$(printf '%s' "$pending_vals" | sed -n "$((i + 1))p")"
-        expl="$(printf '%s' "$pending_explanations" | sed -n "$((i + 1))p")"
-        printf '    %-40s %s\n' "${key} = ${val}" "# ${expl}" >&2
-        i=$((i + 1))
+    local i
+    for ((i = 0; i < count; i++)); do
+        printf '    %-40s %s\n' "${pending_keys[$i]} = ${pending_vals[$i]}" "# ${pending_explanations[$i]}" >&2
     done
     printf '\n' >&2
 
     if prompt_yn "Apply these ${count} settings?"; then
-        i=0
-        while [ "$i" -lt "$count" ]; do
-            local key val
-            key="$(printf '%s' "$pending_keys" | sed -n "$((i + 1))p")"
-            val="$(printf '%s' "$pending_vals" | sed -n "$((i + 1))p")"
-            git config --global "$key" "$val"
-            i=$((i + 1))
+        for ((i = 0; i < count; i++)); do
+            git config --global "${pending_keys[$i]}" "${pending_vals[$i]}"
         done
         print_info "Applied ${count} settings"
     fi
@@ -841,8 +889,10 @@ apply_git_config() {
         "init.defaultBranch"    "main"       "Default branch name for new repos" \
         "log.showSignature"     "true"       "Show signature status in git log"
 
-    # Credential helper needs special logic (warn about 'store')
-    if [ "$cred_current" != "$DETECTED_CRED_HELPER" ]; then
+    # Credential helper needs special logic — accept any keychain-backed helper
+    if is_keychain_credential_helper "$cred_current" 2>/dev/null; then
+        : # Already using a keychain-backed helper — leave it alone
+    elif [ "$cred_current" != "$DETECTED_CRED_HELPER" ]; then
         local cred_prompt="Set credential.helper = $DETECTED_CRED_HELPER?"
         if [ "$cred_current" = "store" ]; then
             cred_prompt="Replace INSECURE credential.helper=store with $DETECTED_CRED_HELPER?"
@@ -1021,8 +1071,6 @@ detect_existing_keys() {
         if [ -f "$expanded_key" ]; then
             SIGNING_KEY_FOUND=true
             SIGNING_PUB_PATH="$expanded_key"
-            # Derive private key path (remove .pub suffix if present)
-
             return
         fi
     fi
@@ -1552,15 +1600,18 @@ setup_allowed_signers() {
 # SSH config hardening
 # ------------------------------------------------------------------------------
 
+# Read the current value of an SSH config directive (empty if absent).
+get_ssh_directive_value() {
+    local directive="$1"
+    local raw
+    raw="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
+    strip_ssh_value "$raw"
+}
+
 ssh_directive_needs_change() {
     local directive="$1"
     local value="$2"
-
-    local current
-    current="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
-    current="$(strip_ssh_value "$current")"
-
-    [ "$current" != "$value" ]
+    [ "$(get_ssh_directive_value "$directive")" != "$value" ]
 }
 
 apply_single_ssh_directive() {
@@ -1568,8 +1619,7 @@ apply_single_ssh_directive() {
     local value="$2"
 
     local current
-    current="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
-    current="$(strip_ssh_value "$current")"
+    current="$(get_ssh_directive_value "$directive")"
 
     if [ -n "$current" ]; then
         # Replace existing directive
@@ -1597,21 +1647,21 @@ apply_ssh_directive_group() {
     shift 2
 
     # Collect pending changes (directives that need updating)
-    local pending_keys=""
-    local pending_vals=""
-    local pending_explanations=""
-    local count=0
+    local pending_keys=()
+    local pending_vals=()
+    local pending_explanations=()
 
     while [ $# -ge 3 ]; do
         local key="$1" value="$2" explanation="$3"
         shift 3
         if ssh_directive_needs_change "$key" "$value"; then
-            pending_keys="${pending_keys}${key}"$'\n'
-            pending_vals="${pending_vals}${value}"$'\n'
-            pending_explanations="${pending_explanations}${explanation}"$'\n'
-            count=$((count + 1))
+            pending_keys+=("$key")
+            pending_vals+=("$value")
+            pending_explanations+=("$explanation")
         fi
     done
+
+    local count="${#pending_keys[@]}"
 
     if [ "$count" -eq 0 ]; then
         return 0
@@ -1620,25 +1670,15 @@ apply_ssh_directive_group() {
     printf '\n  %b%s%b\n' "$BOLD" "$group_name" "$RESET" >&2
     printf '  %s\n\n' "$description" >&2
 
-    local i=0
-    while [ "$i" -lt "$count" ]; do
-        local key val expl
-        key="$(printf '%s' "$pending_keys" | sed -n "$((i + 1))p")"
-        val="$(printf '%s' "$pending_vals" | sed -n "$((i + 1))p")"
-        expl="$(printf '%s' "$pending_explanations" | sed -n "$((i + 1))p")"
-        printf '    %-45s %s\n' "${key} ${val}" "# ${expl}" >&2
-        i=$((i + 1))
+    local i
+    for ((i = 0; i < count; i++)); do
+        printf '    %-45s %s\n' "${pending_keys[$i]} ${pending_vals[$i]}" "# ${pending_explanations[$i]}" >&2
     done
     printf '\n' >&2
 
     if prompt_yn "Apply these ${count} directives?"; then
-        i=0
-        while [ "$i" -lt "$count" ]; do
-            local key val
-            key="$(printf '%s' "$pending_keys" | sed -n "$((i + 1))p")"
-            val="$(printf '%s' "$pending_vals" | sed -n "$((i + 1))p")"
-            apply_single_ssh_directive "$key" "$val"
-            i=$((i + 1))
+        for ((i = 0; i < count; i++)); do
+            apply_single_ssh_directive "${pending_keys[$i]}" "${pending_vals[$i]}"
         done
         print_info "Applied ${count} SSH directives"
     fi

@@ -139,6 +139,47 @@ The script prints (but does not apply) server/org-level recommendations:
 - Clone untrusted repos with `--no-recurse-submodules`
 - Use separate signing keys per org to prevent cross-platform identity correlation (OSINT)
 
+## Signing with FIDO2 hardware keys
+
+The script includes an interactive wizard that:
+
+1. Detects existing SSH keys (including custom-named keys from `~/.ssh/config`)
+2. Detects FIDO2 hardware (YubiKey, etc.)
+3. Offers two tiers:
+   - **Software SSH key** — use existing `ed25519` or generate one
+   - **FIDO2 hardware key** — generate `ed25519-sk` with touch-to-sign (if hardware detected)
+4. Configures `user.signingkey`, `commit.gpgsign`, `tag.gpgsign`
+5. Sets up `~/.config/git/allowed_signers` for local signature verification
+
+These combinations of hardware and OS have been tested:
+
+| Hardware | Firmware | OS | works? |
+|----------|----------|----|--------|
+| [Yubico Security Key USB C NFC](https://support.yubico.com/s/article/Security-Key-C-NFC) | 5.4.3 | macOS Tahoe | Yes |
+| [Yubico Security Key USB C NFC](https://support.yubico.com/s/article/Security-Key-C-NFC) | 5.4.3 | Debian 13 Trixie |  |
+| [Yubico Security Key USB C NFC](https://support.yubico.com/s/article/Security-Key-C-NFC) | 5.4.3 | Fedora 42 | Yes |
+| [Yubico Security Key USB A NFC](https://support.yubico.com/s/article/Security-Key-NFC) | 5.4.3 | macOS Tahoe | Yes |
+| [Yubico Security Key USB A NFC](https://support.yubico.com/s/article/Security-Key-NFC) | 5.4.3 | Debian 13 Trixie |  |
+| [Yubico Security Key USB A NFC](https://support.yubico.com/s/article/Security-Key-NFC) | 5.4.3 | Fedora 42 | Yes |
+| [Yubico Security Key USB A NFC](https://www.yubico.com/products/security-key-by-yubico/usb-a-nfc/) | 5.0.2 | macOS Tahoe | Yes |
+| [Yubico Security Key USB A NFC](https://www.yubico.com/products/security-key-by-yubico/usb-a-nfc/) | 5.0.2 | Debian 13 Trixie |  |
+| [Yubico Security Key USB A NFC](https://www.yubico.com/products/security-key-by-yubico/usb-a-nfc/) | 5.0.2 | Fedora 42 | Yes |
+| [Yubico YubiKey 5C nano](https://support.yubico.com/s/article/YubiKey-5C-Nano) | 5.4.3 | macOS Tahoe | Yes |
+| [Yubico YubiKey 5C nano](https://support.yubico.com/s/article/YubiKey-5C-Nano) | 5.4.3 | Debian 13 Trixie |  |
+| [Yubico YubiKey 5C nano](https://support.yubico.com/s/article/YubiKey-5C-Nano) | 5.4.3 | Fedora 42 | Yes |
+| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | macOS Tahoe | Yes* |
+| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | Debian 13 Trixie|  |
+| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | Fedora 42| Yes* |
+| [SoloKeys Solo 1 Tap USB-A](https://solokeys.com/collections/all/products/solo-tap-usb-a-preorder) |  | Ubuntu 24.04 | Yes |
+| [SoloKeys Solo 1 Tap USB-A](https://solokeys.com/collections/all/products/solo-tap-usb-a-preorder) |  | Debian 13 Trixie | Yes |
+| [SoloKeys Solo 1 Tap USB-A](https://solokeys.com/collections/all/products/solo-tap-usb-a-preorder) |  | Fedora 42 | Yes |
+| [SoloKeys Solo 1 Tap USB-A](https://solokeys.com/collections/all/products/solo-tap-usb-a-preorder) |  | macOS Tahoe | Yes |
+| [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | macOS Tahoe | Yes |
+| [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | Ubuntu 24.04 | Yes |
+| [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | Debian 13 Trixie | |
+| [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | Fedora 42 | |
+
+
 ## Running Tests
 
 ```bash

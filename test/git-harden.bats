@@ -497,7 +497,7 @@ SSHEOF
     source_functions
     AUTO_YES=true
 
-    apply_ssh_directive "StrictHostKeyChecking" "accept-new"
+    apply_single_ssh_directive "StrictHostKeyChecking" "accept-new"
 
     # Should still have exactly one occurrence
     local count
@@ -515,7 +515,7 @@ SSHEOF
     source_functions
     AUTO_YES=true
 
-    apply_ssh_directive "StrictHostKeyChecking" "accept-new"
+    apply_single_ssh_directive "StrictHostKeyChecking" "accept-new"
 
     # Verify updated
     grep -q "StrictHostKeyChecking accept-new" "${TEST_HOME}/.ssh/config"
@@ -548,7 +548,7 @@ SSHEOF
     source_functions
     AUTO_YES=true
 
-    apply_ssh_directive "StrictHostKeyChecking" "accept-new"
+    apply_single_ssh_directive "StrictHostKeyChecking" "accept-new"
 
     # Should still have exactly one occurrence
     local count
@@ -1156,7 +1156,7 @@ EOF
 # v0.2.0: Version bump
 # ===========================================================================
 
-@test "--version reports 0.2.3" {
+@test "--version reports 0.4.0" {
     run bash "$SCRIPT" --version
-    assert_output --partial "0.2.3"
+    assert_output --partial "0.4.0"
 }
