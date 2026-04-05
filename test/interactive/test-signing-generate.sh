@@ -16,7 +16,12 @@ main() {
 
     printf 'Test: Signing wizard - generate ed25519 key\n' >&2
 
-    # Ensure no existing keys
+    # Ensure identity is set (prior tests may have cleared it)
+    git config --global user.name "Test User" 2>/dev/null || true
+    git config --global user.email "test@example.com" 2>/dev/null || true
+
+    # Ensure no existing signing keys (new dedicated names + legacy)
+    rm -f "${HOME}/.ssh/id_ed25519_signing" "${HOME}/.ssh/id_ed25519_signing.pub"
     rm -f "${HOME}/.ssh/id_ed25519" "${HOME}/.ssh/id_ed25519.pub"
 
     start_session
@@ -61,9 +66,9 @@ main() {
     sleep 3
     capture_output >/dev/null 2>&1 || true
 
-    # Verify key exists
-    if [ -f "${HOME}/.ssh/id_ed25519.pub" ]; then
-        pass "Key generated: ~/.ssh/id_ed25519.pub exists"
+    # Verify key exists (new dedicated signing key name)
+    if [ -f "${HOME}/.ssh/id_ed25519_signing.pub" ]; then
+        pass "Key generated: ~/.ssh/id_ed25519_signing.pub exists"
     else
         fail "Key not generated"
         exit 1

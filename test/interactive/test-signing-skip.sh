@@ -17,6 +17,9 @@ main() {
     printf 'Test: Signing wizard - skip\n' >&2
 
     # Remove any keys from prior tests so wizard shows key generation options
+    rm -f "${HOME}/.ssh/id_ed25519_signing" "${HOME}/.ssh/id_ed25519_signing.pub"
+    rm -f "${HOME}/.ssh/id_ed25519_sk_signing" "${HOME}/.ssh/id_ed25519_sk_signing.pub"
+    rm -f "${HOME}/.ssh/id_ecdsa_sk_signing" "${HOME}/.ssh/id_ecdsa_sk_signing.pub"
     rm -f "${HOME}/.ssh/id_ed25519" "${HOME}/.ssh/id_ed25519.pub"
     rm -f "${HOME}/.ssh/id_ed25519_sk" "${HOME}/.ssh/id_ed25519_sk.pub"
     git config --global --unset user.signingkey 2>/dev/null || true

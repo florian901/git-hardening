@@ -19,8 +19,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - New SSH directives are placed inside a `Host *` block instead of appended bare to EOF
 - `--reset-signing` now cleans the actual configured `user.signingkey` path in addition to well-known key names
 
+### Removed
+- Qubes OS CTAP2/vhci_hcd warning (PIN-protected keys work over USB passthrough)
+
 ### Fixed
 - `readonly VERSION` variable conflict when sourcing `/etc/os-release` (replaced `.` with `sed` parse)
+- FIDO2 key generation now offers retry when security key is not plugged in ("device not found")
+- Admin recommendations suppressed when signing setup was skipped or failed
+
+### Tests
+- 20 new BATS tests (112 total) covering identity guard, pull.rebase unset, SSH `Host *` placement, SSH config backup, dedicated signing key names, core.hooksPath separation, reset-signing with configured paths
+- New interactive test: identity guard flow (missing name/email prompts)
+- Updated existing tests for dedicated signing key names and inter-test isolation
 
 ## [0.4.0] - 2026-04-04
 

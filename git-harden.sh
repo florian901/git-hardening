@@ -1507,32 +1507,6 @@ generate_fido2_key() {
         fi
     fi
 
-    # Qubes OS: USB passthrough (vhci_hcd) corrupts CTAP2 protocol messages.
-    # Keys with a FIDO2 PIN require CTAP2, which fails over vhci_hcd.
-    # Warn the user — PIN-protected keys won't work without a functioning
-    # qubes-ctap proxy.
-    if [ "$PLATFORM" = "linux" ] && [ -d /sys/bus/hid/devices ]; then
-        local has_vhci=false
-        local dev_dir
-        for dev_dir in /sys/class/hidraw/hidraw*; do
-            [ -d "$dev_dir" ] || continue
-            if grep -q 'vhci_hcd' "${dev_dir}/device/uevent" 2>/dev/null; then
-                has_vhci=true
-                break
-            fi
-        done
-        if [ "$has_vhci" = true ]; then
-            print_warn "Qubes OS detected — FIDO2 key is attached via USB passthrough (vhci_hcd)."
-            printf '  CTAP2 (PIN-protected keys) may fail over USB passthrough.\n' >&2
-            printf '  Keys without a PIN (U2F-only) should work.\n' >&2
-            printf '  For PIN-protected keys, generate on the host and copy the key pair,\n' >&2
-            printf '  or ensure qubes-ctap-proxy is fully configured.\n' >&2
-            if ! prompt_yn "Continue anyway?"; then
-                return
-            fi
-        fi
-    fi
-
     # On macOS, the system ssh-keygen lacks FIDO2 support. Homebrew's openssh
     # bundles ssh-sk-helper and builds FIDO2 into its own ssh-keygen binary.
     # Detect by checking for ssh-sk-helper (NOT by running ssh-keygen, which
@@ -1635,6 +1609,22 @@ generate_fido2_key() {
         # Success
         if (( keygen_rc == 0 )) && [ -f "${key_path}.pub" ]; then
             break
+        fi
+
+        # Device not found — offer to plug in and retry the same attempt
+        if printf '%s' "$keygen_stderr" | grep -qi 'device not found\|no device'; then
+            rm -f "$key_path" "${key_path}.pub"
+            printf '\n  Security key not detected.\n' >&2
+            printf '  Please insert your security key and press Enter to retry (or q to skip): ' >&2
+            local retry_reply
+            read -r retry_reply </dev/tty || retry_reply="q"
+            if [[ "$retry_reply" = "q" ]]; then
+                return
+            fi
+            # Retry the same attempt (back up the index)
+            i=$((i - 1))
+            attempt_num=$((attempt_num - 1))
+            continue
         fi
 
         # Check for recoverable errors worth retrying with next attempt
@@ -1978,7 +1968,10 @@ main() {
     apply_global_gitignore
     apply_signing_config
     apply_ssh_config
-    if [ "$MISSING_DEPENDENCY" = false ]; then
+
+    # Only show admin recommendations if everything completed without
+    # missing dependencies or incomplete signing setup
+    if [ "$MISSING_DEPENDENCY" = false ] && [ "$SIGNING_KEY_FOUND" = true ]; then
         print_admin_recommendations
     fi
 

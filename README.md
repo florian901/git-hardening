@@ -165,11 +165,11 @@ These combinations of hardware and OS have been tested:
 | [Yubico Security Key USB A NFC](https://www.yubico.com/products/security-key-by-yubico/usb-a-nfc/) | 5.0.2 | Debian 13 Trixie |  |
 | [Yubico Security Key USB A NFC](https://www.yubico.com/products/security-key-by-yubico/usb-a-nfc/) | 5.0.2 | Fedora 42 | Yes |
 | [Yubico YubiKey 5C nano](https://support.yubico.com/s/article/YubiKey-5C-Nano) | 5.4.3 | macOS Tahoe | Yes |
-| [Yubico YubiKey 5C nano](https://support.yubico.com/s/article/YubiKey-5C-Nano) | 5.4.3 | Debian 13 Trixie |  |
+| [Yubico YubiKey 5C nano](https://support.yubico.com/s/article/YubiKey-5C-Nano) | 5.4.3 | Debian 13 Trixie | Yes |
 | [Yubico YubiKey 5C nano](https://support.yubico.com/s/article/YubiKey-5C-Nano) | 5.4.3 | Fedora 42 | Yes |
-| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | macOS Tahoe | Yes* |
-| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | Debian 13 Trixie|  |
-| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | Fedora 42| Yes* |
+| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | macOS Tahoe | Yes |
+| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | Debian 13 Trixie| Yes  |
+| [Yubico YubiKey 5 NFC](https://support.yubico.com/s/article/YubiKey-5-NFC) | 5.1.2 | Fedora 42| Yes |
 | [SoloKeys Solo 1 Tap USB-A](https://solokeys.com/collections/all/products/solo-tap-usb-a-preorder) |  | Ubuntu 24.04 | Yes |
 | [SoloKeys Solo 1 Tap USB-A](https://solokeys.com/collections/all/products/solo-tap-usb-a-preorder) |  | Debian 13 Trixie | Yes |
 | [SoloKeys Solo 1 Tap USB-A](https://solokeys.com/collections/all/products/solo-tap-usb-a-preorder) |  | Fedora 42 | Yes |
@@ -177,7 +177,7 @@ These combinations of hardware and OS have been tested:
 | [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | macOS Tahoe | Yes |
 | [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | Ubuntu 24.04 | Yes |
 | [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | Debian 13 Trixie | |
-| [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | Fedora 42 | |
+| [HYPERSECU HyperFIDO mini](https://033c2a7e-e1da-473d-a255-6132a1d3aa6e.filesusr.com/ugd/5aae8d_f4e8a196a99f45b1859e201a7cb40962.pdf) |  | Fedora 42 | Yes |
 
 
 ## Running Tests

@@ -570,18 +570,29 @@ SSHEOF
     [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/id_ed25519.pub" ]
 }
 
-@test "detect_existing_keys prefers sk key over software key" {
+@test "detect_existing_keys prefers dedicated signing key over general key" {
     ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519" -N "" -q
-    # Fake an sk key (can't generate real one without hardware)
-    cp "${TEST_HOME}/.ssh/id_ed25519" "${TEST_HOME}/.ssh/id_ed25519_sk"
-    # Write a fake pub key with sk type prefix
-    printf 'sk-ssh-ed25519@openssh.com AAAAFakeKey test\n' > "${TEST_HOME}/.ssh/id_ed25519_sk.pub"
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519_signing" -N "" -q
 
     source_functions
     detect_existing_keys
 
     [ "$SIGNING_KEY_FOUND" = true ]
-    [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/id_ed25519_sk.pub" ]
+    [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/id_ed25519_signing.pub" ]
+}
+
+@test "detect_existing_keys prefers sk signing key over software key" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519" -N "" -q
+    # Fake an sk signing key (can't generate real one without hardware)
+    cp "${TEST_HOME}/.ssh/id_ed25519" "${TEST_HOME}/.ssh/id_ed25519_sk_signing"
+    # Write a fake pub key with sk type prefix
+    printf 'sk-ssh-ed25519@openssh.com AAAAFakeKey test\n' > "${TEST_HOME}/.ssh/id_ed25519_sk_signing.pub"
+
+    source_functions
+    detect_existing_keys
+
+    [ "$SIGNING_KEY_FOUND" = true ]
+    [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/id_ed25519_sk_signing.pub" ]
 }
 
 @test "detect_existing_keys finds key from IdentityFile directive" {
@@ -691,15 +702,16 @@ SSHEOF
     [ "$count" -eq 1 ]
 }
 
-@test "setup_allowed_signers skips when no email set" {
+@test "setup_allowed_signers skips when no email provided" {
     ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519" -N "" -q
     git config --global --unset user.email
 
     source_functions
     SIGNING_PUB_PATH="${TEST_HOME}/.ssh/id_ed25519.pub"
 
+    # In non-interactive context, read from /dev/tty fails — empty email
     run setup_allowed_signers
-    assert_output --partial "user.email not set"
+    assert_output --partial "No email provided"
 }
 
 # ===========================================================================
@@ -1153,10 +1165,297 @@ EOF
 }
 
 # ===========================================================================
-# v0.2.0: Version bump
+# v0.5.0: Identity guard (useConfigOnly)
 # ===========================================================================
 
-@test "--version reports 0.4.0" {
+@test "audit warns when useConfigOnly=true but identity missing" {
+    git config --global --unset user.name
+    git config --global --unset user.email
+
+    source_functions
+    run audit_git_config
+    assert_output --partial "user.name/user.email not set"
+}
+
+@test "audit does not warn about identity when name and email set" {
+    source_functions
+    run audit_git_config
+    refute_output --partial "user.name/user.email not set"
+}
+
+@test "-y mode applies useConfigOnly when identity exists" {
+    source_functions
+    AUTO_YES=true
+    PLATFORM="macos"
+    DETECTED_CRED_HELPER="osxkeychain"
+
+    run apply_git_config
+    assert_success
+
+    [ "$(git config --global user.useConfigOnly)" = "true" ]
+}
+
+@test "-y mode skips useConfigOnly when user.name missing" {
+    git config --global --unset user.name
+
+    source_functions
+    AUTO_YES=true
+    PLATFORM="macos"
+    DETECTED_CRED_HELPER="osxkeychain"
+
+    run apply_git_config
+    assert_success
+    assert_output --partial "Skipping user.useConfigOnly"
+
+    local result
+    result="$(git config --global --get user.useConfigOnly 2>/dev/null || true)"
+    [ -z "$result" ]
+}
+
+@test "-y mode skips useConfigOnly when user.email missing" {
+    git config --global --unset user.email
+
+    source_functions
+    AUTO_YES=true
+    PLATFORM="macos"
+    DETECTED_CRED_HELPER="osxkeychain"
+
+    run apply_git_config
+    assert_success
+    assert_output --partial "Skipping user.useConfigOnly"
+
+    local result
+    result="$(git config --global --get user.useConfigOnly 2>/dev/null || true)"
+    [ -z "$result" ]
+}
+
+# ===========================================================================
+# v0.5.0: pull.rebase unset during apply
+# ===========================================================================
+
+@test "-y mode unsets pull.rebase when set" {
+    git config --global pull.rebase true
+
+    source_functions
+    AUTO_YES=true
+    PLATFORM="macos"
+    DETECTED_CRED_HELPER="osxkeychain"
+
+    run apply_git_config
+    assert_success
+    assert_output --partial "Unset pull.rebase"
+
+    local result
+    result="$(git config --global --get pull.rebase 2>/dev/null || true)"
+    [ -z "$result" ]
+}
+
+@test "-y mode does not unset pull.rebase when not set" {
+    source_functions
+    AUTO_YES=true
+    PLATFORM="macos"
+    DETECTED_CRED_HELPER="osxkeychain"
+
+    run apply_git_config
+    assert_success
+    refute_output --partial "Unset pull.rebase"
+}
+
+# ===========================================================================
+# v0.5.0: SSH directives in Host * block
+# ===========================================================================
+
+@test "apply places new SSH directive in Host * block when blocks exist" {
+    cat > "${TEST_HOME}/.ssh/config" <<'SSHEOF'
+Host github.com
+    IdentityFile ~/.ssh/github_key
+SSHEOF
+
+    source_functions
+    apply_single_ssh_directive "StrictHostKeyChecking" "accept-new"
+
+    # Should have created a Host * block
+    grep -q "^Host \*$" "${TEST_HOME}/.ssh/config"
+    grep -q "StrictHostKeyChecking accept-new" "${TEST_HOME}/.ssh/config"
+}
+
+@test "apply inserts into existing Host * block" {
+    cat > "${TEST_HOME}/.ssh/config" <<'SSHEOF'
+Host *
+    HashKnownHosts yes
+
+Host github.com
+    IdentityFile ~/.ssh/github_key
+SSHEOF
+
+    source_functions
+    apply_single_ssh_directive "IdentitiesOnly" "yes"
+
+    # Should be inside Host * block (indented), not appended bare
+    grep -q "IdentitiesOnly yes" "${TEST_HOME}/.ssh/config"
+    # Only one Host * line
+    local count
+    count="$(grep -c '^Host \*$' "${TEST_HOME}/.ssh/config")"
+    [ "$count" -eq 1 ]
+}
+
+@test "apply appends bare when no Host/Match blocks exist" {
+    : > "${TEST_HOME}/.ssh/config"
+
+    source_functions
+    apply_single_ssh_directive "HashKnownHosts" "yes"
+
+    grep -q "HashKnownHosts yes" "${TEST_HOME}/.ssh/config"
+    # No Host * block should be created for a simple file
+    ! grep -q "^Host" "${TEST_HOME}/.ssh/config"
+}
+
+# ===========================================================================
+# v0.5.0: SSH config backup
+# ===========================================================================
+
+@test "apply_ssh_config creates backup of existing SSH config" {
+    printf 'StrictHostKeyChecking ask\n' > "${TEST_HOME}/.ssh/config"
+
+    source_functions
+    AUTO_YES=true
+
+    run apply_ssh_config
+    assert_success
+    assert_output --partial "SSH config backed up"
+
+    # Verify backup file exists
+    local backup_count
+    backup_count="$(find "${TEST_HOME}/.ssh" -name 'config.pre-harden-*' | wc -l | tr -d ' ')"
+    [ "$backup_count" -eq 1 ]
+
+    # Verify backup contains original content
+    local backup_file
+    backup_file="$(find "${TEST_HOME}/.ssh" -name 'config.pre-harden-*' -print -quit)"
+    grep -q "StrictHostKeyChecking ask" "$backup_file"
+}
+
+@test "apply_ssh_config does not create backup for new SSH config" {
+    rm -f "${TEST_HOME}/.ssh/config"
+
+    source_functions
+    AUTO_YES=true
+
+    run apply_ssh_config
+    assert_success
+    refute_output --partial "SSH config backed up"
+}
+
+# ===========================================================================
+# v0.5.0: Dedicated signing key names
+# ===========================================================================
+
+@test "detect_existing_keys finds dedicated signing key" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519_signing" -N "" -q
+
+    source_functions
+    detect_existing_keys
+
+    [ "$SIGNING_KEY_FOUND" = true ]
+    [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/id_ed25519_signing.pub" ]
+}
+
+@test "detect_existing_keys falls back to general key when no signing key" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519" -N "" -q
+
+    source_functions
+    detect_existing_keys
+
+    [ "$SIGNING_KEY_FOUND" = true ]
+    [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/id_ed25519.pub" ]
+}
+
+@test "-y mode enables signing with dedicated signing key" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519_signing" -N "" -q
+
+    source_functions
+    AUTO_YES=true
+
+    run apply_signing_config
+    assert_success
+
+    [ "$(git config --global commit.gpgsign)" = "true" ]
+    local sigkey
+    sigkey="$(git config --global user.signingkey)"
+    [[ "$sigkey" = *"id_ed25519_signing.pub"* ]]
+}
+
+# ===========================================================================
+# v0.5.0: core.hooksPath separate prompt
+# ===========================================================================
+
+@test "-y mode applies core.hooksPath separately from filesystem group" {
+    source_functions
+    AUTO_YES=true
+    PLATFORM="macos"
+    DETECTED_CRED_HELPER="osxkeychain"
+
+    run apply_git_config
+    assert_success
+
+    [ "$(git config --global core.hooksPath)" = "~/.config/git/hooks" ]
+}
+
+@test "-y mode skips core.hooksPath when already set" {
+    git config --global core.hooksPath "~/.config/git/hooks"
+
+    source_functions
+    AUTO_YES=true
+    PLATFORM="macos"
+    DETECTED_CRED_HELPER="osxkeychain"
+
+    run apply_git_config
+    assert_success
+    refute_output --partial "Global Hooks Path"
+}
+
+# ===========================================================================
+# v0.5.0: reset-signing cleans configured key path
+# ===========================================================================
+
+@test "reset-signing cleans actual configured key path" {
+    # Create a custom-named key
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/my_org_key" -N "" -q
+    git config --global user.signingkey "${TEST_HOME}/.ssh/my_org_key.pub"
+    git config --global commit.gpgsign true
+
+    source_functions
+    AUTO_YES=true
+
+    run reset_signing
+    assert_success
+
+    # git config entries should be removed
+    local sigkey
+    sigkey="$(git config --global --get user.signingkey 2>/dev/null || true)"
+    [ -z "$sigkey" ]
+
+    # Key files should be listed for cleanup
+    assert_output --partial "my_org_key"
+}
+
+@test "reset-signing includes dedicated signing key names" {
+    # Create dedicated signing keys
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519_signing" -N "" -q
+
+    source_functions
+    AUTO_YES=true
+
+    run reset_signing
+    assert_success
+    assert_output --partial "id_ed25519_signing"
+}
+
+# ===========================================================================
+# v0.5.0: Version bump
+# ===========================================================================
+
+@test "--version reports 0.5.0" {
     run bash "$SCRIPT" --version
-    assert_output --partial "0.4.0"
+    assert_output --partial "0.5.0"
 }
