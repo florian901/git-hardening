@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.5.0] - 2026-04-05
+
+### Added
+- Identity guard: prompt for `user.name`/`user.email` before enabling `user.useConfigOnly=true` to prevent commit lockout
+- Apply phase offers to unset `pull.rebase` when it conflicts with `pull.ff=only`
+- SSH config backup (`~/.ssh/config.pre-harden-*`) before applying SSH directives
+- `core.hooksPath` gets its own prompt with explicit warning about overriding per-repo hooks (husky, lefthook, pre-commit)
+- Allowed signers setup prompts for email when `user.email` is not configured globally
+
+### Changed
+- Signing keys use dedicated names (`id_ed25519_signing`, `id_ed25519_sk_signing`, `id_ecdsa_sk_signing`) to avoid colliding with existing authentication keys
+- "Key already exists" messages changed from `[WARN]` to `[INFO]` with clearer guidance ("using existing key")
+- New SSH directives are placed inside a `Host *` block instead of appended bare to EOF
+- `--reset-signing` now cleans the actual configured `user.signingkey` path in addition to well-known key names
+
+### Fixed
+- `readonly VERSION` variable conflict when sourcing `/etc/os-release` (replaced `.` with `sed` parse)
+
 ## [0.4.0] - 2026-04-04
 
 ### Added

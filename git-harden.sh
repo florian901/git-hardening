@@ -10,7 +10,7 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.4.0"
+readonly VERSION="0.5.0"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
@@ -318,9 +318,8 @@ detect_credential_helper() {
 # Print distro-specific install hints for keychain credential storage.
 credential_install_hint() {
     local distro_id=""
-    if [ -f /etc/os-release ]; then
-        # shellcheck disable=SC1091 # os-release is a system file, not part of this project
-        distro_id="$(. /etc/os-release && printf '%s' "${ID:-}")"
+    if [[ -f /etc/os-release ]]; then
+        distro_id="$(sed -n 's/^ID=//p' /etc/os-release | tr -d '"')"
     fi
 
     printf '  %bTo store credentials in the OS keychain, install one of:%b\n' "$YELLOW" "$RESET" >&2
@@ -377,6 +376,14 @@ audit_git_setting() {
 audit_git_config() {
     print_header "Identity"
     audit_git_setting "user.useConfigOnly" "true"
+
+    # Warn if useConfigOnly would lock out commits (no global identity)
+    local has_name has_email
+    has_name="$(git config --global --get user.name 2>/dev/null || true)"
+    has_email="$(git config --global --get user.email 2>/dev/null || true)"
+    if [[ -z "$has_name" || -z "$has_email" ]]; then
+        print_warn "user.name/user.email not set globally — useConfigOnly=true will block commits outside configured repos"
+    fi
 
     print_header "Object Integrity"
     audit_git_setting "transfer.fsckObjects" "true"
@@ -831,9 +838,23 @@ apply_git_config() {
         "core.protectNTFS"      "true"              "Block NTFS 8.3 short-name attacks" \
         "core.protectHFS"       "true"              "Block HFS+ Unicode normalization attacks" \
         "core.fsmonitor"        "false"             "Disable filesystem monitor (attack surface)" \
-        "core.hooksPath"        "$hooks_path_val"   "Redirect hooks to central dir" \
         "safe.bareRepository"   "explicit"          "Require --git-dir for bare repos" \
         "submodule.recurse"     "false"             "Don't auto-recurse into submodules"
+
+    # core.hooksPath: separate prompt — this overrides ALL per-repo hooks
+    if setting_needs_change "core.hooksPath" "$hooks_path_val"; then
+        print_header "Global Hooks Path"
+        printf '  %bWarning:%b Setting core.hooksPath redirects ALL hook execution to a\n' "$YELLOW" "$RESET" >&2
+        printf '  central directory. Per-repo hooks (.git/hooks/) will stop running.\n' >&2
+        printf '  This includes hooks from frameworks like husky, lefthook, and pre-commit.\n\n' >&2
+        printf '  Recommended: set this, then install a dispatch hook that calls per-repo\n' >&2
+        printf '  hooks when present (this script installs a gitleaks hook there).\n\n' >&2
+        printf '    core.hooksPath = %s\n\n' "$hooks_path_val" >&2
+        if prompt_yn "Set core.hooksPath? (overrides per-repo hooks)"; then
+            git config --global core.hooksPath "$hooks_path_val"
+            print_info "Set core.hooksPath = $hooks_path_val"
+        fi
+    fi
 
     # core.symlinks: interactive-only (may break symlink-dependent workflows)
     if [ "$AUTO_YES" = false ]; then
@@ -879,15 +900,71 @@ apply_git_config() {
         fi
     fi
 
+    # pull.rebase conflicts with pull.ff=only — offer to unset
+    local pull_rebase
+    pull_rebase="$(git config --global --get pull.rebase 2>/dev/null || true)"
+    if [[ -n "$pull_rebase" ]]; then
+        printf '\n  %bpull.rebase = %s conflicts with pull.ff = only%b\n' "$YELLOW" "$pull_rebase" "$RESET" >&2
+        printf '  With pull.ff=only, git already refuses non-fast-forward pulls.\n' >&2
+        printf '  Having pull.rebase set alongside it causes confusing errors.\n\n' >&2
+        if prompt_yn "Unset pull.rebase?"; then
+            git config --global --unset pull.rebase
+            print_info "Unset pull.rebase"
+        fi
+    fi
+
     # --- Group 5: Credential, Identity & Defaults ---
     local cred_current
     cred_current="$(git config --global --get credential.helper 2>/dev/null || true)"
 
-    apply_setting_group "Identity, Credentials & Defaults" \
-        "Prevent accidental identity, enforce secure credential storage." \
-        "user.useConfigOnly"    "true"       "Block commits without explicit user.name/email" \
+    apply_setting_group "Defaults & Visibility" \
+        "Sensible defaults for new repositories and log output." \
         "init.defaultBranch"    "main"       "Default branch name for new repos" \
         "log.showSignature"     "true"       "Show signature status in git log"
+
+    # user.useConfigOnly needs a guard — it locks out commits without identity
+    if setting_needs_change "user.useConfigOnly" "true"; then
+        local has_name has_email
+        has_name="$(git config --global --get user.name 2>/dev/null || true)"
+        has_email="$(git config --global --get user.email 2>/dev/null || true)"
+        if [[ -z "$has_name" || -z "$has_email" ]]; then
+            print_header "Identity Guard"
+            printf '  %buseConfigOnly=true blocks commits without user.name and user.email.%b\n' "$YELLOW" "$RESET" >&2
+            printf '  You are missing: %s\n\n' \
+                "$( [[ -z "$has_name" ]] && printf 'user.name '; [[ -z "$has_email" ]] && printf 'user.email' )" >&2
+            if [[ -z "$has_name" ]]; then
+                printf '  Enter your name (or press Enter to skip): ' >&2
+                local input_name
+                read -r input_name </dev/tty || input_name=""
+                if [[ -n "$input_name" ]]; then
+                    git config --global user.name "$input_name"
+                    print_info "Set user.name = $input_name"
+                    has_name="$input_name"
+                fi
+            fi
+            if [[ -z "$has_email" ]]; then
+                printf '  Enter your email (or press Enter to skip): ' >&2
+                local input_email
+                read -r input_email </dev/tty || input_email=""
+                if [[ -n "$input_email" ]]; then
+                    git config --global user.email "$input_email"
+                    print_info "Set user.email = $input_email"
+                    has_email="$input_email"
+                fi
+            fi
+            if [[ -z "$has_name" || -z "$has_email" ]]; then
+                print_warn "Skipping user.useConfigOnly — set user.name and user.email first to avoid being locked out"
+            else
+                git config --global user.useConfigOnly true
+                print_info "Set user.useConfigOnly = true"
+            fi
+        else
+            if prompt_yn "Set user.useConfigOnly = true? (block commits without explicit identity)"; then
+                git config --global user.useConfigOnly true
+                print_info "Set user.useConfigOnly = true"
+            fi
+        fi
+    fi
 
     # Credential helper needs special logic — accept any keychain-backed helper
     if is_keychain_credential_helper "$cred_current" 2>/dev/null; then
@@ -1075,9 +1152,9 @@ detect_existing_keys() {
         fi
     fi
 
-    # Check common ed25519 key locations (sk first, then software)
+    # Check common ed25519 key locations (dedicated signing keys first, then general)
     local priv_path pub_path
-    for key_type in id_ed25519_sk id_ed25519; do
+    for key_type in id_ed25519_sk_signing id_ecdsa_sk_signing id_ed25519_signing id_ed25519_sk id_ed25519; do
         priv_path="${SSH_DIR}/${key_type}"
         pub_path="${priv_path}.pub"
         if [ -f "$pub_path" ]; then
@@ -1230,14 +1307,35 @@ reset_signing() {
         print_info "No signing key in git config"
     fi
 
-    # Collect all signing key files that would block fresh generation
+    # Collect signing key files: start with the actual configured path (if any),
+    # then check well-known names (dedicated signing keys + legacy defaults)
     local key_files=()
     local candidate
+    local seen_paths=""
+
+    # Include the actual configured key and its private counterpart
+    if [[ -n "$signing_key" ]]; then
+        local configured_path="${signing_key/#\~/$HOME}"
+        for candidate in "$configured_path" "${configured_path%.pub}"; do
+            if [[ -f "$candidate" ]] && [[ "$seen_paths" != *"|${candidate}|"* ]]; then
+                key_files+=("$candidate")
+                seen_paths="${seen_paths}|${candidate}|"
+            fi
+        done
+    fi
+
+    # Also check well-known signing key names
     for candidate in \
+        "${SSH_DIR}/id_ed25519_sk_signing" "${SSH_DIR}/id_ed25519_sk_signing.pub" \
+        "${SSH_DIR}/id_ecdsa_sk_signing"   "${SSH_DIR}/id_ecdsa_sk_signing.pub" \
+        "${SSH_DIR}/id_ed25519_signing"    "${SSH_DIR}/id_ed25519_signing.pub" \
         "${SSH_DIR}/id_ed25519_sk" "${SSH_DIR}/id_ed25519_sk.pub" \
         "${SSH_DIR}/id_ecdsa_sk"   "${SSH_DIR}/id_ecdsa_sk.pub" \
         "${SSH_DIR}/id_ed25519"    "${SSH_DIR}/id_ed25519.pub"; do
-        [ -f "$candidate" ] && key_files+=("$candidate")
+        if [[ -f "$candidate" ]] && [[ "$seen_paths" != *"|${candidate}|"* ]]; then
+            key_files+=("$candidate")
+            seen_paths="${seen_paths}|${candidate}|"
+        fi
     done
 
     if (( ${#key_files[@]} > 0 )); then
@@ -1279,12 +1377,11 @@ enable_signing() {
 }
 
 generate_ssh_key() {
-    local key_path="${SSH_DIR}/id_ed25519"
+    local key_path="${SSH_DIR}/id_ed25519_signing"
 
     if [ -f "$key_path" ]; then
-        print_warn "$key_path already exists. Not overwriting."
+        print_info "$key_path already exists — using existing key"
         SIGNING_KEY_FOUND=true
-
         SIGNING_PUB_PATH="${key_path}.pub"
         return
     fi
@@ -1350,18 +1447,18 @@ detect_fido2_sk_type() {
 }
 
 generate_fido2_key() {
-    # Check for existing hardware-backed keys (both types)
-    local key_path_ed="${SSH_DIR}/id_ed25519_sk"
-    local key_path_ec="${SSH_DIR}/id_ecdsa_sk"
+    # Check for existing hardware-backed signing keys (both types)
+    local key_path_ed="${SSH_DIR}/id_ed25519_sk_signing"
+    local key_path_ec="${SSH_DIR}/id_ecdsa_sk_signing"
 
     if [ -f "$key_path_ed" ]; then
-        print_warn "$key_path_ed already exists. Not overwriting."
+        print_info "$key_path_ed already exists — using existing key"
         SIGNING_KEY_FOUND=true
         SIGNING_PUB_PATH="${key_path_ed}.pub"
         return
     fi
     if [ -f "$key_path_ec" ]; then
-        print_warn "$key_path_ec already exists. Not overwriting."
+        print_info "$key_path_ec already exists — using existing key"
         SIGNING_KEY_FOUND=true
         SIGNING_PUB_PATH="${key_path_ec}.pub"
         return
@@ -1574,9 +1671,17 @@ setup_allowed_signers() {
 
     local email
     email="$(git config --global --get user.email 2>/dev/null || true)"
-    if [ -z "$email" ]; then
-        print_warn "user.email not set — cannot create allowed_signers entry"
-        return
+    if [[ -z "$email" ]]; then
+        printf '  %ballowed_signers requires an email to match signatures.%b\n' "$YELLOW" "$RESET" >&2
+        printf '  Enter your email (or press Enter to skip): ' >&2
+        local input_email
+        read -r input_email </dev/tty || input_email=""
+        if [[ -n "$input_email" ]]; then
+            email="$input_email"
+        else
+            print_warn "No email provided — skipping allowed_signers (signature verification will show 'No principal matched')"
+            return
+        fi
     fi
 
     mkdir -p "$(dirname "$ALLOWED_SIGNERS_FILE")"
@@ -1637,7 +1742,39 @@ apply_single_ssh_directive() {
         mv "$tmpfile" "$SSH_CONFIG"
         chmod 600 "$SSH_CONFIG"
     else
-        printf '%s %s\n' "$directive" "$value" >> "$SSH_CONFIG"
+        # Append inside a Host * block so it applies globally.
+        # If no Host * block exists, prepend one before the first Host/Match block
+        # (or append to EOF if the file has no blocks at all).
+        if grep -qE '^[[:space:]]*Host[[:space:]]+\*[[:space:]]*$' "$SSH_CONFIG" 2>/dev/null; then
+            # Insert after the "Host *" line
+            local tmpfile
+            tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
+            local inserted=false
+            while IFS= read -r line || [[ -n "$line" ]]; do
+                printf '%s\n' "$line"
+                if [[ "$inserted" = false ]] && printf '%s' "$line" | grep -qE '^[[:space:]]*Host[[:space:]]+\*[[:space:]]*$'; then
+                    printf '    %s %s\n' "$directive" "$value"
+                    inserted=true
+                fi
+            done < "$SSH_CONFIG" > "$tmpfile"
+            mv "$tmpfile" "$SSH_CONFIG"
+            chmod 600 "$SSH_CONFIG"
+        elif grep -qEi '^[[:space:]]*(Host|Match)[[:space:]]' "$SSH_CONFIG" 2>/dev/null; then
+            # File has Host/Match blocks but no Host *. Prepend a Host * section.
+            local tmpfile
+            tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
+            {
+                printf 'Host *\n'
+                printf '    %s %s\n' "$directive" "$value"
+                printf '\n'
+                cat "$SSH_CONFIG"
+            } > "$tmpfile"
+            mv "$tmpfile" "$SSH_CONFIG"
+            chmod 600 "$SSH_CONFIG"
+        else
+            # No blocks at all — safe to append bare
+            printf '%s %s\n' "$directive" "$value" >> "$SSH_CONFIG"
+        fi
     fi
 }
 
@@ -1699,6 +1836,13 @@ apply_ssh_config() {
         touch "$SSH_CONFIG"
         chmod 600 "$SSH_CONFIG"
         print_info "Created $SSH_CONFIG with mode 600"
+    else
+        # Back up existing SSH config before modifying
+        local timestamp
+        timestamp="$(date +%Y%m%d-%H%M%S)"
+        local ssh_backup="${SSH_CONFIG}.pre-harden-${timestamp}"
+        cp -p "$SSH_CONFIG" "$ssh_backup"
+        print_info "SSH config backed up to $ssh_backup"
     fi
 
     apply_ssh_directive_group "Host Verification" \
