@@ -1,0 +1,10 @@
+{
+  "uuid": "68ea2c36-8192-4da5-8c40-bfaaa810256b",
+  "display_id": 51,
+  "title": "Fix host interactive test: blind y-loop misses SSH directive prompts",
+  "status": "open",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-04-06T10:37:20.119019Z",
+  "updated_at": "2026-04-06T10:37:20.119019Z"
+}
