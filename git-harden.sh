@@ -1250,7 +1250,7 @@ signing_wizard() {
     printf '\n  Signing key options:\n' >&2
     printf '    1) Generate a new ed25519 SSH key (software)\n' >&2
     printf '    2) Generate a hardware-backed SSH key (FIDO2/U2F security key)\n' >&2
-    printf '    s) Skip signing setup\n' >&2
+    printf '    s) Skip signing setup (e.g. in an agent container where humans sign at PR merge)\n' >&2
 
     local choice
     printf '\n  Choose [1/2/s]: ' >&2

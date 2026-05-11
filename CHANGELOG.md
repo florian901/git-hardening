@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Changed
+- Signing wizard "Skip" option now clarifies the agent-container use case (humans sign at PR merge)
+
 ## [0.5.0] - 2026-04-05
 
 ### Added
