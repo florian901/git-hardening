@@ -1,6 +1,6 @@
 ## Shell Script Development Standards (v2.0)
 
-If you're going to write shell scripts, at least try to make them look like a professional wrote them. The following standards are non-negotiable for `git-harden`.
+The following standards are non-negotiable for `git-harden`.
 
 ### 1. The Header: No More `sh` From the 80s
 Use `bash` via `env` for portability. We need modern features like arrays and local scoping.
@@ -37,4 +37,4 @@ IFS=$'\n\t'      # Stop splitting on spaces like a maniac
 - Test on both `bash` 3.2 (macOS default) and 5.x (modern Linux).
 
 ### 6. Verification
-- All scripts MUST pass `shellcheck`. If it's yellow or red, it's garbage. Fix it.
+- All scripts MUST pass `shellcheck`. If it's yellow or red, fix it.
