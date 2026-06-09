@@ -9,6 +9,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Signing wizard "Skip" option now clarifies the agent-container use case (humans sign at PR merge)
 
+## [0.6.0] - 2026-06-09
+
+Fixes for the critical and high findings of an external security review, plus audit tiering.
+
+### Security / Critical fixes
+- `--reset-signing` no longer lists general-purpose keys (`id_ed25519`, `id_ed25519_sk`, `id_ecdsa_sk`) for deletion — they are likely SSH **authentication** keys. Only dedicated `*_signing` keys (and a configured key matching that convention) are candidates
+- `--reset-signing` deletion prompt now defaults to **No**, offers delete / rename-to-.bak / leave-untouched, and **never deletes files in `-y` mode**
+- FIDO2 key generation: "insert key and retry" actually retries the same attempt (a `for`-loop reassignment bug silently advanced to the next fallback type instead)
+- `core.hooksPath` redirection no longer silently disables repo-local hooks: dispatch stubs are installed for all client-side hook types, forwarding to `.git/hooks/<name>` when present. The pre-commit hook combines the gitleaks scan with dispatch, and existing pre-dispatch hooks are offered an upgrade
+- Pre-commit hook now **warns loudly** when gitleaks is missing instead of silently skipping the secret scan (still fail-open by design)
+- Private key material can no longer end up in `allowed_signers` or `user.signingkey`: public-key validation everywhere a key path is consumed; a `user.signingkey` pointing at a private key is recovered to its `.pub` neighbor
+- Config backups (`pre-harden-backup-*.txt`) are created with mode 600 — the gitconfig dump can contain tokens (`http.extraHeader`, `insteadOf` URLs)
+
+### SSH config handling (high fixes)
+- Audit and apply are now **scope-aware**: only directives in global scope (top-level or `Host *`) count; a directive set only in a host-specific block is reported as "no global default" instead of a false OK
+- Replacements only touch global-scope occurrences and preserve indentation; host-specific values are never rewritten
+- New directives are appended in a `Host *` block at **EOF** (previously prepended/inserted at top, which shadowed host-specific blocks under ssh's first-obtained-wins rule)
+- `Include`-d config files are scanned for `IdentityFile` keys (one level); audit prints a notice that included directives are not audited/modified
+- Pubkey algorithm restriction is guarded: skipped with a warning when the only available keys (on disk or in the SSH agent) are RSA/DSA (lockout risk; default-No override, never applied in `-y`), and the directive name is chosen per OpenSSH version (`PubkeyAcceptedKeyTypes` before 8.5; skipped for unknown/ancient clients where it would break every ssh invocation)
+
+### Added
+- Audit tiers: every item is classified security / hygiene / preference; the summary reports per-tier counts and `--audit` exit code 2 now reflects **security-tier issues only**
+- Signing smoke test after enabling signing: signs a test message and verifies it against `allowed_signers` with the recorded principal, catching "No principal matched" at setup time
+- `http.sslVerify` audit distinguishes unset (OK — git default is true) from an explicit insecure override
+
+### Tests
+- 14 new BATS tests (126 total): reset-signing safety, private-key guards, dispatch stubs, pre-commit dispatch and gitleaks warning, SSH scope handling, audit tiers, version bump
+
 ## [0.5.0] - 2026-04-05
 
 ### Added

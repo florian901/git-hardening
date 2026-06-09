@@ -10,13 +10,25 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.5.0"
+readonly VERSION="0.6.0"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
 readonly GLOBAL_GITIGNORE="${HOME}/.config/git/ignore"
 readonly SSH_DIR="${HOME}/.ssh"
 readonly SSH_CONFIG="${SSH_DIR}/config"
+
+readonly PUBKEY_ALGO_LIST="ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,sk-ecdsa-sha2-nistp256@openssh.com"
+
+# Client-side hooks that get a dispatch stub when core.hooksPath is redirected,
+# so repo-local hooks (.git/hooks/) keep working. pre-commit is handled
+# separately (gitleaks + dispatch combined).
+readonly DISPATCH_HOOK_NAMES=(
+    applypatch-msg pre-applypatch post-applypatch
+    pre-merge-commit prepare-commit-msg commit-msg post-commit
+    pre-rebase post-checkout post-merge pre-push post-rewrite
+    pre-auto-gc sendemail-validate post-index-change
+)
 
 # Color codes (empty if not a terminal)
 if [ -t 2 ]; then
@@ -46,10 +58,29 @@ AUDIT_OK=0
 AUDIT_WARN=0
 AUDIT_MISS=0
 
+# Per-tier issue counters. Every audited item belongs to one tier:
+#   security   — protects against a concrete attack vector
+#   hygiene    — operational robustness / forensic readiness
+#   preference — ecosystem alignment, no security impact
+# Only security-tier issues drive the --audit exit code.
+AUDIT_TIER="security"
+TIER_SECURITY_ISSUES=0
+TIER_HYGIENE_ISSUES=0
+TIER_PREFERENCE_ISSUES=0
+
 # Whether signing key was found
 SIGNING_KEY_FOUND=false
 
 SIGNING_PUB_PATH=""
+
+# Principal (email) written to allowed_signers — used for the signing smoke test
+SIGNING_PRINCIPAL=""
+
+# OpenSSH client version and the version-appropriate name of the pubkey
+# algorithm directive (PubkeyAcceptedAlgorithms >= 8.5, PubkeyAcceptedKeyTypes
+# 7.0-8.4, empty = too old / unknown, directive skipped)
+OPENSSH_VERSION=""
+PUBKEY_ALGOS_DIRECTIVE="PubkeyAcceptedAlgorithms"
 
 # Credential helper detected for this platform
 DETECTED_CRED_HELPER=""
@@ -89,6 +120,65 @@ strip_ssh_value() {
     printf '%s' "$val"
 }
 
+# List SSH config files to scan: the main config plus one level of Include
+# expansion (globs and ~ resolved; relative paths resolve to ~/.ssh/).
+# Deeper nesting is not followed — audit_ssh_config warns when Includes exist.
+ssh_config_files() {
+    [ -f "$SSH_CONFIG" ] || return 0
+    printf '%s\n' "$SSH_CONFIG"
+
+    local inc_line
+    while IFS= read -r inc_line; do
+        inc_line="$(strip_ssh_value "$inc_line")"
+        [ -z "$inc_line" ] && continue
+        local IFS_SAVE="$IFS"
+        IFS=' 	'
+        local pattern f
+        for pattern in $inc_line; do
+            pattern="${pattern/#\~/$HOME}"
+            case "$pattern" in
+                /*) ;;
+                *) pattern="${SSH_DIR}/${pattern}" ;;
+            esac
+            # shellcheck disable=SC2086 # Intentional: Include values may glob
+            for f in $pattern; do
+                if [ -f "$f" ]; then
+                    printf '%s\n' "$f"
+                fi
+            done
+        done
+        IFS="$IFS_SAVE"
+    done <<EOF
+$(grep -i '^[[:space:]]*include[[:space:]=]' "$SSH_CONFIG" 2>/dev/null | sed 's/^[[:space:]]*[Ii][Nn][Cc][Ll][Uu][Dd][Ee][[:space:]=]*//')
+EOF
+}
+
+# Print raw IdentityFile values from the main SSH config and one level of
+# included files.
+list_identity_files() {
+    local cfg
+    while IFS= read -r cfg; do
+        [ -n "$cfg" ] || continue
+        grep -i '^[[:space:]]*IdentityFile[[:space:]=]' "$cfg" 2>/dev/null | \
+            sed 's/^[[:space:]]*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee][[:space:]=]*//' || true
+    done <<EOF
+$(ssh_config_files)
+EOF
+}
+
+# Set the tier attributed to subsequent print_warn/print_miss calls.
+set_tier() {
+    AUDIT_TIER="$1"
+}
+
+count_tier_issue() {
+    case "$AUDIT_TIER" in
+        security)   TIER_SECURITY_ISSUES=$((TIER_SECURITY_ISSUES + 1)) ;;
+        hygiene)    TIER_HYGIENE_ISSUES=$((TIER_HYGIENE_ISSUES + 1)) ;;
+        preference) TIER_PREFERENCE_ISSUES=$((TIER_PREFERENCE_ISSUES + 1)) ;;
+    esac
+}
+
 print_ok() {
     printf '%b[OK]%b   %s\n' "$GREEN" "$RESET" "$1" >&2
     AUDIT_OK=$((AUDIT_OK + 1))
@@ -97,11 +187,28 @@ print_ok() {
 print_warn() {
     printf '%b[WARN]%b %s\n' "$YELLOW" "$RESET" "$1" >&2
     AUDIT_WARN=$((AUDIT_WARN + 1))
+    count_tier_issue
 }
 
 print_miss() {
     printf '%b[MISS]%b %s\n' "$RED" "$RESET" "$1" >&2
     AUDIT_MISS=$((AUDIT_MISS + 1))
+    count_tier_issue
+}
+
+# True if the file's first line looks like an SSH *public* key. Guards against
+# private key material ending up in allowed_signers or git config.
+is_public_key_file() {
+    local f="$1"
+    [ -f "$f" ] || return 1
+    local first
+    first="$(head -1 "$f" 2>/dev/null || true)"
+    case "$first" in
+        ssh-ed25519\ *|ssh-rsa\ *|ssh-dss\ *|ecdsa-sha2-*|sk-ssh-ed25519*|sk-ecdsa-sha2*)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
 }
 
 print_info() {
@@ -186,16 +293,20 @@ Usage: git-harden.sh [OPTIONS]
 Audit and harden your global git configuration.
 
 Options:
-  --audit           Run audit only (no changes), exit 0 if all OK, 2 if issues found
-  -y, --yes         Auto-apply all recommended settings (no prompts)
-  --reset-signing   Remove signing key config and optionally delete key files
+  --audit           Run audit only (no changes), exit 0 if no security issues,
+                    2 if security-tier issues found (hygiene/preference issues
+                    are reported but do not affect the exit code)
+  -y, --yes         Auto-apply all recommended settings (no prompts).
+                    Never deletes files or keys.
+  --reset-signing   Remove signing key config and optionally delete dedicated
+                    signing key files (interactive only — never deletes in -y)
   --help, -h        Show this help message
   --version         Show version
 
 Exit codes:
-  0  All settings OK, or changes successfully applied
+  0  No security issues, or changes successfully applied
   1  Error (missing dependencies, etc.)
-  2  Audit found issues (--audit mode only)
+  2  Audit found security-tier issues (--audit mode only)
 EOF
 }
 
@@ -252,6 +363,8 @@ check_dependencies() {
         die "ssh-keygen is not installed"
     fi
 
+    detect_openssh_version
+
     # Optional: ykman
     if command -v ykman >/dev/null 2>&1; then
         HAS_YKMAN=true
@@ -264,6 +377,42 @@ check_dependencies() {
 
     # Detect credential helper
     detect_credential_helper
+}
+
+# Parse the OpenSSH client version and pick the version-appropriate name for
+# the pubkey algorithm directive. An unknown option in ~/.ssh/config makes
+# EVERY ssh invocation fail ("Bad configuration option"), so getting the name
+# wrong would break all SSH-based git operations.
+detect_openssh_version() {
+    if ! command -v ssh >/dev/null 2>&1; then
+        PUBKEY_ALGOS_DIRECTIVE=""
+        print_warn "ssh client not found — skipping SSH algorithm restrictions"
+        return
+    fi
+
+    local ver_out major minor
+    ver_out="$(ssh -V 2>&1 || true)"
+    if [[ "$ver_out" =~ OpenSSH_([0-9]+)\.([0-9]+) ]]; then
+        major="${BASH_REMATCH[1]}"
+        minor="${BASH_REMATCH[2]}"
+    else
+        # Unknown client (e.g. a non-OpenSSH ssh) — don't risk writing an
+        # option it may not understand
+        PUBKEY_ALGOS_DIRECTIVE=""
+        print_warn "Could not parse OpenSSH version ($ver_out) — skipping SSH algorithm restrictions"
+        return
+    fi
+
+    OPENSSH_VERSION="${major}.${minor}"
+    if (( major > 8 )) || { (( major == 8 )) && (( minor >= 5 )); }; then
+        PUBKEY_ALGOS_DIRECTIVE="PubkeyAcceptedAlgorithms"
+    elif (( major >= 7 )); then
+        # Same option, pre-8.5 spelling
+        PUBKEY_ALGOS_DIRECTIVE="PubkeyAcceptedKeyTypes"
+    else
+        PUBKEY_ALGOS_DIRECTIVE=""
+        print_warn "OpenSSH ${OPENSSH_VERSION} predates pubkey algorithm restrictions — directive skipped"
+    fi
 }
 
 # Check if a credential.helper value corresponds to a keychain-backed store.
@@ -375,6 +524,7 @@ audit_git_setting() {
 
 audit_git_config() {
     print_header "Identity"
+    set_tier hygiene
     audit_git_setting "user.useConfigOnly" "true"
 
     # Warn if useConfigOnly would lock out commits (no global identity)
@@ -386,11 +536,14 @@ audit_git_config() {
     fi
 
     print_header "Object Integrity"
+    set_tier security
     audit_git_setting "transfer.fsckObjects" "true"
     audit_git_setting "fetch.fsckObjects" "true"
     audit_git_setting "receive.fsckObjects" "true"
     audit_git_setting "transfer.bundleURI" "false"
+    set_tier hygiene
     audit_git_setting "fetch.prune" "true"
+    set_tier security
 
     print_header "Protocol Restrictions"
     audit_git_setting "protocol.version" "2"
@@ -423,6 +576,7 @@ audit_git_config() {
     fi
 
     print_header "Pull/Merge Hardening"
+    set_tier hygiene
     audit_git_setting "pull.ff" "only"
     audit_git_setting "merge.ff" "only"
 
@@ -434,6 +588,7 @@ audit_git_config() {
     fi
 
     print_header "Transport Security"
+    set_tier security
     # url.<base>.insteadOf needs special handling
     local instead_of
     instead_of="$(git config --global --get 'url.https://.insteadOf' 2>/dev/null || true)"
@@ -445,15 +600,27 @@ audit_git_config() {
         print_warn "url.\"https://\".insteadOf = $instead_of (expected: http://)"
     fi
 
-    audit_git_setting "http.sslVerify" "true"
+    # http.sslVerify: git's default is already true — unset is NOT the same
+    # as overridden. Only flag an explicit insecure override.
+    local ssl_verify
+    ssl_verify="$(git config --global --get http.sslVerify 2>/dev/null || true)"
+    if [ -z "$ssl_verify" ]; then
+        print_ok "http.sslVerify unset (git default: true — not overridden)"
+    elif [ "$ssl_verify" = "true" ]; then
+        print_ok "http.sslVerify = true"
+    else
+        print_warn "http.sslVerify = $ssl_verify (MITM risk — remove this override)"
+    fi
 
     print_header "Credential Storage"
     local cred_current
     cred_current="$(git config --global --get credential.helper 2>/dev/null || true)"
     if [ -z "$cred_current" ]; then
+        set_tier hygiene
         print_miss "credential.helper not set (credentials won't be cached)"
+        set_tier security
     elif [ "$cred_current" = "store" ]; then
-        print_warn "credential.helper = store (INSECURE: stores passwords in plaintext ~/${cred_current})"
+        print_warn "credential.helper = store (INSECURE: stores passwords in plaintext ~/.git-credentials)"
     elif is_keychain_credential_helper "$cred_current"; then
         print_ok "credential.helper = $cred_current (keychain-backed)"
     elif [ "$cred_current" = "$DETECTED_CRED_HELPER" ]; then
@@ -463,14 +630,18 @@ audit_git_config() {
     fi
 
     print_header "Defaults"
+    set_tier preference
     audit_git_setting "init.defaultBranch" "main"
 
     print_header "Forensic Readiness"
+    set_tier hygiene
     audit_git_setting "gc.reflogExpire" "180.days"
     audit_git_setting "gc.reflogExpireUnreachable" "90.days"
 
     print_header "Visibility"
+    set_tier preference
     audit_git_setting "log.showSignature" "true"
+    set_tier security
 }
 
 audit_precommit_hook() {
@@ -489,9 +660,32 @@ audit_precommit_hook() {
     fi
 
     if grep -q 'gitleaks' "$hook_path" 2>/dev/null; then
-        print_ok "Pre-commit hook with gitleaks at $hook_path"
+        if grep -q 'git-harden.sh' "$hook_path" 2>/dev/null && \
+           ! grep -q 'local_hook' "$hook_path" 2>/dev/null; then
+            print_warn "Pre-commit hook predates repo-local dispatch — re-run without --audit to upgrade"
+        else
+            print_ok "Pre-commit hook with gitleaks at $hook_path"
+        fi
     else
         print_warn "Pre-commit hook exists but does not reference gitleaks (user-managed)"
+    fi
+
+    # If hooks are globally redirected, repo-local hooks only keep working
+    # via dispatch stubs
+    local hooks_path_cfg
+    hooks_path_cfg="$(git config --global --get core.hooksPath 2>/dev/null || true)"
+    if [ -n "$hooks_path_cfg" ]; then
+        local missing=0 name
+        for name in "${DISPATCH_HOOK_NAMES[@]}"; do
+            [ -f "${HOOKS_DIR}/${name}" ] || missing=$((missing + 1))
+        done
+        if (( missing > 0 )); then
+            set_tier hygiene
+            print_warn "core.hooksPath is set but ${missing} dispatch stub(s) are missing — repo-local hooks (husky, lefthook, pre-commit framework) will not run"
+            set_tier security
+        else
+            print_ok "Dispatch stubs present for ${#DISPATCH_HOOK_NAMES[@]} hook types (repo-local hooks keep working)"
+        fi
     fi
 }
 
@@ -575,26 +769,25 @@ audit_ssh_key_hygiene() {
         seen_files="${seen_files}|${f}"
     done
 
-    # Also collect keys from IdentityFile directives in ~/.ssh/config
-    if [ -f "$SSH_CONFIG" ]; then
-        local identity_path
-        while IFS= read -r identity_path; do
-            identity_path="$(strip_ssh_value "$identity_path")"
-            [ -z "$identity_path" ] && continue
-            identity_path="${identity_path/#\~/$HOME}"
-            local pub_path="${identity_path}.pub"
-            if [ -f "$pub_path" ]; then
-                # Skip if already seen
-                case "$seen_files" in
-                    *"|${pub_path}"*) continue ;;
-                esac
-                pub_files+=("$pub_path")
-                seen_files="${seen_files}|${pub_path}"
-            fi
-        done <<EOF
-$(grep -i '^[[:space:]]*IdentityFile[[:space:]=]' "$SSH_CONFIG" 2>/dev/null | sed 's/^[[:space:]]*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee][[:space:]=]*//')
+    # Also collect keys from IdentityFile directives in ~/.ssh/config and
+    # one level of Include-d files
+    local identity_path
+    while IFS= read -r identity_path; do
+        identity_path="$(strip_ssh_value "$identity_path")"
+        [ -z "$identity_path" ] && continue
+        identity_path="${identity_path/#\~/$HOME}"
+        local pub_path="${identity_path}.pub"
+        if [ -f "$pub_path" ]; then
+            # Skip if already seen
+            case "$seen_files" in
+                *"|${pub_path}"*) continue ;;
+            esac
+            pub_files+=("$pub_path")
+            seen_files="${seen_files}|${pub_path}"
+        fi
+    done <<EOF
+$(list_identity_files)
 EOF
-    fi
 
     if [ ${#pub_files[@]} -eq 0 ]; then
         print_info "No SSH public keys found"
@@ -677,12 +870,18 @@ audit_ssh_directive() {
     local directive="$1"
     local expected="$2"
 
+    # Only values in global scope count: top-level (before any Host/Match
+    # block) or inside a "Host *" block. A directive buried in a
+    # host-specific block does NOT apply globally.
     local current
-    current="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
-    current="$(strip_ssh_value "$current")"
+    current="$(get_ssh_directive_value "$directive")"
 
     if [ -z "$current" ]; then
-        print_miss "SSH: $directive (expected: $expected)"
+        if grep -qi "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null; then
+            print_warn "SSH: $directive set only in host-specific blocks — no global default (expected: $expected)"
+        else
+            print_miss "SSH: $directive (expected: $expected)"
+        fi
     elif [ "$current" = "$expected" ]; then
         print_ok "SSH: $directive = $current"
     else
@@ -694,21 +893,37 @@ audit_ssh_config() {
     print_header "SSH Configuration"
 
     if [ ! -f "$SSH_CONFIG" ]; then
+        set_tier security
         print_miss "$SSH_CONFIG does not exist"
         return
     fi
 
+    if grep -qiE '^[[:space:]]*include[[:space:]=]' "$SSH_CONFIG" 2>/dev/null; then
+        print_info "SSH config uses Include — directives inside included files are not audited or modified (key files in them are scanned)"
+    fi
+
+    set_tier security
     audit_ssh_directive "StrictHostKeyChecking" "accept-new"
+    set_tier hygiene
     audit_ssh_directive "HashKnownHosts" "yes"
+    set_tier security
     audit_ssh_directive "IdentitiesOnly" "yes"
+    set_tier hygiene
     audit_ssh_directive "AddKeysToAgent" "yes"
-    audit_ssh_directive "PubkeyAcceptedAlgorithms" "ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,sk-ecdsa-sha2-nistp256@openssh.com"
+    set_tier security
+    if [ -n "$PUBKEY_ALGOS_DIRECTIVE" ]; then
+        audit_ssh_directive "$PUBKEY_ALGOS_DIRECTIVE" "$PUBKEY_ALGO_LIST"
+    fi
 }
 
 print_audit_report() {
     print_header "Audit Summary"
     printf '%b  %d OK  /  %d WARN  /  %d MISS%b\n' \
         "$BOLD" "$AUDIT_OK" "$AUDIT_WARN" "$AUDIT_MISS" "$RESET" >&2
+    printf '  by tier:  %bsecurity: %d%b  /  hygiene: %d  /  preference: %d\n' \
+        "$( (( TIER_SECURITY_ISSUES > 0 )) && printf '%s' "$RED" )" \
+        "$TIER_SECURITY_ISSUES" "$RESET" \
+        "$TIER_HYGIENE_ISSUES" "$TIER_PREFERENCE_ISSUES" >&2
 
     if [ $((AUDIT_WARN + AUDIT_MISS)) -gt 0 ]; then
         return 2
@@ -729,6 +944,11 @@ backup_git_config() {
     local timestamp
     timestamp="$(date +%Y%m%d-%H%M%S)"
     local backup_file="${BACKUP_DIR}/pre-harden-backup-${timestamp}.txt"
+
+    # The config dump can contain secrets (http.extraHeader auth, tokens in
+    # insteadOf URLs) — restrict permissions before writing any content
+    touch "$backup_file"
+    chmod 600 "$backup_file"
 
     {
         echo "# git-harden.sh backup — $timestamp"
@@ -845,10 +1065,10 @@ apply_git_config() {
     if setting_needs_change "core.hooksPath" "$hooks_path_val"; then
         print_header "Global Hooks Path"
         printf '  %bWarning:%b Setting core.hooksPath redirects ALL hook execution to a\n' "$YELLOW" "$RESET" >&2
-        printf '  central directory. Per-repo hooks (.git/hooks/) will stop running.\n' >&2
-        printf '  This includes hooks from frameworks like husky, lefthook, and pre-commit.\n\n' >&2
-        printf '  Recommended: set this, then install a dispatch hook that calls per-repo\n' >&2
-        printf '  hooks when present (this script installs a gitleaks hook there).\n\n' >&2
+        printf '  central directory, so per-repo hooks (.git/hooks/) no longer run directly.\n' >&2
+        printf '  To keep frameworks like husky, lefthook, and pre-commit working, this\n' >&2
+        printf '  script installs dispatch stubs there that forward every hook type to the\n' >&2
+        printf '  repository'\''s own hooks (offered in the next step).\n\n' >&2
         printf '    core.hooksPath = %s\n\n' "$hooks_path_val" >&2
         if prompt_yn "Set core.hooksPath? (overrides per-repo hooks)"; then
             git config --global core.hooksPath "$hooks_path_val"
@@ -987,53 +1207,131 @@ apply_git_config() {
         "gc.reflogExpireUnreachable"   "90.days"   "Keep unreachable reflog 90 days (default: 30)"
 }
 
+# Write the combined gitleaks + repo-local-dispatch pre-commit hook.
+write_precommit_hook() {
+    local hook_path="$1"
+    mkdir -p "$HOOKS_DIR"
+    cat > "$hook_path" << 'HOOK_EOF'
+#!/usr/bin/env bash
+# Installed by git-harden.sh — global pre-commit: secret scan + dispatch.
+# Runs gitleaks on the staged diff, then dispatches to the repository's own
+# pre-commit hook (.git/hooks/pre-commit), which core.hooksPath would
+# otherwise silently disable.
+# To bypass the secret scan for a single commit: SKIP_GITLEAKS=1 git commit
+set -o errexit
+set -o nounset
+set -o pipefail
+
+if [ "${SKIP_GITLEAKS:-0}" = "1" ]; then
+    :
+elif command -v gitleaks >/dev/null 2>&1; then
+    gitleaks protect --staged --redact --verbose
+else
+    printf 'git-harden pre-commit: gitleaks not installed — secret scan SKIPPED\n' >&2
+    printf '  Install it: brew install gitleaks (macOS) or https://github.com/gitleaks/gitleaks\n' >&2
+fi
+
+# Dispatch to the repo-local hook so frameworks (husky, lefthook,
+# pre-commit) keep working. Deliberately uses .git/hooks directly:
+# `git rev-parse --git-path hooks` would resolve back to THIS directory.
+git_dir="$(git rev-parse --git-dir 2>/dev/null)" || exit 0
+local_hook="${git_dir}/hooks/pre-commit"
+if [ -x "$local_hook" ]; then
+    exec "$local_hook" "$@"
+fi
+exit 0
+HOOK_EOF
+    chmod +x "$hook_path"
+    print_info "Installed gitleaks + dispatch pre-commit hook at $hook_path"
+}
+
 apply_precommit_hook() {
     print_header "Pre-commit Hook (gitleaks)"
 
     local hook_path="${HOOKS_DIR}/pre-commit"
 
-    # Never overwrite existing hooks
     if [ -f "$hook_path" ]; then
         if grep -q 'gitleaks' "$hook_path" 2>/dev/null; then
+            # Our pre-dispatch hook version silently disabled repo-local
+            # hooks — offer the upgrade
+            if grep -q 'git-harden.sh' "$hook_path" 2>/dev/null && \
+               ! grep -q 'local_hook' "$hook_path" 2>/dev/null; then
+                if prompt_yn "Upgrade git-harden pre-commit hook to also dispatch to repo-local hooks?"; then
+                    write_precommit_hook "$hook_path"
+                fi
+            fi
             return
         fi
         print_info "Existing pre-commit hook found — not overwriting"
         return
     fi
 
-    # Check for gitleaks
-    local has_gitleaks=false
-    if command -v gitleaks >/dev/null 2>&1; then
-        has_gitleaks=true
-    fi
-
-    if [ "$has_gitleaks" = false ]; then
+    if ! command -v gitleaks >/dev/null 2>&1; then
         print_warn "gitleaks not found — install it for pre-commit secret scanning:"
         printf '    macOS:  brew install gitleaks\n' >&2
         printf '    Linux:  apt install gitleaks / dnf install gitleaks (or download from GitHub releases)\n' >&2
     fi
 
     if prompt_yn "Install gitleaks pre-commit hook at $hook_path?"; then
-        mkdir -p "$HOOKS_DIR"
-        cat > "$hook_path" << 'HOOK_EOF'
-#!/usr/bin/env bash
-# Installed by git-harden.sh — global pre-commit secret scanning
-# To bypass for a single commit: SKIP_GITLEAKS=1 git commit
-set -o errexit
-set -o nounset
-set -o pipefail
-
-if [ "${SKIP_GITLEAKS:-0}" = "1" ]; then
-    exit 0
-fi
-
-if command -v gitleaks >/dev/null 2>&1; then
-    gitleaks protect --staged --redact --verbose
-fi
-HOOK_EOF
-        chmod +x "$hook_path"
-        print_info "Installed gitleaks pre-commit hook at $hook_path"
+        write_precommit_hook "$hook_path"
     fi
+}
+
+# Install thin dispatch stubs for every client-side hook type so that
+# redirecting core.hooksPath does not silently disable repo-local hooks
+# (the stub forwards to .git/hooks/<name> when present and executable).
+apply_dispatch_hooks() {
+    # Only relevant when hooks are globally redirected to our directory
+    local hooks_path_cfg
+    hooks_path_cfg="$(git config --global --get core.hooksPath 2>/dev/null || true)"
+    local expanded_cfg="${hooks_path_cfg/#\~/$HOME}"
+    if [ "$expanded_cfg" != "$HOOKS_DIR" ]; then
+        return 0
+    fi
+
+    local missing=() name
+    for name in "${DISPATCH_HOOK_NAMES[@]}"; do
+        if [ ! -f "${HOOKS_DIR}/${name}" ]; then
+            missing+=("$name")
+        fi
+    done
+
+    if [ ${#missing[@]} -eq 0 ]; then
+        return 0
+    fi
+
+    print_header "Repo-local Hook Dispatch"
+    printf '  core.hooksPath redirects ALL hooks to %s.\n' "$HOOKS_DIR" >&2
+    printf '  Dispatch stubs forward each hook type to the repository'\''s own\n' >&2
+    printf '  .git/hooks/ so frameworks like husky, lefthook and pre-commit\n' >&2
+    printf '  keep working. Missing stubs: %d\n\n' "${#missing[@]}" >&2
+
+    if ! prompt_yn "Install dispatch stubs for ${#missing[@]} hook type(s)?"; then
+        print_warn "Without dispatch stubs, repo-local hooks will NOT run while core.hooksPath is set"
+        return 0
+    fi
+
+    mkdir -p "$HOOKS_DIR"
+    for name in "${missing[@]}"; do
+        cat > "${HOOKS_DIR}/${name}" << 'DISPATCH_EOF'
+#!/usr/bin/env bash
+# Installed by git-harden.sh — dispatch stub.
+# core.hooksPath redirects all hooks to this directory; this stub forwards
+# to the repository's own hook so repo-local hooks keep working.
+# Deliberately uses .git/hooks directly: `git rev-parse --git-path hooks`
+# would resolve back to THIS directory and recurse.
+set -o nounset
+hook_name="$(basename "$0")"
+git_dir="$(git rev-parse --git-dir 2>/dev/null)" || exit 0
+local_hook="${git_dir}/hooks/${hook_name}"
+if [ -x "$local_hook" ]; then
+    exec "$local_hook" "$@"
+fi
+exit 0
+DISPATCH_EOF
+        chmod +x "${HOOKS_DIR}/${name}"
+    done
+    print_info "Installed ${#missing[@]} dispatch stub(s) in $HOOKS_DIR"
 }
 
 apply_global_gitignore() {
@@ -1145,10 +1443,21 @@ detect_existing_keys() {
     if [ -n "$configured_key" ]; then
         local expanded_key
         expanded_key="${configured_key/#\~/$HOME}"
-        if [ -f "$expanded_key" ]; then
+        # git accepts a PRIVATE key path in user.signingkey — never treat one
+        # as the public key (it would end up cat'ed into allowed_signers)
+        if is_public_key_file "$expanded_key"; then
             SIGNING_KEY_FOUND=true
             SIGNING_PUB_PATH="$expanded_key"
             return
+        fi
+        if [ -f "$expanded_key" ] && is_public_key_file "${expanded_key}.pub"; then
+            print_warn "user.signingkey points to a private key — using ${expanded_key}.pub instead"
+            SIGNING_KEY_FOUND=true
+            SIGNING_PUB_PATH="${expanded_key}.pub"
+            return
+        fi
+        if [ -f "$expanded_key" ]; then
+            print_warn "user.signingkey = $configured_key is not a public key file — ignoring it"
         fi
     fi
 
@@ -1165,34 +1474,33 @@ detect_existing_keys() {
         fi
     done
 
-    # Check IdentityFile directives in ~/.ssh/config for custom-named keys
-    if [ -f "$SSH_CONFIG" ]; then
-        local identity_path
-        while IFS= read -r identity_path; do
-            # Strip inline comments and quotes
-            identity_path="$(strip_ssh_value "$identity_path")"
-            [ -z "$identity_path" ] && continue
-            # Expand tilde safely
-            identity_path="${identity_path/#\~/$HOME}"
+    # Check IdentityFile directives in ~/.ssh/config (and one level of
+    # Include-d files) for custom-named keys
+    local identity_path
+    while IFS= read -r identity_path; do
+        # Strip inline comments and quotes
+        identity_path="$(strip_ssh_value "$identity_path")"
+        [ -z "$identity_path" ] && continue
+        # Expand tilde safely
+        identity_path="${identity_path/#\~/$HOME}"
 
-            pub_path="${identity_path}.pub"
-            if [ -f "$pub_path" ]; then
-                # Only use ed25519, ed25519-sk, or ecdsa-sk keys for signing
-                local key_type_str
-                key_type_str="$(head -1 "$pub_path" 2>/dev/null || true)"
-                case "$key_type_str" in
-                    ssh-ed25519*|sk-ssh-ed25519*|sk-ecdsa-sha2*)
-                        SIGNING_KEY_FOUND=true
+        pub_path="${identity_path}.pub"
+        if [ -f "$pub_path" ]; then
+            # Only use ed25519, ed25519-sk, or ecdsa-sk keys for signing
+            local key_type_str
+            key_type_str="$(head -1 "$pub_path" 2>/dev/null || true)"
+            case "$key_type_str" in
+                ssh-ed25519*|sk-ssh-ed25519*|sk-ecdsa-sha2*)
+                    SIGNING_KEY_FOUND=true
 
-                        SIGNING_PUB_PATH="$pub_path"
-                        return
-                        ;;
-                esac
-            fi
-        done <<EOF
-$(grep -i '^[[:space:]]*IdentityFile[[:space:]=]' "$SSH_CONFIG" 2>/dev/null | sed 's/^[[:space:]]*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee][[:space:]=]*//')
+                    SIGNING_PUB_PATH="$pub_path"
+                    return
+                    ;;
+            esac
+        fi
+    done <<EOF
+$(list_identity_files)
 EOF
-    fi
 }
 
 detect_fido2_hardware() {
@@ -1307,31 +1615,36 @@ reset_signing() {
         print_info "No signing key in git config"
     fi
 
-    # Collect signing key files: start with the actual configured path (if any),
-    # then check well-known names (dedicated signing keys + legacy defaults)
+    # Collect key files eligible for removal. ONLY dedicated signing keys
+    # (*_signing naming convention) are candidates — general-purpose keys like
+    # id_ed25519 may be the user's SSH AUTHENTICATION key and deleting them
+    # would lock the user out of every server that key authenticates to.
     local key_files=()
     local candidate
     local seen_paths=""
 
-    # Include the actual configured key and its private counterpart
+    # Include the configured key only when it is a dedicated signing key
     if [[ -n "$signing_key" ]]; then
         local configured_path="${signing_key/#\~/$HOME}"
-        for candidate in "$configured_path" "${configured_path%.pub}"; do
-            if [[ -f "$candidate" ]] && [[ "$seen_paths" != *"|${candidate}|"* ]]; then
-                key_files+=("$candidate")
-                seen_paths="${seen_paths}|${candidate}|"
-            fi
-        done
+        local configured_base
+        configured_base="$(basename "$configured_path")"
+        if [[ "$configured_base" == *_signing* ]]; then
+            for candidate in "$configured_path" "${configured_path%.pub}"; do
+                if [[ -f "$candidate" ]] && [[ "$seen_paths" != *"|${candidate}|"* ]]; then
+                    key_files+=("$candidate")
+                    seen_paths="${seen_paths}|${candidate}|"
+                fi
+            done
+        elif [[ -f "$configured_path" ]]; then
+            print_info "Configured key $signing_key is not a dedicated signing key (may be used for SSH authentication) — leaving its files in place"
+        fi
     fi
 
-    # Also check well-known signing key names
+    # Also check well-known dedicated signing key names
     for candidate in \
         "${SSH_DIR}/id_ed25519_sk_signing" "${SSH_DIR}/id_ed25519_sk_signing.pub" \
         "${SSH_DIR}/id_ecdsa_sk_signing"   "${SSH_DIR}/id_ecdsa_sk_signing.pub" \
-        "${SSH_DIR}/id_ed25519_signing"    "${SSH_DIR}/id_ed25519_signing.pub" \
-        "${SSH_DIR}/id_ed25519_sk" "${SSH_DIR}/id_ed25519_sk.pub" \
-        "${SSH_DIR}/id_ecdsa_sk"   "${SSH_DIR}/id_ecdsa_sk.pub" \
-        "${SSH_DIR}/id_ed25519"    "${SSH_DIR}/id_ed25519.pub"; do
+        "${SSH_DIR}/id_ed25519_signing"    "${SSH_DIR}/id_ed25519_signing.pub"; do
         if [[ -f "$candidate" ]] && [[ "$seen_paths" != *"|${candidate}|"* ]]; then
             key_files+=("$candidate")
             seen_paths="${seen_paths}|${candidate}|"
@@ -1342,25 +1655,31 @@ reset_signing() {
         local backup_suffix
         backup_suffix=".bak.$(date +%Y%m%dT%H%M%S)"
 
-        printf '\n  Key files found:\n' >&2
+        printf '\n  Signing key files found:\n' >&2
         local kf
         for kf in "${key_files[@]}"; do
             printf '    %s\n' "$kf" >&2
         done
 
-        if prompt_yn "Delete these key files? (No = keep as .bak)"; then
+        # Deleting keys is irreversible — never do it without an explicit,
+        # interactive yes (prompt_yn auto-accepts in -y mode, so guard first)
+        if [ "$AUTO_YES" = true ]; then
+            print_info "Key files left in place (-y mode never deletes keys). Re-run interactively to remove them."
+        elif prompt_yn "Delete these key files? (irreversible)" "n"; then
             for kf in "${key_files[@]}"; do
                 rm -f "$kf"
             done
             print_info "Key files deleted"
-        else
+        elif prompt_yn "Rename them with a ${backup_suffix} suffix instead? (No = leave untouched)" "n"; then
             for kf in "${key_files[@]}"; do
                 mv "$kf" "${kf}${backup_suffix}"
             done
-            print_info "Key files backed up with suffix ${backup_suffix}"
+            print_info "Key files renamed with suffix ${backup_suffix}"
+        else
+            print_info "Key files left untouched"
         fi
     else
-        print_info "No signing key files found"
+        print_info "No dedicated signing key files found"
     fi
 }
 
@@ -1368,12 +1687,59 @@ reset_signing() {
 # and forceSignAnnotated in one step (no individual prompts).
 enable_signing() {
     local pub_path="$1"
+    if ! is_public_key_file "$pub_path"; then
+        print_warn "$pub_path does not look like an SSH public key — not enabling signing"
+        return
+    fi
     git config --global user.signingkey "$pub_path"
     git config --global commit.gpgsign true
     git config --global tag.gpgsign true
     git config --global tag.forceSignAnnotated true
     print_info "Signing enabled: commits and tags will be signed with $pub_path"
     setup_allowed_signers
+    verify_signing_setup "$pub_path"
+}
+
+# Smoke-test the signing setup: sign a test message and verify it against
+# allowed_signers with the recorded principal. Catches the "Good signature
+# but No principal matched" misconfiguration at setup time instead of in
+# every future `git log`.
+verify_signing_setup() {
+    local pub_path="$1"
+    local priv_path="${pub_path%.pub}"
+
+    # Signing may require a hardware-key touch or a passphrase — never
+    # attempt it in non-interactive mode
+    if [ "$AUTO_YES" = true ]; then
+        return 0
+    fi
+    if [ -z "$SIGNING_PRINCIPAL" ] || [ ! -f "$priv_path" ] || [ ! -f "$ALLOWED_SIGNERS_FILE" ]; then
+        return 0
+    fi
+    if ! prompt_yn "Verify signing works now? (may require a key touch or passphrase)"; then
+        return 0
+    fi
+
+    local tmpdir
+    tmpdir="$(mktemp -d -t git-harden-verify.XXXXXX)"
+    printf 'git-harden signing verification\n' > "${tmpdir}/msg"
+
+    local verify_ok=false
+    # Keep sign stderr visible — it carries the touch/passphrase prompts
+    if ssh-keygen -Y sign -n git -f "$priv_path" "${tmpdir}/msg" >/dev/null && \
+       ssh-keygen -Y verify -n git -f "$ALLOWED_SIGNERS_FILE" -I "$SIGNING_PRINCIPAL" \
+           -s "${tmpdir}/msg.sig" < "${tmpdir}/msg" >/dev/null 2>&1; then
+        verify_ok=true
+    fi
+    rm -rf "$tmpdir"
+
+    if [ "$verify_ok" = true ]; then
+        print_info "Signature round-trip verified: key signs and allowed_signers matches principal ${SIGNING_PRINCIPAL}"
+    else
+        print_warn "Signature verification failed — commits will be signed, but verification will show 'No principal matched'"
+        printf '  Check that the email in %s matches the email on your commits\n' "$ALLOWED_SIGNERS_FILE" >&2
+        printf '  (repos overriding user.email need their own allowed_signers entry).\n' >&2
+    fi
 }
 
 generate_ssh_key() {
@@ -1568,9 +1934,14 @@ generate_fido2_key() {
 
     local key_path="" key_type_label="" resident=""
     local keygen_stderr keygen_rc
-    local attempt_num=0 i
+    local attempt_num=0
+    # While loop with a manual index: "retry the same attempt" must NOT
+    # advance to the next fallback (a for-in loop reassigns its variable on
+    # every iteration, which silently broke the retry)
+    local i=0
+    local num_attempts=${#attempt_types[@]}
 
-    for i in "${!attempt_types[@]}"; do
+    while (( i < num_attempts )); do
         key_type_label="${attempt_types[$i]}"
         key_path="${attempt_paths[$i]}"
         resident="${attempt_resident[$i]}"
@@ -1621,19 +1992,19 @@ generate_fido2_key() {
             if [[ "$retry_reply" = "q" ]]; then
                 return
             fi
-            # Retry the same attempt (back up the index)
-            i=$((i - 1))
+            # Retry the same attempt: leave i unchanged
             attempt_num=$((attempt_num - 1))
             continue
         fi
 
-        # Check for recoverable errors worth retrying with next attempt
+        # Check for recoverable errors worth retrying with the next attempt
         if printf '%s' "$keygen_stderr" | grep -qi 'feature not supported\|unknown key type\|not supported\|invalid format'; then
             # Clean up any partial files before next attempt
             rm -f "$key_path" "${key_path}.pub"
             # Brief pause to let the authenticator reset its CTAP2 state
             # (back-to-back requests can cause spurious "invalid format")
             sleep 1
+            i=$((i + 1))
             continue
         fi
 
@@ -1659,6 +2030,12 @@ setup_allowed_signers() {
         return
     fi
 
+    # Never write anything but public key material into allowed_signers
+    if ! is_public_key_file "$SIGNING_PUB_PATH"; then
+        print_warn "$SIGNING_PUB_PATH does not look like an SSH public key — refusing to add it to allowed_signers"
+        return
+    fi
+
     local email
     email="$(git config --global --get user.email 2>/dev/null || true)"
     if [[ -z "$email" ]]; then
@@ -1673,6 +2050,8 @@ setup_allowed_signers() {
             return
         fi
     fi
+
+    SIGNING_PRINCIPAL="$email"
 
     mkdir -p "$(dirname "$ALLOWED_SIGNERS_FILE")"
 
@@ -1695,12 +2074,59 @@ setup_allowed_signers() {
 # SSH config hardening
 # ------------------------------------------------------------------------------
 
-# Read the current value of an SSH config directive (empty if absent).
+# Read the current GLOBAL value of an SSH config directive (empty if absent).
+# Global scope = top-level lines (before any Host/Match block) or lines inside
+# a "Host *" block. Directives inside host-specific blocks do not apply
+# globally and are deliberately ignored here.
 get_ssh_directive_value() {
     local directive="$1"
+    [ -f "$SSH_CONFIG" ] || return 0
     local raw
-    raw="$(grep -i "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null | head -1 | sed 's/^[[:space:]]*[^[:space:]=]*[[:space:]=]*//' || true)"
+    raw="$(awk -v d="$(printf '%s' "$directive" | tr '[:upper:]' '[:lower:]')" '
+        function ltrim(s) { sub(/^[ \t]+/, "", s); return s }
+        {
+            line = ltrim($0)
+            lower = tolower(line)
+        }
+        lower ~ /^host[ \t=]/ {
+            rest = substr(line, 5)
+            sub(/^[ \t=]+/, "", rest)
+            in_block = 1
+            global_block = (rest == "*") ? 1 : 0
+            next
+        }
+        lower ~ /^match[ \t=]/ { in_block = 1; global_block = 0; next }
+        in_block && !global_block { next }
+        index(lower, d) == 1 {
+            sep = substr(lower, length(d) + 1, 1)
+            if (sep == " " || sep == "\t" || sep == "=") {
+                val = substr(line, length(d) + 1)
+                sub(/^[ \t=]+/, "", val)
+                print val
+                exit
+            }
+        }
+    ' "$SSH_CONFIG" 2>/dev/null || true)"
     strip_ssh_value "$raw"
+}
+
+# True if the last Host/Match block in the SSH config is exactly "Host *"
+# (meaning new directives can be appended at EOF and land in global scope).
+last_host_block_is_global() {
+    awk '
+        function ltrim(s) { sub(/^[ \t]+/, "", s); return s }
+        {
+            line = ltrim($0)
+            lower = tolower(line)
+        }
+        lower ~ /^host[ \t=]/ {
+            rest = substr(line, 5)
+            sub(/^[ \t=]+/, "", rest)
+            last = (rest == "*") ? 1 : 0
+        }
+        lower ~ /^match[ \t=]/ { last = 0 }
+        END { exit last ? 0 : 1 }
+    ' "$SSH_CONFIG" 2>/dev/null
 }
 
 ssh_directive_needs_change() {
@@ -1717,55 +2143,65 @@ apply_single_ssh_directive() {
     current="$(get_ssh_directive_value "$directive")"
 
     if [ -n "$current" ]; then
-        # Replace existing directive
+        # Replace the first GLOBAL-scope occurrence (top-level or inside a
+        # "Host *" block). Occurrences inside host-specific blocks are left
+        # alone — rewriting those would change behavior for that host only
+        # while the global default stayed unset.
         local tmpfile
         tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
-        local replaced=false
+        local replaced=false in_global=true line indent
         while IFS= read -r line || [ -n "$line" ]; do
-            if [ "$replaced" = false ] && printf '%s' "$line" | grep -qi "^[[:space:]]*${directive}[[:space:]=]"; then
-                printf '%s %s\n' "$directive" "$value"
-                replaced=true
-            else
+            if printf '%s' "$line" | grep -qiE '^[[:space:]]*host[[:space:]=]'; then
+                if printf '%s' "$line" | grep -qE '^[[:space:]]*[Hh][Oo][Ss][Tt][[:space:]=]+\*[[:space:]]*$'; then
+                    in_global=true
+                else
+                    in_global=false
+                fi
                 printf '%s\n' "$line"
+                continue
             fi
+            if printf '%s' "$line" | grep -qiE '^[[:space:]]*match[[:space:]=]'; then
+                in_global=false
+                printf '%s\n' "$line"
+                continue
+            fi
+            if [ "$replaced" = false ] && [ "$in_global" = true ] && \
+               printf '%s' "$line" | grep -qi "^[[:space:]]*${directive}[[:space:]=]"; then
+                indent="${line%%[![:space:]]*}"
+                printf '%s%s %s\n' "$indent" "$directive" "$value"
+                replaced=true
+                continue
+            fi
+            printf '%s\n' "$line"
         done < "$SSH_CONFIG" > "$tmpfile"
         mv "$tmpfile" "$SSH_CONFIG"
         chmod 600 "$SSH_CONFIG"
-    else
-        # Append inside a Host * block so it applies globally.
-        # If no Host * block exists, prepend one before the first Host/Match block
-        # (or append to EOF if the file has no blocks at all).
-        if grep -qE '^[[:space:]]*Host[[:space:]]+\*[[:space:]]*$' "$SSH_CONFIG" 2>/dev/null; then
-            # Insert after the "Host *" line
-            local tmpfile
-            tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
-            local inserted=false
-            while IFS= read -r line || [[ -n "$line" ]]; do
-                printf '%s\n' "$line"
-                if [[ "$inserted" = false ]] && printf '%s' "$line" | grep -qE '^[[:space:]]*Host[[:space:]]+\*[[:space:]]*$'; then
-                    printf '    %s %s\n' "$directive" "$value"
-                    inserted=true
-                fi
-            done < "$SSH_CONFIG" > "$tmpfile"
-            mv "$tmpfile" "$SSH_CONFIG"
-            chmod 600 "$SSH_CONFIG"
-        elif grep -qEi '^[[:space:]]*(Host|Match)[[:space:]]' "$SSH_CONFIG" 2>/dev/null; then
-            # File has Host/Match blocks but no Host *. Prepend a Host * section.
-            local tmpfile
-            tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
-            {
-                printf 'Host *\n'
-                printf '    %s %s\n' "$directive" "$value"
-                printf '\n'
-                cat "$SSH_CONFIG"
-            } > "$tmpfile"
-            mv "$tmpfile" "$SSH_CONFIG"
-            chmod 600 "$SSH_CONFIG"
-        else
-            # No blocks at all — safe to append bare
-            printf '%s %s\n' "$directive" "$value" >> "$SSH_CONFIG"
-        fi
+        return 0
     fi
+
+    # Directive not set globally — append at EOF. ssh uses first-obtained-wins
+    # semantics, so appending keeps every existing (earlier) host-specific and
+    # Host * setting authoritative; the new value only fills the gap.
+    # Make sure the file ends with a newline before appending.
+    if [ -s "$SSH_CONFIG" ] && [ -n "$(tail -c 1 "$SSH_CONFIG")" ]; then
+        printf '\n' >> "$SSH_CONFIG"
+    fi
+
+    if ! grep -qiE '^[[:space:]]*(host|match)[[:space:]=]' "$SSH_CONFIG" 2>/dev/null; then
+        # No blocks at all — safe to append bare (top-level = global)
+        printf '%s %s\n' "$directive" "$value" >> "$SSH_CONFIG"
+    elif last_host_block_is_global; then
+        # File ends inside a "Host *" block — appending lands in global scope
+        printf '    %s %s\n' "$directive" "$value" >> "$SSH_CONFIG"
+    else
+        # Start a new global defaults block at EOF
+        {
+            printf '\n# Added by git-harden.sh — global defaults (blocks above take precedence)\n'
+            printf 'Host *\n'
+            printf '    %s %s\n' "$directive" "$value"
+        } >> "$SSH_CONFIG"
+    fi
+    chmod 600 "$SSH_CONFIG"
 }
 
 apply_ssh_directive_group() {
@@ -1811,6 +2247,38 @@ apply_ssh_directive_group() {
     fi
 }
 
+# Print the key types of all available SSH keys: on-disk pubkeys plus keys
+# loaded in the SSH agent (covers agent-backed setups like 1Password where no
+# private key exists on disk).
+list_ssh_key_types() {
+    local f
+    for f in "${SSH_DIR}"/*.pub; do
+        if [ -f "$f" ]; then
+            awk '{print $1}' "$f" 2>/dev/null || true
+        fi
+    done
+    if command -v ssh-add >/dev/null 2>&1; then
+        ssh-add -L 2>/dev/null | awk '{print $1}' || true
+    fi
+}
+
+# True if at least one key passes the hardened algorithm policy.
+has_modern_ssh_key() {
+    local t
+    while IFS= read -r t; do
+        case "$t" in
+            ssh-ed25519|sk-ssh-ed25519*|ecdsa-sha2-*|sk-ecdsa-sha2*) return 0 ;;
+        esac
+    done <<EOF
+$(list_ssh_key_types)
+EOF
+    return 1
+}
+
+has_any_ssh_key() {
+    [ -n "$(list_ssh_key_types)" ]
+}
+
 apply_ssh_config() {
     print_header "SSH Config Hardening"
 
@@ -1850,12 +2318,35 @@ apply_ssh_config() {
         "IdentitiesOnly"  "yes"  "Only offer keys explicitly configured (prevents key leakage)" \
         "AddKeysToAgent"  "yes"  "Auto-add keys to ssh-agent after first use"
 
+    # Algorithm restrictions need two guards:
+    #  1. OpenSSH < 8.5 spells the option differently, and an unknown option
+    #     in ~/.ssh/config makes EVERY ssh invocation fail
+    #  2. if the user's only keys are RSA/DSA, restricting algorithms locks
+    #     them out of every server those keys authenticate to
+    if [ -z "$PUBKEY_ALGOS_DIRECTIVE" ]; then
+        print_info "Skipping SSH pubkey algorithm restrictions (OpenSSH version too old or unknown)"
+        return 0
+    fi
+
+    if ssh_directive_needs_change "$PUBKEY_ALGOS_DIRECTIVE" "$PUBKEY_ALGO_LIST" && \
+       has_any_ssh_key && ! has_modern_ssh_key; then
+        print_warn "Only legacy (RSA/DSA) SSH keys found — restricting pubkey algorithms would LOCK YOU OUT of servers using those keys"
+        if [ "$AUTO_YES" = true ]; then
+            print_info "Skipping algorithm restrictions in -y mode. Generate an ed25519 key, then re-run."
+            return 0
+        fi
+        if ! prompt_yn "Apply algorithm restrictions anyway? (breaks RSA/DSA key authentication)" "n"; then
+            print_info "Skipped algorithm restrictions. Generate an ed25519 key, then re-run."
+            return 0
+        fi
+    fi
+
     apply_ssh_directive_group "Algorithm Restrictions" \
         "Disables RSA and DSA negotiation entirely. This prevents downgrade attacks
   to weaker algorithms. May break connections to legacy servers that only
   support RSA — those servers should be upgraded (RSA-SHA1 deprecated since
   OpenSSH 8.7)." \
-        "PubkeyAcceptedAlgorithms" "ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,sk-ecdsa-sha2-nistp256@openssh.com" \
+        "$PUBKEY_ALGOS_DIRECTIVE" "$PUBKEY_ALGO_LIST" \
             "Ed25519 + ECDSA (software and hardware-backed)"
 }
 
@@ -1928,6 +2419,10 @@ main() {
     AUDIT_OK=0
     AUDIT_WARN=0
     AUDIT_MISS=0
+    TIER_SECURITY_ISSUES=0
+    TIER_HYGIENE_ISSUES=0
+    TIER_PREFERENCE_ISSUES=0
+    set_tier security
 
     audit_git_config
     audit_precommit_hook
@@ -1941,7 +2436,12 @@ main() {
     print_audit_report || audit_exit=$?
 
     if [ "$AUDIT_ONLY" = true ]; then
-        exit "$audit_exit"
+        # Only security-tier issues fail the audit — hygiene and preference
+        # items are reported but don't gate CI/compliance checks
+        if (( TIER_SECURITY_ISSUES > 0 )); then
+            exit 2
+        fi
+        exit 0
     fi
 
     # If everything is already OK, nothing to do
@@ -1965,6 +2465,7 @@ main() {
     backup_git_config
     apply_git_config
     apply_precommit_hook
+    apply_dispatch_hooks
     apply_global_gitignore
     apply_signing_config
     apply_ssh_config

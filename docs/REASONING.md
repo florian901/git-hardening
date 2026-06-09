@@ -4,6 +4,16 @@ Every setting `git-harden.sh` audits or applies exists because of a specific att
 
 Settings are grouped the same way they appear in the script's audit output.
 
+## Audit Tiers
+
+Not every audited item carries the same weight, so each one belongs to one of three tiers:
+
+- **security** — protects against a concrete attack vector (protocol restrictions, object integrity, hook control, credential storage, signing, …)
+- **hygiene** — operational robustness and forensic readiness (reflog retention, `fetch.prune`, `user.useConfigOnly`, `pull.ff`, …)
+- **preference** — ecosystem alignment with no security impact (`init.defaultBranch`, `log.showSignature`)
+
+The audit summary reports issue counts per tier. In `--audit` mode, **only security-tier issues produce exit code 2** — hygiene and preference findings are reported but never fail a CI or fleet-compliance check. This keeps the exit code meaningful as a gate: a machine that fails the audit has an actual attack-surface problem, not a branch-naming opinion.
+
 ---
 
 ## Identity
@@ -28,9 +38,19 @@ Settings are grouped the same way they appear in the script's audit output.
 
 **Attack/risk mitigated:** Malicious or corrupted packfiles that exploit parsing vulnerabilities in the git binary. Historical CVEs include integer overflows in packfile handling and crafted objects that trigger code execution. Also catches silent data corruption from disk/network errors.
 
-**What could break:** Adds ~5-10% overhead to clone and fetch operations on large repositories. Some very old repositories with technically malformed (but benign) objects may fail to clone until the upstream runs `git fsck --full` and fixes them.
+**What could break:** Adds ~5-10% overhead to clone and fetch operations on large repositories. More importantly: a meaningful number of popular, actively maintained repositories contain historic objects that are technically malformed but benign (zero-padded file modes, missing tagger lines, malformed committer dates) — cloning those will **fail**, not just warn. This is not a rare-edge-case setting.
 
-**Why this default:** The performance cost is small. The alternative — silently accepting corrupted objects — has no upside.
+**Mitigation when it bites:** Don't turn fsck back off globally. Downgrade the specific, known-benign message class instead, e.g.:
+
+```
+git config --global fetch.fsck.zeroPaddedFilemode ignore
+git config --global fetch.fsck.badTimezone ignore
+git config --global fetch.fsck.missingTaggerEntry ignore
+```
+
+This keeps structural/hash validation intact while tolerating the legacy quirk you actually hit.
+
+**Why this default:** The performance cost is small and the failure mode is loud and fixable per message class. The alternative — silently accepting corrupted or malicious objects — has no upside.
 
 ### `transfer.bundleURI = false`
 
@@ -48,9 +68,9 @@ Settings are grouped the same way they appear in the script's audit output.
 
 **Attack/risk mitigated:** Stale remote refs can be confusing and misleading. In a security context, a deleted branch that still appears locally may cause a developer to base work on abandoned or reverted code.
 
-**What could break:** Nothing. This matches the behavior of `git fetch --prune`. Pruning only affects remote-tracking refs, not local branches.
+**What could break:** Pruning only affects remote-tracking refs, not local branches. One caveat: when a remote-tracking ref was the *only* reference to some commits, pruning makes them unreachable and therefore eligible for garbage collection once the reflog entries expire. The extended reflog retention configured under Forensic Readiness keeps that window long (90+ days), but "zero downside" would overstate it.
 
-**Why this default:** Pure hygiene with zero downside.
+**Why this default:** Hygiene with a negligible, reflog-mitigated downside. Tier: hygiene.
 
 ---
 
@@ -101,11 +121,11 @@ Settings are grouped the same way they appear in the script's audit output.
 
 **What it does:** Disables the filesystem monitor integration (fsmonitor, Watchman). This feature speeds up `git status` in large repos by using OS-level file change notifications.
 
-**Attack/risk mitigated:** The fsmonitor hook (`core.fsmonitor--hook-version`) can execute arbitrary commands. A malicious repository could set this in its local config. Disabling it globally prevents this vector.
+**Attack/risk mitigated:** `core.fsmonitor` can point at an arbitrary command, which git then executes. **An important precision about what this setting does and does not protect against:** git config precedence means a *local* (`.git/config`) value overrides the global one — so setting `false` globally does **not** neutralize a repository that carries its own fsmonitor setting. What actually limits that attack is that `.git/config` is not transferred on clone; the realistic delivery vector is an embedded/planted `.git` directory, which is what `safe.bareRepository` and git's ownership checks (CVE-2022-24765 fix) address. The global `false` here is defense-in-depth: it prevents the feature from being silently enabled by tooling or copied configs, and it removes a code-execution-capable knob from the default environment.
 
 **What could break:** Performance of `git status` in very large repositories (100k+ files) where fsmonitor provides significant speedups. Developers working on such repos can override this per-repo.
 
-**Why this default:** Most repositories are not large enough to notice the difference. The attack surface is not worth the performance gain for typical use.
+**Why this default:** Most repositories are not large enough to notice the difference. The attack surface is not worth the performance gain for typical use — but be aware it is a hardening layer, not the primary defense.
 
 ### `core.symlinks = false` (interactive-only, skipped in `-y` mode)
 
@@ -125,11 +145,13 @@ Settings are grouped the same way they appear in the script's audit output.
 
 **What it does:** Redirects git hook execution from each repository's `.git/hooks/` directory to a centralized, user-controlled directory.
 
-**Attack/risk mitigated:** Malicious repositories can include hooks (e.g., `pre-commit`, `post-checkout`) that execute on clone, commit, or checkout. By redirecting to a user-managed directory, repo-local hooks are ignored unless explicitly installed.
+**Attack/risk mitigated:** Malicious repositories can include hooks (e.g., `pre-commit`, `post-checkout`) that execute on clone, commit, or checkout. By redirecting to a user-managed directory, repo-local hooks are ignored unless explicitly dispatched.
 
-**What could break:** Project-specific hooks defined in `.git/hooks/` or installed by frameworks like `husky`, `lefthook`, or `pre-commit`. Teams using these must either: (a) install their hooks into the global hooks directory, or (b) override `core.hooksPath` per-repo via `git config --local`.
+**How repo-local hooks keep working:** Redirecting hooks would otherwise *silently* disable every repo-local hook of every type — including security hooks teams installed deliberately (husky, lefthook, the `pre-commit` framework). To prevent that, the script installs **dispatch stubs** for all client-side hook types in the global hooks directory. Each stub forwards to the repository's own `.git/hooks/<name>` when present and executable. The `pre-commit` stub additionally runs the gitleaks secret scan first. The result: you get centralized control plus a visible choke point, without breaking per-repo workflows. (Repos that set `core.hooksPath` in their local config — husky v9 does — override the global value entirely and are unaffected.)
 
-**Why this default:** The attack is trivial to execute and devastating (arbitrary code execution). Teams that need repo-local hooks can override per-repo.
+**What could break:** Hooks installed into `.git/hooks/` still run, but now *after* the global stub's own logic (for `pre-commit`: after the secret scan). Tools that verify their hook is "installed" by checking the effective `core.hooksPath` may complain.
+
+**Why this default:** The attack is trivial to execute and devastating (arbitrary code execution). With dispatch stubs the usual breakage objection no longer applies.
 
 ---
 
@@ -143,7 +165,9 @@ Settings are grouped the same way they appear in the script's audit output.
 
 **What could break:** False positives on test fixtures or example credentials may require bypassing with `SKIP_GITLEAKS=1 git commit`. Adds ~1-2 seconds to each commit.
 
-**Why this default:** Both research reports rank pre-commit secret scanning as the #1 workstation-level defense. The hook is safe without gitleaks installed (guards with `command -v`). The `SKIP_GITLEAKS` bypass avoids the need for `--no-verify` which skips ALL hooks.
+**Fail-open by design, but loudly:** If gitleaks is not installed, the hook does not block commits — but it prints a clearly visible "secret scan SKIPPED" warning on every commit instead of silently doing nothing. Failing *closed* (blocking all commits until gitleaks is installed) was considered and rejected: it punishes machines the user doesn't fully control and trains people to delete the hook. A loud warning preserves the signal without the lockout.
+
+**Why this default:** Both research reports rank pre-commit secret scanning as the #1 workstation-level defense. The `SKIP_GITLEAKS` bypass avoids the need for `--no-verify` which skips ALL hooks. After scanning, the hook dispatches to the repository's own `pre-commit` hook (see Hook Control above).
 
 ---
 
@@ -212,6 +236,8 @@ Settings are grouped the same way they appear in the script's audit output.
 **What it does:** Enforces TLS certificate verification for all HTTPS git operations. This is git's default, but the script audits it because `http.sslVerify = false` is a common "quick fix" that people forget to undo.
 
 **Attack/risk mitigated:** Disabling SSL verification allows MITM attacks even over HTTPS — the attacker presents any certificate and git accepts it.
+
+**Audit semantics:** Unset is **not** the same as overridden. The audit reports an unset `http.sslVerify` as OK (git's built-in default is `true`) and only flags an explicit insecure override. The apply phase still pins it to `true` when other changes are being made, as a guard against future overrides in lower-precedence scopes.
 
 **What could break:** Self-signed certificates on internal git servers. The proper fix is to add the CA certificate to git's trust store (`http.sslCAInfo`), not to disable verification globally.
 
@@ -297,7 +323,13 @@ Settings are grouped the same way they appear in the script's audit output.
 
 **Attack/risk mitigated:** Makes unsigned or invalid signatures visible in normal workflow. Without this, developers must remember to use `git log --show-signature` to check.
 
-**What could break:** Log output is slightly more verbose. Some terminal environments may not render the verification status cleanly.
+**What could break:** More than "slightly more verbose" — be honest about this one:
+
+- **Anything that parses `git log` output breaks.** Scripts, release tooling, and integrations that read log output without `--no-show-signature` get signature blocks interleaved with the text they expect to parse.
+- **Every log invocation pays a verification cost** (an `ssh-keygen`/`gpg` call per displayed commit), which is noticeable on large histories.
+- **Without a matching allowed_signers entry, every entry shows "No principal matched"** noise — which is why the script now smoke-tests the signature round-trip at setup time.
+
+Scripts you control should use `git log --no-show-signature` or `git -c log.showSignature=false`. Tier: preference — turn it off if it fights your tooling; verification on the hosting platform is unaffected.
 
 **Why this default:** Signature verification is only useful if people see the results. Making it visible by default closes the gap between "we sign commits" and "we verify signatures."
 
@@ -331,9 +363,13 @@ Settings are grouped the same way they appear in the script's audit output.
 
 **What could break:** Nothing — the file is additive. Without it, local verification simply doesn't work (signatures are only verified on the hosting platform).
 
+**The "No principal matched" trap:** verification matches the *committer email* against the principals in this file. If a repo overrides `user.email` (work vs. personal identities) or the entry was written with a different address, `git log` shows "Good signature … No principal matched" on every commit. To catch this at setup time instead of in every future log, the script offers a signing smoke test after enabling signing: it signs a test message with the configured key and verifies it against allowed_signers with the recorded principal. Per-identity setups need one allowed_signers line per email (the same key can appear on multiple lines).
+
 ---
 
 ## SSH Configuration
+
+**How the script reads and writes `~/.ssh/config`:** ssh resolves options with *first-obtained-wins* semantics, and a directive inside a `Host github.com` block does not apply globally. The audit therefore only counts directives in **global scope** (top-level lines or a `Host *` block) — a directive that exists only in host-specific blocks is reported as "no global default". When applying, the script replaces values in global scope only, and appends new directives in a `Host *` block at the **end** of the file, so existing host-specific settings always keep precedence. `Include`-d files are scanned for keys (one level deep) but their directives are not audited or modified; the audit prints a notice when Includes are present.
 
 ### `StrictHostKeyChecking = accept-new`
 
@@ -370,6 +406,11 @@ Settings are grouped the same way they appear in the script's audit output.
 **Attack/risk mitigated:** Prevents negotiation down to weak algorithms (DSA, RSA with SHA-1). Forces modern cryptography.
 
 **What could break:** Connections to legacy servers that only support RSA. These servers should be upgraded; RSA-SHA1 is deprecated by OpenSSH since version 8.7.
+
+**Guards the script applies before setting this:**
+
+1. **Key inventory.** If the only available keys (on disk *or* loaded in the SSH agent) are RSA/DSA, applying this directive would lock the user out of every server those keys authenticate to. The script warns, requires an explicit default-No confirmation, and skips entirely in `-y` mode.
+2. **OpenSSH version.** The option is spelled `PubkeyAcceptedAlgorithms` from OpenSSH 8.5 and `PubkeyAcceptedKeyTypes` before that — and an unknown option in `~/.ssh/config` makes *every* ssh invocation fail with "Bad configuration option". The script detects the client version and writes the correct spelling, or skips the directive when the client is too old or not OpenSSH.
 
 **Why these algorithms:** Ed25519 is the recommended default (fast, small keys, no parameter pitfalls). ECDSA P-256 is included because some FIDO2 hardware keys only support it. RSA is excluded because accepting it creates a fallback path to weaker cryptography.
 

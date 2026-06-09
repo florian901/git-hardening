@@ -1279,7 +1279,7 @@ SSHEOF
     grep -q "StrictHostKeyChecking accept-new" "${TEST_HOME}/.ssh/config"
 }
 
-@test "apply inserts into existing Host * block" {
+@test "apply adds global directive without shadowing host-specific blocks" {
     cat > "${TEST_HOME}/.ssh/config" <<'SSHEOF'
 Host *
     HashKnownHosts yes
@@ -1291,12 +1291,48 @@ SSHEOF
     source_functions
     apply_single_ssh_directive "IdentitiesOnly" "yes"
 
-    # Should be inside Host * block (indented), not appended bare
     grep -q "IdentitiesOnly yes" "${TEST_HOME}/.ssh/config"
-    # Only one Host * line
-    local count
-    count="$(grep -c '^Host \*$' "${TEST_HOME}/.ssh/config")"
-    [ "$count" -eq 1 ]
+
+    # ssh uses first-obtained-wins semantics: the new directive must land
+    # AFTER the host-specific blocks (in a new Host * block at EOF) so it
+    # cannot override per-host settings. Inserting into the top Host *
+    # block would shadow every block below it.
+    local directive_line github_line
+    directive_line="$(grep -n 'IdentitiesOnly yes' "${TEST_HOME}/.ssh/config" | cut -d: -f1)"
+    github_line="$(grep -n '^Host github.com$' "${TEST_HOME}/.ssh/config" | cut -d: -f1)"
+    [ "$directive_line" -gt "$github_line" ]
+
+    # The directive is recognized as the global value
+    [ "$(get_ssh_directive_value IdentitiesOnly)" = "yes" ]
+}
+
+@test "apply replaces directive in global scope, not in host blocks" {
+    cat > "${TEST_HOME}/.ssh/config" <<'SSHEOF'
+Host legacy.example.com
+    StrictHostKeyChecking yes
+
+Host *
+    StrictHostKeyChecking ask
+SSHEOF
+
+    source_functions
+    apply_single_ssh_directive "StrictHostKeyChecking" "accept-new"
+
+    # The host-specific value must be untouched
+    grep -q "StrictHostKeyChecking yes" "${TEST_HOME}/.ssh/config"
+    # The global (Host *) value must be replaced
+    grep -q "StrictHostKeyChecking accept-new" "${TEST_HOME}/.ssh/config"
+    ! grep -q "StrictHostKeyChecking ask" "${TEST_HOME}/.ssh/config"
+}
+
+@test "audit treats host-specific directive as not set globally" {
+    cat > "${TEST_HOME}/.ssh/config" <<'SSHEOF'
+Host github.com
+    IdentitiesOnly yes
+SSHEOF
+
+    source_functions
+    [ -z "$(get_ssh_directive_value IdentitiesOnly)" ]
 }
 
 @test "apply appends bare when no Host/Match blocks exist" {
@@ -1435,8 +1471,11 @@ SSHEOF
     sigkey="$(git config --global --get user.signingkey 2>/dev/null || true)"
     [ -z "$sigkey" ]
 
-    # Key files should be listed for cleanup
+    # Not a dedicated *_signing key: it may double as an auth key, so the
+    # files must be mentioned but left untouched
     assert_output --partial "my_org_key"
+    [ -f "${TEST_HOME}/.ssh/my_org_key" ]
+    [ -f "${TEST_HOME}/.ssh/my_org_key.pub" ]
 }
 
 @test "reset-signing includes dedicated signing key names" {
@@ -1452,10 +1491,201 @@ SSHEOF
 }
 
 # ===========================================================================
-# v0.5.0: Version bump
+# v0.6.0: reset-signing never touches general-purpose keys
 # ===========================================================================
 
-@test "--version reports 0.5.0" {
+@test "reset-signing never lists general-purpose keys for deletion" {
+    # id_ed25519 is the user's likely SSH AUTH key — must never be a
+    # deletion candidate even though detect_existing_keys can select it
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519" -N "" -q
+
+    source_functions
+    AUTO_YES=true
+
+    run reset_signing
+    assert_success
+    refute_output --partial "Signing key files found"
+    [ -f "${TEST_HOME}/.ssh/id_ed25519" ]
+    [ -f "${TEST_HOME}/.ssh/id_ed25519.pub" ]
+}
+
+@test "reset-signing -y never deletes dedicated signing key files" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519_signing" -N "" -q
+    git config --global user.signingkey "${TEST_HOME}/.ssh/id_ed25519_signing.pub"
+
+    source_functions
+    AUTO_YES=true
+
+    run reset_signing
+    assert_success
+    assert_output --partial "left in place"
+    [ -f "${TEST_HOME}/.ssh/id_ed25519_signing" ]
+    [ -f "${TEST_HOME}/.ssh/id_ed25519_signing.pub" ]
+}
+
+# ===========================================================================
+# v0.6.0: signing key must be a public key
+# ===========================================================================
+
+@test "detect_existing_keys recovers when signingkey points at private key" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519_signing" -N "" -q
+    git config --global user.signingkey "${TEST_HOME}/.ssh/id_ed25519_signing"
+
+    source_functions
+    detect_existing_keys
+
+    [ "$SIGNING_KEY_FOUND" = "true" ]
+    [ "$SIGNING_PUB_PATH" = "${TEST_HOME}/.ssh/id_ed25519_signing.pub" ]
+}
+
+@test "setup_allowed_signers refuses private key material" {
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519_signing" -N "" -q
+
+    source_functions
+    SIGNING_PUB_PATH="${TEST_HOME}/.ssh/id_ed25519_signing"  # private key!
+
+    run setup_allowed_signers
+    assert_output --partial "refusing"
+    [ ! -f "${TEST_HOME}/.config/git/allowed_signers" ]
+}
+
+# ===========================================================================
+# v0.6.0: dispatch stubs keep repo-local hooks working
+# ===========================================================================
+
+@test "apply_dispatch_hooks installs stubs when hooksPath is ours" {
+    git config --global core.hooksPath "~/.config/git/hooks"
+
+    source_functions
+    AUTO_YES=true
+
+    run apply_dispatch_hooks
+    assert_success
+    [ -x "${TEST_HOME}/.config/git/hooks/pre-push" ]
+    [ -x "${TEST_HOME}/.config/git/hooks/commit-msg" ]
+    [ -x "${TEST_HOME}/.config/git/hooks/post-checkout" ]
+}
+
+@test "apply_dispatch_hooks is a no-op when hooksPath is not set" {
+    source_functions
+    AUTO_YES=true
+
+    run apply_dispatch_hooks
+    assert_success
+    [ ! -f "${TEST_HOME}/.config/git/hooks/pre-push" ]
+}
+
+@test "global pre-commit hook dispatches to repo-local hook" {
+    source_functions
+    write_precommit_hook "${TEST_HOME}/.config/git/hooks/pre-commit"
+
+    mkdir -p "${TEST_HOME}/repo"
+    cd "${TEST_HOME}/repo"
+    git init -q
+    cat > .git/hooks/pre-commit <<'LOCALEOF'
+#!/usr/bin/env bash
+touch .local-hook-ran
+LOCALEOF
+    chmod +x .git/hooks/pre-commit
+
+    run env SKIP_GITLEAKS=1 "${TEST_HOME}/.config/git/hooks/pre-commit"
+    assert_success
+    [ -f .local-hook-ran ]
+}
+
+@test "global pre-commit hook warns when gitleaks missing" {
+    source_functions
+    write_precommit_hook "${TEST_HOME}/.config/git/hooks/pre-commit"
+
+    mkdir -p "${TEST_HOME}/repo"
+    cd "${TEST_HOME}/repo"
+    git init -q
+
+    # PATH without gitleaks (keep git/bash/coreutils)
+    run env PATH="/usr/bin:/bin" "${TEST_HOME}/.config/git/hooks/pre-commit"
+    assert_success
+    assert_output --partial "secret scan SKIPPED"
+}
+
+# ===========================================================================
+# v0.6.0: audit tiers
+# ===========================================================================
+
+@test "audit exits 0 when only preference/hygiene issues remain" {
+    # Apply every security-tier setting, leave init.defaultBranch and
+    # log.showSignature (preference) and reflog/prune (hygiene) unset
+    git config --global transfer.fsckObjects true
+    git config --global fetch.fsckObjects true
+    git config --global receive.fsckObjects true
+    git config --global transfer.bundleURI false
+    git config --global protocol.version 2
+    git config --global protocol.allow never
+    git config --global protocol.https.allow always
+    git config --global protocol.ssh.allow always
+    git config --global protocol.file.allow user
+    git config --global protocol.git.allow never
+    git config --global protocol.ext.allow never
+    git config --global core.protectNTFS true
+    git config --global core.protectHFS true
+    git config --global core.fsmonitor false
+    git config --global core.symlinks false
+    git config --global core.hooksPath "~/.config/git/hooks"
+    git config --global safe.bareRepository explicit
+    git config --global submodule.recurse false
+    git config --global pull.ff only
+    git config --global merge.ff only
+    git config --global 'url.https://.insteadOf' 'http://'
+    git config --global credential.helper osxkeychain
+    git config --global gpg.format ssh
+    git config --global gpg.ssh.allowedSignersFile "~/.config/git/allowed_signers"
+    git config --global commit.gpgsign true
+    git config --global tag.gpgsign true
+    git config --global tag.forceSignAnnotated true
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/.ssh/id_ed25519_signing" -N "" -q
+    git config --global user.signingkey "${TEST_HOME}/.ssh/id_ed25519_signing.pub"
+
+    # Hooks (with dispatch stubs), gitignore, SSH config
+    source_functions
+    write_precommit_hook "${TEST_HOME}/.config/git/hooks/pre-commit"
+    AUTO_YES=true
+    apply_dispatch_hooks
+    printf '.env\n*.pem\n*.key\n' > "${TEST_HOME}/.config/git/ignore"
+    git config --global core.excludesFile "~/.config/git/ignore"
+    cat > "${TEST_HOME}/.ssh/config" <<SSHEOF
+StrictHostKeyChecking accept-new
+IdentitiesOnly yes
+PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com,ecdsa-sha2-nistp256,sk-ecdsa-sha2-nistp256@openssh.com
+SSHEOF
+
+    run bash "$SCRIPT" --audit
+    assert_success
+    assert_output --partial "security: 0"
+}
+
+@test "audit exits 2 on security-tier issues" {
+    git config --global protocol.ext.allow always
+
+    run bash "$SCRIPT" --audit
+    [ "$status" -eq 2 ]
+}
+
+@test "audit treats unset http.sslVerify as OK (git default)" {
+    run bash "$SCRIPT" --audit
+    assert_output --partial "http.sslVerify unset (git default: true"
+}
+
+@test "audit flags http.sslVerify=false as security issue" {
+    git config --global http.sslVerify false
+
+    run bash "$SCRIPT" --audit
+    assert_output --partial "MITM risk"
+}
+
+# ===========================================================================
+# v0.6.0: Version bump
+# ===========================================================================
+
+@test "--version reports 0.6.0" {
     run bash "$SCRIPT" --version
-    assert_output --partial "0.5.0"
+    assert_output --partial "0.6.0"
 }
