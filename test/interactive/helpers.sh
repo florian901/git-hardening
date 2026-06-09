@@ -100,6 +100,33 @@ assert_contains() {
     return 1
 }
 
+# Accept all [Y/n] prompts until a stop pattern appears in the pane.
+# Usage: accept_until "Signing key options" [max_iterations]
+accept_until() {
+    local stop_pattern="$1"
+    local max_iters="${2:-80}"
+    local pane_content last_content=""
+    local i
+    for ((i = 0; i < max_iters; i++)); do
+        pane_content="$(tmux capture-pane -t "$TMUX_SESSION" -p 2>/dev/null || true)"
+        if printf '%s' "$pane_content" | grep -qF "$stop_pattern"; then
+            return 0
+        fi
+        if printf '%s' "$pane_content" | grep -qF "Hardening complete"; then
+            return 0
+        fi
+        # Only send "y" when a new prompt has appeared (pane changed and shows [Y/n])
+        if [ "$pane_content" != "$last_content" ] \
+            && printf '%s' "$pane_content" | grep -qE '\[Y/n\]|\[y/N\]'; then
+            send "y" Enter
+            last_content="$pane_content"
+            sleep 0.3
+        else
+            sleep 0.2
+        fi
+    done
+}
+
 pass() {
     printf '%b  PASS:%b %s\n' "$C_GREEN" "$C_RESET" "$1" >&2
 }

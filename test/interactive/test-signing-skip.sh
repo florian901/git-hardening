@@ -35,19 +35,8 @@ main() {
     wait_for "Proceed with hardening"
     send "y" Enter
 
-    # Accept settings until signing wizard (v0.2.0 adds more prompts)
-    local pane_content
-    for _ in $(seq 1 50); do
-        sleep 0.3
-        pane_content="$(tmux capture-pane -t "$TMUX_SESSION" -p 2>/dev/null || true)"
-        if printf '%s' "$pane_content" | grep -qF "Signing key options"; then
-            break
-        fi
-        if printf '%s' "$pane_content" | grep -qF "Hardening complete"; then
-            break
-        fi
-        send "y" Enter
-    done
+    # Accept all [Y/n] prompts until signing wizard
+    accept_until "Signing key options"
 
     # Signing wizard — skip
     wait_for "Signing key options" 20

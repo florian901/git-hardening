@@ -36,20 +36,8 @@ main() {
     wait_for "Proceed with hardening"
     send "y" Enter
 
-    # Accept settings until identity guard prompt appears
-    local pane_content
-    for _ in $(seq 1 50); do
-        sleep 0.3
-        pane_content="$(tmux capture-pane -t "$TMUX_SESSION" -p 2>/dev/null || true)"
-        if printf '%s' "$pane_content" | grep -qF "Enter your name"; then
-            break
-        fi
-        if printf '%s' "$pane_content" | grep -qF "Hardening complete"; then
-            fail "Identity guard did not trigger — reached completion"
-            exit 1
-        fi
-        send "y" Enter
-    done
+    # Accept all [Y/n] prompts until identity guard
+    accept_until "Enter your name"
 
     # Identity guard: enter name
     wait_for "Enter your name" 15
@@ -59,18 +47,8 @@ main() {
     wait_for "Enter your email" 10
     send "test@example.com" Enter
 
-    # Continue accepting remaining prompts
-    for _ in $(seq 1 50); do
-        sleep 0.3
-        pane_content="$(tmux capture-pane -t "$TMUX_SESSION" -p 2>/dev/null || true)"
-        if printf '%s' "$pane_content" | grep -qF "Signing key options"; then
-            break
-        fi
-        if printf '%s' "$pane_content" | grep -qF "Hardening complete"; then
-            break
-        fi
-        send "y" Enter
-    done
+    # Accept remaining [Y/n] prompts until signing wizard
+    accept_until "Signing key options"
 
     # Skip signing
     if tmux capture-pane -t "$TMUX_SESSION" -p | grep -qF "Signing key options"; then
