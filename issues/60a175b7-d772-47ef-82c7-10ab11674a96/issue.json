@@ -2,11 +2,12 @@
   "uuid": "60a175b7-d772-47ef-82c7-10ab11674a96",
   "display_id": 53,
   "title": "Fix critical/high security-review findings, audit tiers, doc accuracy",
-  "status": "open",
+  "status": "closed",
   "priority": "high",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-06-09T21:23:17.179485Z",
-  "updated_at": "2026-06-09T21:23:20.644826Z",
+  "updated_at": "2026-06-09T21:55:34.995655Z",
+  "closed_at": "2026-06-09T21:55:34.995655Z",
   "labels": [
     "security"
   ]
