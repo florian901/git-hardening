@@ -1,0 +1,8 @@
+{
+  "uuid": "46ae9d85-a650-4fd1-9642-aaed0f362ed2",
+  "issue_uuid": "6ad6ebfe-dfcf-42e3-be06-b8bb70cab503",
+  "author": "anon-31e9bd66",
+  "content": "Spec hardened (commit ba51e63): minimal-read discipline (FR1.1), ripgrep-preferred-with-grep-fallback scanner (FR1.2, common-subset regex + LC_ALL=C + errexit safety), and Daria's pre-impl review folded in. Accepted ~all of Daria's findings; rejected only the C3 depth off-by-one (formula N+1 is correct — added an explicit depth table to prove it). Key fixes: forced base-8 stat masking (silent macOS bug), BSD-safe find + -print0, per-finding tier (no sticky leak), value-byte-hardened/re-tiered FP-prone patterns. 19 ACs incl. new errexit/parity/fallback/tier-leak regressions. Open Questions empty — ready to implement Phase 1.",
+  "created_at": "2026-06-23T12:58:29.798745Z",
+  "kind": "note"
+}
