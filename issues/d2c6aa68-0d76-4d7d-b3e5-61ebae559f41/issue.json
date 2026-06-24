@@ -2,11 +2,12 @@
   "uuid": "d2c6aa68-0d76-4d7d-b3e5-61ebae559f41",
   "display_id": 56,
   "title": "Implement v0.7 agent-backed keys + v0.8 secret inventory (ultracode)",
-  "status": "open",
+  "status": "closed",
   "priority": "high",
   "created_by": "anon-31e9bd66",
   "created_at": "2026-06-23T13:08:46.943610Z",
-  "updated_at": "2026-06-23T13:08:50.478092Z",
+  "updated_at": "2026-06-24T18:42:40.048310Z",
+  "closed_at": "2026-06-24T18:42:40.048310Z",
   "labels": [
     "implementation"
   ]
