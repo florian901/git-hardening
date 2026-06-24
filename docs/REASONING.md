@@ -426,6 +426,93 @@ Scripts you control should use `git log --no-show-signature` or `git -c log.show
 
 ---
 
+## Agent-Backed Keys
+
+The end state the agent path targets: **a machine can pass the full audit and have working signing + authentication with zero plaintext private keys on disk.** The private key lives inside a vault SSH agent (1Password, Bitwarden) or a forwarded upstream agent; the on-disk footprint is at most a public-key stub.
+
+### Why vault agents beat on-disk keys
+
+A plaintext `~/.ssh/id_ed25519` is a single file an attacker who gets *any* code execution as your user can read and exfiltrate. A passphrase helps only while the key is at rest — the moment `ssh-agent` (or a long-lived `ssh` process) holds the decrypted key, it is recoverable from process memory. A vault-backed agent changes the trust boundary:
+
+- The private key never leaves the vault's process. `ssh-add -L` and a signing request return a *signature*, never the key. There is no decrypted-key-on-disk and no plaintext file to steal.
+- Each use can require an explicit, per-operation approval (1Password's biometric/Touch ID prompt, Bitwarden's unlock). An infostealer that reads files finds nothing; an attacker who wants a signature has to defeat an interactive approval, not copy a file.
+- Revocation and rotation happen in one place (the vault), not across scattered `~/.ssh` directories.
+
+This is why the audit treats an **unencrypted** private key in `~/.ssh` as a security-tier finding while leaving an encrypted one un-flagged, and why the signing wizard offers the agent path before offering to generate a file-based key.
+
+### Forwarded-agent threat model
+
+`SSH_AUTH_SOCK` is a generic agent endpoint. When it is set *alongside* `SSH_CONNECTION`/`SSH_TTY`, you are almost certainly inside an SSH session with **agent forwarding** (`ForwardAgent yes`) — your local agent's socket is exposed on the remote host. The script detects this and labels the socket "forwarded" rather than assuming a local vault agent.
+
+The risk is concrete: **root (or any process able to read the forwarded socket) on the remote host can use your agent to authenticate as you, anywhere, for the lifetime of the connection.** They cannot extract the key, but they can borrow it. The mitigations the docs steer toward:
+
+- Forward an agent only to hosts you fully trust, and prefer `ForwardAgent` scoped to a specific `Host` block over a global default.
+- Prefer per-use approval (a vault agent makes each forwarded signature an interactive prompt on *your* machine, so a silent remote abuse is visible).
+- For build/CI containers, a vault agent on the host with a narrowly forwarded socket beats copying a key file into the image.
+
+Because a forwarded session has no local key files, the audit must not make file-based assumptions there: key inventory comes from probing reachable agents read-only (`ssh-add -L`), never from requiring an `~/.ssh/id_*` file to exist.
+
+### `key::` signing — a literal public key, no file
+
+Git 2.34+ with `gpg.format=ssh` accepts a `user.signingkey` of the form `key::ssh-ed25519 AAAA… comment`: the **literal public key**, inline, with no file path. This is the natural fit for an agent-only machine — the signing key is identified by its public material (which the agent will sign for), and nothing private touches disk. The audit understands this form: it accepts a `key::` value, and verifies the same public blob is present in `allowed_signers` so local verification round-trips.
+
+### The public-key-stub pattern for `IdentitiesOnly`
+
+`IdentitiesOnly yes` (which the SSH hardening applies) tells ssh to offer **only** the keys named by `IdentityFile`, instead of throwing every agent key at the server. That is good hygiene — it stops ssh from leaking *which* keys you hold to every host — but it has a sharp edge for agent-only users: with no `IdentityFile` lines, `IdentitiesOnly yes` would offer *nothing* and lock you out.
+
+The resolution is the **public-key stub**: write `~/.ssh/<name>.pub` (public material only — consistent with the zero-plaintext goal) and a matching `IdentityFile ~/.ssh/<name>` line. ssh reads the `.pub` to know *which* identity to request, then asks the agent to do the actual signing; the private half stays in the vault. So before applying `IdentitiesOnly yes` the script checks that either a global `IdentityFile` exists or on-disk stubs match the agent keys; if the user is agent-only with no stubs, it offers to write the stubs (or, if declined, skips the directive with a warning rather than applying a lockout). `IdentitiesOnly yes` is never applied in a state that would stop agent keys from being offered.
+
+---
+
+## Plaintext Secret Inventory
+
+Beyond SSH keys, a developer machine accumulates long-lived plaintext credentials: `~/.aws/credentials`, cloud-CLI tokens, package-registry tokens, kubeconfigs, database passwords, and `.env` files. These are the highest-value, lowest-effort target for an attacker who gets any code execution as the user — no exploitation required, just a file read. The Secret Inventory generalizes the four files the script already audited (`~/.git-credentials`, `~/.netrc`, `~/.npmrc`, `~/.pypirc`) into a comprehensive, fixed registry and attaches concrete 1Password migration steps so each finding is actionable rather than merely alarming.
+
+### The five solution shapes (and why this one)
+
+When deciding *what* the tool should do about a plaintext secret, five shapes were on the table:
+
+- **Shape A — audit-only (report path + kind).** Names the exposure; changes nothing.
+- **Shape B — audit + `chmod 600`.** Additionally tightens permissions so other local accounts can't read it.
+- **Shape C — drive the vault CLI** (`op item create`, `op plugin init`) on the user's behalf to migrate the secret.
+- **Shape D — delete/rename the plaintext** after migration.
+- **Shape E — rewrite the consuming config** to read from the vault (`op inject`/`op run` templates).
+
+The feature ships **A + B only**, and *prints* C/D/E as next steps. The reasoning:
+
+- **Never read or print a value.** Output is path + kind. A tool whose job is to reduce secret exposure must not become a new exposure by echoing secrets into a terminal or a log. (See "minimal-read discipline" below.)
+- **Driving the vault CLI (C) is out of scope.** It would require an authenticated `op` session, the `op` command surface drifts between versions, and a tool that creates vault items on your behalf is one bug away from putting the *wrong* thing in your vault. Printing the exact `op plugin init aws` / `op inject` command is the honest line: actionable, but the user stays in control.
+- **Deleting the plaintext (D) is the user's call.** Deleting a credential file that a still-running tool depends on can break a working setup; the script never deletes credential files (consistent with the v0.6 rule that `-y` never deletes anything). The "delete the plaintext after migrating" step is printed for the user to perform.
+- **`chmod 600` (B) is the one safe mutation.** It only ever *tightens* permissions on a regular file the user owns; it never loosens, never recurses, never touches directories. That makes it safe to apply by default (interactive default-Yes, auto under `-y`) — it is additive hardening, categorically different from deletion.
+
+### Why audit-only + chmod-only
+
+The dividing line is reversibility and blast radius. `chmod 600` is reversible and cannot lose data, so it is applied. Everything that could *lose* a secret (delete), *create* the wrong vault item (drive `op`), or *break a working config* (rewrite the consumer) is left to the user with an exact printed command. This keeps the tool's own failure modes bounded: the worst thing a bug here can do is over-tighten a file's permissions or print a finding for a file that isn't really a secret — never destroy a credential or leak one.
+
+### Bounded-depth walk and the prune list
+
+`.env` files don't live at fixed paths — they sit in project trees (`~/projects/<repo>/.env`). Finding them needs a walk, but an unbounded `$HOME` scan on a machine with millions of files (think `node_modules`) would be slow enough that users disable the section, and following symlinks could wander out of `$HOME` entirely.
+
+So the walk is **bounded and explicit**:
+
+- **`--scan-depth N` (default 2)** means: scan files whose parent directory is at most N directory hops below `$HOME`. Default 2 covers `~/projects/<repo>/.env`; deeper layouts opt in with a larger depth. The cap is *visible* — an `[INFO]` line names the depth and the skipped directories, honoring the "no silent caps" principle.
+- **A fixed prune allowlist** (`node_modules`, `.git`, `vendor`, `.cache`, `.cargo`, `.rustup`, `.npm`, `Library`, `.Trash`, `.terraform`, `pkg`) is `-prune`d before the file-match branch. This is a fixed list, not a "skip any dot-dir" heuristic — the heuristic was rejected as both ambiguous and in conflict with discovering GCP service-account JSON, which can legitimately sit under a config dir.
+- **A single `find` invocation**, NUL-delimited (`-print0` consumed by `read -r -d ''`) so filenames with spaces/tabs/newlines are safe, with symlinks never followed (`-type f`, no `-L`). The performance target — under 3 seconds on a 200k-file home dir dominated by pruned trees — is guaranteed by `maxdepth` + the prune list, not by opportunistically scanning fewer files.
+
+### Minimal-read discipline and its honest floor
+
+Scanning a file for a secret is itself a sensitive act, so every content detection is constrained to ascertain *presence* while holding as little of the secret as technically possible:
+
+- **Match the key/marker, not the value.** A detection regex anchors on the credential's identifying key (`aws_secret_access_key`, `_authToken=`, `oauth_token:`) and matches **at most one byte** of the value — solely to prove it is non-empty (`_authToken=[^[:space:]]`, never `_authToken=.+`). No `.+`/`.*`/`{n,}`/capture groups are applied to the value region.
+- **Presence, never validation.** The script does not check that a token "looks real" (length, charset, checksum) — that would require reading the whole value. Key + non-empty value is enough to warn.
+- **Quiet match, discarded output.** All scanning goes through one helper (`scan_quiet`) in quiet/first-match mode (`rg -q --max-count=1`, or `grep -qEm1`); the matched text is never captured into a variable, never piped through `sed`/`awk`/`cut`, never printed. One function is the single enforcement point, so auditing it audits the whole feature's read discipline.
+
+**The honest floor:** both `rg` and `grep` read input a line at a time, so the *line* containing a secret transiently exists inside the **scanner's** process buffer for the duration of one match — `-m1` stops at the first matching *line*, not the first byte. This is the minimum achievable with line-oriented tooling. The guarantee the feature makes is precisely scoped: **the bash process never captures, stores, or emits the value**, and no detection pattern deliberately consumes past the first value byte. It does *not* claim a bounded number of bytes is read from the file — claiming otherwise would be dishonest. (One registry entry, URL-embedded credentials in `pip.conf`, must span `:`…`@` across the password by necessity; it is the documented exception, still never captured or printed.)
+
+There is also one ambient-state hazard worth recording: the audit-tier global is *sticky*. Because the inventory runs after other sections (which leave the tier at `security`), every finding sets its own tier immediately before emitting — a forgotten `set_tier hygiene` would silently push `.env`/gradle noise into the security count and fail `--audit`. Noisy detectors (`.env`, `gradle.properties`, the secret-shaped-assignment heuristic) live in **hygiene**/**info** and never gate the audit exit code, so `--audit` flags real exposure without drowning in false positives.
+
+---
+
 ## Admin Recommendations (informational only)
 
 These settings require server/org-level access and cannot be applied by a workstation tool:

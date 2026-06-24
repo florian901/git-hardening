@@ -75,16 +75,83 @@ With `-y`, the script auto-detects the best available key. If no key exists, sig
 
 **Privacy note:** The signing wizard warns that reusing the same signing key across personal and work accounts enables cross-platform identity correlation (OSINT risk). For identity separation, generate dedicated keys per context and use git's `includeIf` for per-org config.
 
+### Agent-Backed Keys (1Password / Bitwarden) — Quick Start
+
+The goal: working signing **and** authentication with **zero plaintext private keys on disk**. The private key stays inside your vault's SSH agent; the script audits and configures around it. (Background and threat model: [`docs/REASONING.md` → "Agent-Backed Keys"](docs/REASONING.md).)
+
+1. **Enable the SSH agent in your vault app.**
+   - **1Password:** Settings → Developer → "Use the SSH agent". 1Password exposes a socket and asks for biometric/Touch ID approval per use.
+   - **Bitwarden:** Settings → enable "SSH agent". Bitwarden exposes `~/.bitwarden-ssh-agent.sock`.
+
+2. **Point ssh at the vault socket.** Add to `~/.ssh/config` (or let your vault app manage it):
+   ```
+   # 1Password (macOS)
+   Host *
+     IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+   ```
+   On Linux/Bitwarden, set `SSH_AUTH_SOCK` (or `IdentityAgent`) to the agent socket your app prints.
+
+3. **Confirm the agent holds your key** (read-only; never exposes private material):
+   ```bash
+   ssh-add -L          # lists public keys the agent can sign with
+   ```
+
+4. **Run the audit.** The script probes reachable agents read-only, lists their keys, and configures signing without needing any `~/.ssh/id_*` private file:
+   ```bash
+   ./git-harden.sh --audit      # then drop --audit to apply
+   ```
+   - Signing is configured with `user.signingkey = key::ssh-ed25519 …` (the literal public key — no file on disk).
+   - Before applying `IdentitiesOnly yes`, the script offers to write **public-key stubs** (`~/.ssh/<name>.pub`, public material only) so agent keys keep being offered. Decline and it skips the directive rather than locking you out.
+
+5. **(Optional) migrate an existing on-disk key into the vault** with `--migrate`: it prints the import steps, and *after* the agent shows the imported key, offers to remove the plaintext private file (interactive only, default **No**, never in `-y`; the `.pub` stub is kept).
+
+**Inside a forwarded SSH session** (`SSH_AUTH_SOCK` set with `SSH_CONNECTION`/`SSH_TTY`), the script labels the agent "forwarded" and makes no file-based assumptions. Forward your agent only to hosts you trust — anyone who can read the forwarded socket can borrow (not extract) your key for the life of the connection.
+
+## Moving secrets into 1Password
+
+`git-harden.sh` includes a **Secret Inventory** that scans for plaintext developer credentials beyond SSH keys — `~/.aws/credentials`, cloud-CLI tokens, package-registry tokens, kubeconfigs, database passwords, and `.env` files. For each it reports the **kind and path** (never the value), offers to `chmod 600` any group/world-readable file, and prints the exact 1Password next step. It never reads a secret value into output, never creates vault items, and never deletes a credential file. (Rationale: [`docs/REASONING.md` → "Plaintext Secret Inventory"](docs/REASONING.md).)
+
+```bash
+# Read-only: list plaintext credentials and their migration steps
+./git-harden.sh --audit
+
+# Deeper project trees? Raise the .env walk depth (default 2)
+./git-harden.sh --audit --scan-depth 3
+```
+
+The advisor tailors each step to whether the 1Password CLI (`op`) is installed:
+
+- **Shell-plugin CLIs** (`aws`, `gh`, `glab`, `terraform`, `vault`, `stripe`, `openai`, `vercel`, `circleci`) — initialize the 1Password shell plugin, then delete the plaintext:
+  ```bash
+  op plugin init aws          # authenticates the CLI through 1Password
+  rm ~/.aws/credentials       # printed as a follow-up — you run it
+  ```
+- **Config-file CLIs** (kubeconfig, docker, npm, pypi, netrc, pgpass, maven, cargo, composer, rubygems, gcloud) — use a 1Password secret-reference template so the config reads from the vault at runtime:
+  ```bash
+  # Replace the literal token with an op:// reference, then run the tool via op
+  op inject -i ~/.npmrc.tpl -o ~/.npmrc      # ‡ idiomatic — confirm with op --help
+  ```
+- **`.env` / dotfile tokens** — keep secrets out of the file with `op run`:
+  ```bash
+  op run --env-file=.env -- your-command     # values resolved from op:// references
+  ```
+- **SSH / GPG keys** — use the agent path above, not a file.
+
+If `op` is not installed, the advisor prints the install pointer (<https://developer.1password.com/docs/cli/get-started/>) and still prints each per-finding step. The inventory's `.env`/dotfile findings are hygiene-tier and do **not** fail `--audit`; long-lived cloud and registry credentials are security-tier and do.
+
 ## Usage
 
 ```
 git-harden.sh [OPTIONS]
 
 Options:
-  --audit       Audit only, no changes (exit code 2 if issues found)
-  -y, --yes     Auto-apply all recommended defaults
-  --help, -h    Show help
-  --version     Show version
+  --audit          Audit only, no changes (exit code 2 if security issues found)
+  -y, --yes        Auto-apply all recommended defaults (never deletes anything)
+  --reset-signing  Remove signing config (interactive deletion of *_signing keys)
+  --migrate        Guided migration of on-disk private keys to a vault SSH agent
+  --scan-depth N   Depth below $HOME for the .env secret-inventory walk (default 2)
+  --help, -h       Show help
+  --version        Show version
 ```
 
 ### Exit Codes
@@ -114,7 +181,8 @@ Optional:
 - **Protocol downgrade** — blocks plaintext `git://` and dangerous `ext://` protocol
 - **Hook-based RCE** — redirects hook execution away from repo-local `.git/hooks/`
 - **Submodule attacks** — disables auto-recursion; submodules must be explicitly initialized
-- **Credential theft** — ensures secure credential storage, warns about plaintext `store`, detects leaked credentials in `~/.git-credentials`, `~/.netrc`, `~/.npmrc`, `~/.pypirc`
+- **Credential theft** — ensures secure credential storage, warns about plaintext `store`, and runs a Secret Inventory that detects plaintext developer credentials beyond SSH keys (`~/.aws/credentials`, cloud-CLI and registry tokens, kubeconfigs, database passwords, `.env` files), tightens their permissions, and prints 1Password migration steps
+- **Plaintext private keys** — flags unencrypted `~/.ssh` private keys and steers toward vault-backed SSH agents (1Password/Bitwarden) so no plaintext key need live on disk
 - **Secret leakage** — gitleaks pre-commit hook blocks commits containing secrets before they enter git history
 - **Commit impersonation** — SSH signing proves key possession (anyone can fake `user.name`/`user.email`)
 - **Filesystem tricks** — blocks NTFS/HFS+/symlink path manipulation attacks

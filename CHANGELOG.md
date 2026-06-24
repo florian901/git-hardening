@@ -6,8 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-24
+
+Two features land together: **agent-backed keys** (v0.7,
+[`docs/specs/2026-06-09-agent-backed-keys.md`](docs/specs/2026-06-09-agent-backed-keys.md))
+and the **plaintext secret inventory + 1Password migration advisor** (v0.8,
+[`docs/specs/2026-06-23-1password-secret-migration.md`](docs/specs/2026-06-23-1password-secret-migration.md)).
+Tracking: issue #56.
+
+### Added — Agent-backed keys (v0.7)
+- A machine can now pass the full audit and sign/authenticate with **zero plaintext private keys on disk**: keys live in a vault SSH agent (1Password, Bitwarden), a gpg-agent, or a forwarded upstream agent
+- Read-only agent discovery: probes `SSH_AUTH_SOCK` (labeled "forwarded" when `SSH_CONNECTION`/`SSH_TTY` indicate a forwarded session), the 1Password and Bitwarden socket paths, and gpg-agent; lists their public keys via `ssh-add -L` without ever writing to the socket
+- `audit_ssh_key_hygiene` merges and de-duplicates on-disk and agent-held keys; an **unencrypted** on-disk private key is a security-tier finding, an encrypted one is not flagged red
+- Signing supports `user.signingkey = key::ssh-ed25519 …` (literal inline public key, no file); the audit accepts it and verifies the same blob is in `allowed_signers`
+- `IdentitiesOnly yes` guard: before applying it, ensures a global `IdentityFile` or on-disk public-key stubs exist; for agent-only users it offers to write `~/.ssh/<name>.pub` stubs + `IdentityFile` lines, or skips the directive with a warning rather than causing a lockout
+- `--migrate`: guided move of an on-disk private key into a vault agent — prints import steps, and only after the agent shows the imported key offers to remove the plaintext private file (interactive only, default No, never in `-y`, keeps the `.pub` stub)
+
+### Added — Plaintext secret inventory + 1Password advisor (v0.8)
+- New **Secret Inventory** section: a fixed registry of plaintext / trivially-recoverable developer credentials beyond SSH keys — AWS/GCP/DigitalOcean/Terraform credentials, GitHub/GitLab CLI tokens, npm/yarn/PyPI/pip/RubyGems/Cargo/Composer/Maven registry tokens, Docker/kubeconfig auth, PostgreSQL/MySQL passwords, `.netrc`, and `.env` files. Each finding reports **kind and path only — never a value**
+- Minimal-read discipline: all content detection goes through one `scan_quiet` helper (ripgrep preferred, `grep -qEm1` fallback, quiet/first-match, `LC_ALL=C`); patterns match the credential key plus at most one value byte (no `.+`/`.*`/capture groups), and no matched line is ever captured into the shell process
+- Explicit per-finding tiering: long-lived cloud/registry credentials are **security**-tier (fail `--audit`); `.env`, gradle, and the secret-shaped-assignment heuristic are **hygiene**, GPG keys are **info** — noisy findings never gate the audit exit code
+- Bounded `.env`/JSON walk: a single NUL-safe `find` over `$HOME` to `--scan-depth N` (default 2, covers `~/projects/<repo>/.env`) plus the cwd root, with a fixed prune allowlist (`node_modules`, `.git`, `Library`, …) and an `[INFO]` line naming the depth and skipped dirs (no silent caps)
+- Portable `chmod 600` apply for group/world-readable findings: a single grouped prompt (default Yes; auto under `-y`), skipping symlinks, directories, and not-owned/not-writable targets without aborting under `errexit`
+- 1Password migration advisor: per-finding tailored next steps — `op plugin init <cli>` for shell-plugin CLIs, `op inject`/`op run` templates for config-file CLIs, `op run --env-file` for dotfiles, the agent path for keys — tailored to whether `op` is on `PATH`, with a gitignore cross-reference. Never runs `op`, never requires a session, never reads a value
+- New `--scan-depth N` flag (non-negative integer, validated as a string before any arithmetic so a bad value `die`s cleanly); documented in `usage()`/`--help`
+
 ### Changed
+- `readonly VERSION` bumped to `0.8.0`
 - Signing wizard "Skip" option now clarifies the agent-container use case (humans sign at PR merge)
+- The old `audit_credential_hygiene` checks (`.git-credentials`, `.netrc`, `.npmrc`, `.pypirc`) are subsumed by the Secret Inventory registry and the standalone function removed to avoid double-reporting
+
+### Docs
+- `docs/REASONING.md`: new "Agent-Backed Keys" section (why vault agents beat on-disk keys, the forwarded-agent threat model, `key::` signing, the public-key-stub pattern for `IdentitiesOnly`) and "Plaintext Secret Inventory" section (the five solution shapes, why audit-only + chmod-only, the bounded-depth/prune rationale, the minimal-read discipline and its honest floor)
+- `README.md`: agent-backed-keys quick-start for 1Password/Bitwarden users and a "Moving secrets into 1Password" walkthrough
 
 ## [0.6.0] - 2026-06-09
 
