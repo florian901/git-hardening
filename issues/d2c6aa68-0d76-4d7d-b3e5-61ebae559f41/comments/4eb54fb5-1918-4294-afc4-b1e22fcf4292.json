@@ -1,0 +1,8 @@
+{
+  "uuid": "4eb54fb5-1918-4294-afc4-b1e22fcf4292",
+  "issue_uuid": "d2c6aa68-0d76-4d7d-b3e5-61ebae559f41",
+  "author": "anon-31e9bd66",
+  "content": "Interactive test failures ROOT-CAUSED and fixed — NOT a script regression. Each of the 5 interactive tmux tests passes reliably in isolation (verified identity-guard 3/3, signing-generate, all 5 with per-test HOME). The consistent 3-pass/2-fail in run-all.sh was shared-HOME state leakage: earlier tests pre-harden the config, changing later tests' prompt count/timing and racing accept_until into a free-form prompt. Fixed test/interactive/run-all.sh to give each test a pristine HOME with its own script copy (+ clears SSH_AUTH_SOCK so a dev-box vault agent can't alter the signing-wizard path). Result: 5 passed, 0 failed on host; shellcheck clean. Re-running full container e2e via podman to confirm BATS+interactive green across distros. Also confirmed: the earlier --audit hang was solely my real 1Password agent (ssh-add -L) — still flagged as a bounded-probe robustness follow-up. Commit HELD.",
+  "created_at": "2026-06-24T10:53:43.238774Z",
+  "kind": "note"
+}
