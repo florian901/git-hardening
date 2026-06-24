@@ -1,0 +1,8 @@
+{
+  "uuid": "d990405e-4edb-4c2b-b5dd-e859a7eb6df1",
+  "issue_uuid": "d2c6aa68-0d76-4d7d-b3e5-61ebae559f41",
+  "author": "anon-31e9bd66",
+  "content": "Docker/e2e validation in progress. Findings so far: (1) host BATS 253/253 green, shellcheck clean — solid. (2) --audit completes correctly (exit 2) with stdin /dev/null; a one-time hang was my real 1Password SSH agent blocking on ssh-add -L pending approval — a genuine robustness follow-up (agent probes should be bounded; macOS lacks 'timeout' so needs a portable guard), DEFERRED, noted. (3) Interactive tmux tests fail on macOS HOST with status 127 because helpers.sh hardcodes SCRIPT_PATH=$HOME/git-harden.sh — they are container-only by design (Containerfile stages the script there); not a code regression. Colima was down; brought up podman machine and re-running full container e2e (ubuntu/debian/fedora/alpine; arch skipped on arm64) which runs BATS + interactive INSIDE each distro. Awaiting result. Commit still HELD.",
+  "created_at": "2026-06-24T10:31:36.947876Z",
+  "kind": "note"
+}
