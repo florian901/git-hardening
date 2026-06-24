@@ -1,0 +1,8 @@
+{
+  "uuid": "e9eab116-a97e-45f7-bff9-bc8196b22aeb",
+  "issue_uuid": "d2c6aa68-0d76-4d7d-b3e5-61ebae559f41",
+  "author": "anon-31e9bd66",
+  "content": "FULLY GREEN. Container e2e via podman: ubuntu/debian/fedora/alpine + host all PASS (arch SKIP, no arm64 image), 0 'not ok', exit 0. Host: BATS 253/253, interactive 5/5, shellcheck clean (git-harden.sh + run-all.sh), VERSION 0.8.0. Both specs fully implemented and thoroughly tested across BATS + Docker matrix. Diff: git-harden.sh +1915, tests +2060, run-all.sh +22, REASONING +87, README +78, CHANGELOG +31. Awaiting maintainer go-ahead to commit (held per instruction). Two documented non-blocking follow-ups: bounded agent-probe in --audit; BATS harness set -u/IFS gap.",
+  "created_at": "2026-06-24T11:00:58.287908Z",
+  "kind": "note"
+}
