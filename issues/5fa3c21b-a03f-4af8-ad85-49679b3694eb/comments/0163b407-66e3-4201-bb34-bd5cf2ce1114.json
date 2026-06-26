@@ -1,0 +1,8 @@
+{
+  "uuid": "0163b407-66e3-4201-bb34-bd5cf2ce1114",
+  "issue_uuid": "5fa3c21b-a03f-4af8-ad85-49679b3694eb",
+  "author": "anon-31e9bd66",
+  "content": "Done + tested (uncommitted). Advisor now: (1) prints a store->use intro for any finding — '1. Store: op item create ...' then '2. Use: op read/op run/op inject'; generic path shows explicit store:/use: lines. (2) When op is absent, op_install_hint prints concrete platform/distro install commands (brew install 1password-cli on macOS + Linux Homebrew; Arch AUR; official repo steps for Debian/Fedora) plus the URL. Per-finding tailored steps unchanged (op plugin init / op inject / op run). 2 new BATS tests (255 total, all green); shellcheck clean; no-secret-leak test still passes; AC-8 URL check still holds. CHANGELOG [Unreleased] updated. Held for commit.",
+  "created_at": "2026-06-26T09:50:20.064381Z",
+  "kind": "note"
+}
