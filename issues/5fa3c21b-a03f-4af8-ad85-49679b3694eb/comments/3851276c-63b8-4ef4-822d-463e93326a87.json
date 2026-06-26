@@ -1,0 +1,8 @@
+{
+  "uuid": "3851276c-63b8-4ef4-822d-463e93326a87",
+  "issue_uuid": "5fa3c21b-a03f-4af8-ad85-49679b3694eb",
+  "author": "anon-31e9bd66",
+  "content": "Added Watchtower bulk-import note to --migrate SSH-key instructions (1Password app → Watchtower → 'Developer credentials on disk'). Maintainer simplified the detected-1Password branch to lead with Watchtower; reconciled test 6 to the new wording. 255/255 BATS green, shellcheck clean. CHANGELOG [Unreleased] updated. Held for commit.",
+  "created_at": "2026-06-26T10:01:13.155830Z",
+  "kind": "note"
+}
