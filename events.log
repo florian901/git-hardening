@@ -1,0 +1,2 @@
+{"agent_id":"plan-git-harden-sh-design-spec-2153","agent_seq":1,"timestamp":"2026-03-27T16:51:56.555466Z","event":{"type":"LockClaimed","issue_display_id":1}}
+{"agent_id":"plan-git-harden-sh-design-spec-2153","agent_seq":2,"timestamp":"2026-03-27T16:52:41.698490Z","event":{"type":"LockReleased","issue_display_id":1}}
