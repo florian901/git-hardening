@@ -1,0 +1,1527 @@
+{
+  "next_display_id": 58,
+  "next_comment_id": 91,
+  "display_id_map": {
+    "07033463-973b-469e-a4bc-5840d5abe0ef": 18,
+    "079a080a-51b2-4d1a-90e1-b5b22ca8c39d": 41,
+    "0dd933e1-7ee3-4c88-bbc4-f1ae758905ef": 24,
+    "142a1805-57d0-43e6-a243-6186130e1e4e": 4,
+    "1a14f086-e936-4f65-80f0-6be7b788b17e": 3,
+    "1bddfba6-8bcf-49c6-b6a6-b1a3a7773412": 33,
+    "2a7c3419-0168-49d0-a765-b60b5f2c53da": 8,
+    "30fcbc89-b3ec-4359-aef1-9d66a8be9bae": 34,
+    "3400628e-9b81-4090-94f7-9ee2222fd2ed": 36,
+    "37f1e904-c33c-4702-b9a2-5a68091afcef": 39,
+    "40863ff7-2849-411e-9d69-d70c286d8e71": 13,
+    "4141f9dc-8a0c-4750-ac43-923d459e65f6": 46,
+    "49346966-4387-44c1-a1d6-c9bc42124115": 48,
+    "56842392-a1cd-4f45-ac33-fbe6a2d34dc4": 5,
+    "5fa3c21b-a03f-4af8-ad85-49679b3694eb": 57,
+    "60a175b7-d772-47ef-82c7-10ab11674a96": 53,
+    "6148d429-21f4-48ae-8919-09c3e9bf0240": 17,
+    "63c20074-41d7-4df9-ae18-4cab530e5911": 26,
+    "68ea2c36-8192-4da5-8c40-bfaaa810256b": 51,
+    "6a779240-6242-4866-9e6a-380000da54da": 27,
+    "6ad6ebfe-dfcf-42e3-be06-b8bb70cab503": 55,
+    "6b7b98fb-a91c-44d0-be90-2ce097366cbe": 31,
+    "6cc9b889-1a34-40e9-90b7-273132648635": 35,
+    "6ddf6723-198f-4719-9422-f8ca9aa1fb4f": 32,
+    "6e8749d1-d0ce-47cb-a867-cd493fe56175": 45,
+    "6fe723a2-5841-4ac7-b947-67cdf4fcb8a2": 19,
+    "725199d4-50a7-4064-aab8-a938e416f5c8": 52,
+    "766ad77d-424d-4660-b29e-57c0a5c2e672": 9,
+    "7b9f3d18-90e9-4be4-9dd8-b0d7a53585d6": 2,
+    "82821bdb-d858-41cf-8d98-eae77d95696d": 20,
+    "841ad3fb-859e-41e9-a621-f867256e786a": 1,
+    "84b606e9-d671-4804-aa49-ec842586d995": 42,
+    "862d89b7-0c37-4858-939f-56a0b2da700e": 47,
+    "87ad499d-4d8b-431d-b0f1-84618278c875": 40,
+    "899c9ef9-0aae-47dd-abbf-55663fb6c081": 11,
+    "8a71732d-9a6a-41a6-8e56-7dbb19ae9eec": 37,
+    "8d93b4ec-e800-4c3c-a113-fcef21c9e2f5": 10,
+    "9013ee4a-865b-4a4a-bf67-e7fc3c15b99f": 22,
+    "91415850-4320-495d-a779-4cec0b77f409": 6,
+    "93eb1d74-3797-4590-bbc1-4a36a7fe7263": 30,
+    "9c3302b7-1564-4e4a-9390-8c8e1a8bc4c3": 16,
+    "9e0853d2-d851-44e9-b10b-5c77a4f783df": 15,
+    "a1d77f4c-e7f0-4466-852a-f4bc35497c51": 14,
+    "b1b088a3-3ebf-40c9-81ec-5d6c63661d1a": 21,
+    "ba3282e1-b547-4700-be43-286974a09997": 25,
+    "bc5cfbb7-aefd-43f7-bbcc-05742e512555": 44,
+    "cba69afd-8762-4034-a70d-acd236169e13": 49,
+    "cd645342-07cd-4510-b3c8-af5a78fd8437": 23,
+    "cd7ea37a-aa03-4a67-ad7b-64432d08d681": 12,
+    "d2c6aa68-0d76-4d7d-b3e5-61ebae559f41": 56,
+    "d41855c2-2525-4c19-8900-6ae2ebad6a6f": 38,
+    "d6c91105-46af-488b-9e62-cacf63bff1df": 28,
+    "d8970dd4-b66c-407a-b4df-c46cec9ad1df": 7,
+    "ea270205-669c-4b21-aaae-5f0399c4d31e": 54,
+    "f18d1bc1-a500-453d-9260-6cd49f6b92a5": 43,
+    "fdf25e87-e3ec-47ff-9599-11f2f144276a": 50,
+    "fe30e167-6d25-4a44-9330-a7991511ceb1": 29
+  },
+  "locks": {
+    "4": {
+      "agent_id": "BP3j-Uz4t-git-harden-sh-00eb",
+      "claimed_at": "2026-03-27T17:10:32.652172Z"
+    }
+  },
+  "issues": {
+    "07033463-973b-469e-a4bc-5840d5abe0ef": {
+      "uuid": "07033463-973b-469e-a4bc-5840d5abe0ef",
+      "display_id": 18,
+      "title": "Create Containerfiles for all 5 distros (ubuntu, debian, fedora, alpine, arch)",
+      "status": "open",
+      "priority": "high",
+      "parent_uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:30:35.984339Z",
+      "updated_at": "2026-03-30T22:30:36.996911Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "04789470-aa36-4fef-a77f-42c765cc4f7d": {
+          "author": "anon-31e9bd66",
+          "content": "Plan: Create test/containers/ with one Containerfile per distro. Each installs bash, git >= 2.34, openssh-client, tmux. Non-root test user. COPY script and test dir. CMD test/run.sh.",
+          "created_at": "2026-03-30T22:31:00.085924Z",
+          "kind": "plan"
+        },
+        "5a2c6ff9-43cf-4d04-90e0-bf39ff9d78e3": {
+          "author": "anon-31e9bd66",
+          "content": "Decision: Alpine Containerfile installs GNU coreutils, grep, and sed alongside BusyBox defaults to avoid compatibility issues with git-harden.sh which relies on GNU extensions.",
+          "created_at": "2026-03-30T22:32:05.200861Z",
+          "kind": "decision"
+        },
+        "7bdf27ec-2560-4d9c-8e9d-9629c5b4f36c": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: 5 Containerfiles in test/containers/ for ubuntu:24.04, debian:trixie, fedora:42, alpine:3.21, archlinux:base. Each installs bash, git, openssh, tmux, creates non-root testuser, copies script+tests.",
+          "created_at": "2026-03-30T22:32:12.238094Z",
+          "kind": "result"
+        }
+      }
+    },
+    "079a080a-51b2-4d1a-90e1-b5b22ca8c39d": {
+      "uuid": "079a080a-51b2-4d1a-90e1-b5b22ca8c39d",
+      "display_id": 41,
+      "title": "Add --skip-host flag to e2e.sh",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:09:59.616580Z",
+      "updated_at": "2026-03-31T16:11:18.903327Z",
+      "closed_at": "2026-03-31T16:11:18.903327Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "6a4498ea-7486-43a1-8995-3979a673b2f8": {
+          "author": "anon-31e9bd66",
+          "content": "Added --skip-host flag, updated usage text.",
+          "created_at": "2026-03-31T16:11:17.127551Z",
+          "kind": "result"
+        }
+      }
+    },
+    "0dd933e1-7ee3-4c88-bbc4-f1ae758905ef": {
+      "uuid": "0dd933e1-7ee3-4c88-bbc4-f1ae758905ef",
+      "display_id": 24,
+      "title": "Add v0.2.0 feature spec for expanded hardening coverage",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:00:15.481014Z",
+      "updated_at": "2026-03-31T10:40:09.856016Z",
+      "closed_at": "2026-03-31T10:40:09.856016Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "79450157-51d4-4e83-99bf-55d21ae741a6": {
+          "author": "anon-31e9bd66",
+          "content": "Applied four fixes from code review: (1) gitignore audit now checks existing files for missing security patterns, (2) SSH key hygiene scans IdentityFile directives from ~/.ssh/config, (3) .npmrc regex tightened to _authToken=.+, (4) core.symlinks=false is interactive-only with default=yes, skipped in -y mode.",
+          "created_at": "2026-03-31T10:39:33.923478Z",
+          "kind": "decision"
+        },
+        "b37358a3-d2a8-4be2-ba55-cc9da30a8e53": {
+          "author": "anon-31e9bd66",
+          "content": "Writing feature spec based on gap analysis of two research reports (Claude Opus 4.6 and Gemini 3.1 Pro). Six new feature areas identified: gitleaks pre-commit hook, global gitignore, plaintext credential detection, SSH key hygiene audit, 8 new git config settings, and safe.directory wildcard detection.",
+          "created_at": "2026-03-31T10:00:22.375971Z",
+          "kind": "plan"
+        },
+        "d4dad351-c443-48ff-a67f-4e0e3e6c384a": {
+          "author": "anon-31e9bd66",
+          "content": "Spec written to docs/specs/2026-03-31-v0.2.0-expanded-hardening.md. Self-review passed: no TBDs, no contradictions, scope is focused on additive changes only.",
+          "created_at": "2026-03-31T10:03:16.728608Z",
+          "kind": "result"
+        },
+        "ddf29a30-43c4-4561-af81-cb0f870b8187": {
+          "author": "anon-31e9bd66",
+          "content": "Spec complete and reviewed. Proceeding to implementation.",
+          "created_at": "2026-03-31T10:40:08.727589Z",
+          "kind": "result"
+        }
+      }
+    },
+    "142a1805-57d0-43e6-a243-6186130e1e4e": {
+      "uuid": "142a1805-57d0-43e6-a243-6186130e1e4e",
+      "display_id": 4,
+      "title": "git-harden.sh",
+      "description": "Created by crosslink kickoff",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-27T17:10:10.536893Z",
+      "updated_at": "2026-03-30T22:11:43.733337Z",
+      "closed_at": "2026-03-30T22:11:43.733337Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "7233744e-4fee-4f7b-adae-9a488f0ad462": {
+          "author": "BP3j-Uz4t-git-harden-sh-00eb",
+          "content": "Plan: Implement git-harden.sh as a single-file bash script at repo root following design spec architecture exactly. Bash 3.2 compatible. Will validate with shellcheck.",
+          "created_at": "2026-03-27T17:10:57.493270Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "1a14f086-e936-4f65-80f0-6be7b788b17e": {
+      "uuid": "1a14f086-e936-4f65-80f0-6be7b788b17e",
+      "display_id": 3,
+      "title": "git-harden.sh",
+      "description": "Created by crosslink kickoff",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-27T17:09:46.578937Z",
+      "updated_at": "2026-03-30T22:11:42.636444Z",
+      "closed_at": "2026-03-30T22:11:42.636444Z",
+      "labels": [
+        "feature"
+      ]
+    },
+    "1bddfba6-8bcf-49c6-b6a6-b1a3a7773412": {
+      "uuid": "1bddfba6-8bcf-49c6-b6a6-b1a3a7773412",
+      "display_id": 33,
+      "title": "Update README and CHANGELOG for v0.2.0 release",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T11:49:24.194933Z",
+      "updated_at": "2026-03-31T11:58:07.271621Z",
+      "closed_at": "2026-03-31T11:58:07.271621Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "4bc7a2a1-c227-42af-a2a8-44e444a66e86": {
+          "author": "anon-31e9bd66",
+          "content": "Rewriting CHANGELOG with proper v0.2.0 section separated from v0.1.0, and updating README to document all new features.",
+          "created_at": "2026-03-31T11:49:39.708442Z",
+          "kind": "plan"
+        },
+        "b0b2426f-184c-46c2-b200-a72e17753d9e": {
+          "author": "anon-31e9bd66",
+          "content": "All files staged. FIDO2 detection fixed to use ioreg on macOS (detects YubiKey without ykman). Pre-existing test 42 fixed (missing source_functions). 92/92 tests pass.",
+          "created_at": "2026-03-31T11:58:06.142514Z",
+          "kind": "result"
+        }
+      }
+    },
+    "2a7c3419-0168-49d0-a765-b60b5f2c53da": {
+      "uuid": "2a7c3419-0168-49d0-a765-b60b5f2c53da",
+      "display_id": 8,
+      "title": "Fix version parsing and SSH config comment handling",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T21:27:37.200505Z",
+      "updated_at": "2026-03-30T22:11:48.411982Z",
+      "closed_at": "2026-03-30T22:11:48.411982Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "0ec8a503-d89c-4a4e-9c71-3018e5b7def2": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Fixed version parsing (grep -oE for semver triplet instead of sed strip), added strip_ssh_value() helper for inline comments and quotes, applied to audit/apply SSH directives and IdentityFile scanning. 9 new tests (62 total, all passing).",
+          "created_at": "2026-03-30T21:40:13.487188Z",
+          "kind": "result"
+        },
+        "967e141a-4bbd-427c-a771-30624f6d2da4": {
+          "author": "anon-31e9bd66",
+          "content": "Plan: (1) Fix version parsing to extract first semver-like triplet via grep -oE instead of stripping non-digits. (2) Strip inline comments and quotes from IdentityFile values and SSH directive values.",
+          "created_at": "2026-03-30T21:27:47.879217Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "30fcbc89-b3ec-4359-aef1-9d66a8be9bae": {
+      "uuid": "30fcbc89-b3ec-4359-aef1-9d66a8be9bae",
+      "display_id": 34,
+      "title": "Release v0.2.0",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T12:03:09.798056Z",
+      "updated_at": "2026-03-31T12:03:36.961113Z",
+      "closed_at": "2026-03-31T12:03:36.961113Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "2d1cccb6-8fe9-411b-af06-1400e3638384": {
+          "author": "anon-31e9bd66",
+          "content": "Committed as 8037cb7. Working tree clean.",
+          "created_at": "2026-03-31T12:03:35.819423Z",
+          "kind": "result"
+        },
+        "b5914f33-6ade-48d8-9f63-571393249b6f": {
+          "author": "anon-31e9bd66",
+          "content": "Committing all v0.2.0 changes: 6 new features, research reports, spec, updated README/CHANGELOG, 92 tests.",
+          "created_at": "2026-03-31T12:03:15.903948Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "3400628e-9b81-4090-94f7-9ee2222fd2ed": {
+      "uuid": "3400628e-9b81-4090-94f7-9ee2222fd2ed",
+      "display_id": 36,
+      "title": "Fix FIDO2 key generation on macOS and Linux install hints",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T13:45:55.809204Z",
+      "updated_at": "2026-03-31T15:39:19.323620Z",
+      "closed_at": "2026-03-31T15:39:19.323620Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "48245d23-8e36-442a-acc7-289106b14924": {
+          "author": "anon-31e9bd66",
+          "content": "Two fixes: (1) Use Homebrew ssh-keygen binary for FIDO2 instead of searching for libsk-libfido2.dylib which doesn't exist in modern openssh. (2) Change Linux gitleaks install hint from brew to apt/dnf.",
+          "created_at": "2026-03-31T13:46:03.049191Z",
+          "kind": "plan"
+        },
+        "4e34155d-4685-484e-b794-0bd39eb16c9e": {
+          "author": "anon-31e9bd66",
+          "content": "Both fixes already applied in working tree. Shellcheck clean, 92/92 tests pass.",
+          "created_at": "2026-03-31T13:46:07.926363Z",
+          "kind": "result"
+        }
+      }
+    },
+    "37f1e904-c33c-4702-b9a2-5a68091afcef": {
+      "uuid": "37f1e904-c33c-4702-b9a2-5a68091afcef",
+      "display_id": 39,
+      "title": "Fix e2e.sh distro loop not splitting on spaces",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:02:07.983180Z",
+      "updated_at": "2026-03-31T16:05:23.424992Z",
+      "closed_at": "2026-03-31T16:05:23.424992Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "3540469e-d407-4e25-a335-944b9a2bb7c7": {
+          "author": "anon-31e9bd66",
+          "content": "IFS is set to newline+tab at script top, so 'for d in $DISTROS' treats the whole space-separated string as one token. Need to locally reset IFS or use an array.",
+          "created_at": "2026-03-31T16:02:17.284665Z",
+          "kind": "observation"
+        },
+        "5a02d5f3-78c1-4cc9-ab70-b3ffe7ee195b": {
+          "author": "anon-31e9bd66",
+          "content": "Fixed: converted DISTROS from string to bash array, updated all loops to use ${DISTROS[@]}.",
+          "created_at": "2026-03-31T16:04:15.516456Z",
+          "kind": "result"
+        }
+      }
+    },
+    "40863ff7-2849-411e-9d69-d70c286d8e71": {
+      "uuid": "40863ff7-2849-411e-9d69-d70c286d8e71",
+      "display_id": 13,
+      "title": "Release v0.1.0",
+      "status": "open",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:01:01.245601Z",
+      "updated_at": "2026-03-30T22:01:02.320084Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "cdfb869f-87cb-42dc-a258-cd7dd2cbc418": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: CHANGELOG.md updated with full v0.1.0 release notes, VERSION constant set to 0.1.0.",
+          "created_at": "2026-03-30T22:12:42.210287Z",
+          "kind": "result"
+        }
+      }
+    },
+    "4141f9dc-8a0c-4750-ac43-923d459e65f6": {
+      "uuid": "4141f9dc-8a0c-4750-ac43-923d459e65f6",
+      "display_id": 46,
+      "title": "Skip Arch Linux container on ARM64 (no image available)",
+      "status": "closed",
+      "priority": "low",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:52:48.062652Z",
+      "updated_at": "2026-03-31T16:53:35.482125Z",
+      "closed_at": "2026-03-31T16:53:35.482125Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "48716524-8945-40aa-9f1c-4ac9b8a20793": {
+          "author": "anon-31e9bd66",
+          "content": "Skip arch on non-x86_64 with SKIP status (yellow in summary). Arch Linux doesn't publish ARM64 images.",
+          "created_at": "2026-03-31T16:53:34.020151Z",
+          "kind": "result"
+        }
+      }
+    },
+    "49346966-4387-44c1-a1d6-c9bc42124115": {
+      "uuid": "49346966-4387-44c1-a1d6-c9bc42124115",
+      "display_id": 48,
+      "title": "Add REASONING.md documenting trade-offs for each hardening default",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T17:52:04.186430Z",
+      "updated_at": "2026-03-31T17:59:31.682480Z",
+      "closed_at": "2026-03-31T17:59:31.682480Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "af0ddabb-a643-4f3e-878c-9253ff3c5331": {
+          "author": "anon-31e9bd66",
+          "content": "Created docs/REASONING.md covering all settings: identity, object integrity, protocols, filesystem, hooks, pre-commit, repo safety, pull/merge, transport, credentials, gitignore, defaults, forensics, visibility, signing, SSH config, key hygiene, and admin recommendations. Each entry covers what/why/what-breaks/trade-off.",
+          "created_at": "2026-03-31T17:59:30.606495Z",
+          "kind": "result"
+        },
+        "bf0d7b12-5090-4ee2-b86c-abeb9a9f4575": {
+          "author": "anon-31e9bd66",
+          "content": "Create docs/REASONING.md covering every setting the script audits/applies. For each: what it does, what attack it mitigates, what breaks if you enable it, and why we chose this default. Source from the research reports and the spec.",
+          "created_at": "2026-03-31T17:52:11.538267Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "56842392-a1cd-4f45-ac33-fbe6a2d34dc4": {
+      "uuid": "56842392-a1cd-4f45-ac33-fbe6a2d34dc4",
+      "display_id": 5,
+      "title": "Implement git-harden.sh script",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T11:38:12.610599Z",
+      "updated_at": "2026-03-30T22:11:44.853878Z",
+      "closed_at": "2026-03-30T22:11:44.853878Z",
+      "labels": [
+        "feature"
+      ]
+    },
+    "5fa3c21b-a03f-4af8-ad85-49679b3694eb": {
+      "uuid": "5fa3c21b-a03f-4af8-ad85-49679b3694eb",
+      "display_id": 57,
+      "title": "Advisor: full store+use 1Password steps; op install instructions when missing",
+      "status": "open",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-06-26T09:28:48.086939Z",
+      "updated_at": "2026-06-26T09:28:51.617811Z",
+      "labels": [
+        "enhancement"
+      ],
+      "comments": {
+        "0163b407-66e3-4201-bb34-bd5cf2ce1114": {
+          "author": "anon-31e9bd66",
+          "content": "Done + tested (uncommitted). Advisor now: (1) prints a store->use intro for any finding — '1. Store: op item create ...' then '2. Use: op read/op run/op inject'; generic path shows explicit store:/use: lines. (2) When op is absent, op_install_hint prints concrete platform/distro install commands (brew install 1password-cli on macOS + Linux Homebrew; Arch AUR; official repo steps for Debian/Fedora) plus the URL. Per-finding tailored steps unchanged (op plugin init / op inject / op run). 2 new BATS tests (255 total, all green); shellcheck clean; no-secret-leak test still passes; AC-8 URL check still holds. CHANGELOG [Unreleased] updated. Held for commit.",
+          "created_at": "2026-06-26T09:50:20.064381Z",
+          "kind": "note"
+        },
+        "3851276c-63b8-4ef4-822d-463e93326a87": {
+          "author": "anon-31e9bd66",
+          "content": "Added Watchtower bulk-import note to --migrate SSH-key instructions (1Password app → Watchtower → 'Developer credentials on disk'). Maintainer simplified the detected-1Password branch to lead with Watchtower; reconciled test 6 to the new wording. 255/255 BATS green, shellcheck clean. CHANGELOG [Unreleased] updated. Held for commit.",
+          "created_at": "2026-06-26T10:01:13.155830Z",
+          "kind": "note"
+        }
+      }
+    },
+    "60a175b7-d772-47ef-82c7-10ab11674a96": {
+      "uuid": "60a175b7-d772-47ef-82c7-10ab11674a96",
+      "display_id": 53,
+      "title": "Fix critical/high security-review findings, audit tiers, doc accuracy",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-06-09T21:23:17.179485Z",
+      "updated_at": "2026-06-09T21:55:34.995655Z",
+      "closed_at": "2026-06-09T21:55:34.995655Z",
+      "labels": [
+        "security"
+      ],
+      "comments": {
+        "a6e5275e-6305-4fb9-844a-3a9863a99c63": {
+          "author": "anon-31e9bd66",
+          "content": "Implemented all critical/high fixes (reset-signing key safety, FIDO retry loop, hook dispatch stubs, SSH scope-aware parsing, algo-restriction guards, backup perms 600, pubkey validation, signing smoke test), audit tiers (security/hygiene/preference; --audit exit 2 on security only), REASONING.md accuracy updates, CHANGELOG 0.6.0, and docs/specs/2026-06-09-agent-backed-keys.md plan for 1Password/Bitwarden/forwarded-agent support. shellcheck clean, 126/126 BATS tests pass. Not yet committed.",
+          "created_at": "2026-06-09T21:47:28.497335Z",
+          "kind": "note"
+        }
+      }
+    },
+    "6148d429-21f4-48ae-8919-09c3e9bf0240": {
+      "uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+      "display_id": 17,
+      "title": "Add e2e container test harness for multi-distro testing",
+      "status": "open",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:27:00.151820Z",
+      "updated_at": "2026-03-30T22:27:01.312291Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "7412149e-b23d-4ea0-b84a-f41a83af8d63": {
+          "author": "anon-31e9bd66",
+          "content": "Session auto-ended (stale after 747 minutes). No handoff notes provided.",
+          "created_at": "2026-03-31T09:34:20.509320Z",
+          "kind": "handoff"
+        },
+        "cf42de65-6446-47cd-a8e4-ab9903858cbe": {
+          "author": "anon-31e9bd66",
+          "content": "Plan: Implement the e2e container test harness per spec at docs/specs/2026-03-30-e2e-container-tests.md. Four subissues: #18 Containerfiles, #19 runner script, #20 interactive tmux tests, #21 fix platform failures. Will implement sequentially since each depends on the prior.",
+          "created_at": "2026-03-30T22:30:52.805906Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "63c20074-41d7-4df9-ae18-4cab530e5911": {
+      "uuid": "63c20074-41d7-4df9-ae18-4cab530e5911",
+      "display_id": 26,
+      "title": "Add 8 new git config settings (identity, forensic readiness, defaults, protocol v2, bundleURI, symlinks, fetch.prune)",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:40:31.417882Z",
+      "updated_at": "2026-03-31T10:42:22.106701Z",
+      "closed_at": "2026-03-31T10:42:22.106701Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "67332b7e-5139-4a89-8cf2-290c8ffe329b": {
+          "author": "anon-31e9bd66",
+          "content": "Added 8 new settings to audit_git_config and apply_git_config. core.symlinks special-cased: skipped in -y mode, prompted interactively with default=yes. safe.directory wildcard detection also added (issue #27). Version bumped to 0.2.0.",
+          "created_at": "2026-03-31T10:42:20.965304Z",
+          "kind": "result"
+        },
+        "74647659-5d06-40cd-9976-0b629f3a8a33": {
+          "author": "anon-31e9bd66",
+          "content": "Adding 8 new settings across audit and apply phases. core.symlinks is special-cased: interactive-only with default=yes, skipped in -y mode.",
+          "created_at": "2026-03-31T10:41:19.248509Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "68ea2c36-8192-4da5-8c40-bfaaa810256b": {
+      "uuid": "68ea2c36-8192-4da5-8c40-bfaaa810256b",
+      "display_id": 51,
+      "title": "Fix host interactive test: blind y-loop misses SSH directive prompts",
+      "status": "open",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-04-06T10:37:20.119019Z",
+      "updated_at": "2026-04-06T10:37:21.766161Z",
+      "labels": [
+        "bugfix"
+      ],
+      "comments": {
+        "d37d54a1-ac0d-43d8-ae49-67f8aefea62c": {
+          "author": "anon-31e9bd66",
+          "content": "Session auto-ended (stale after 57900 minutes). No handoff notes provided.",
+          "created_at": "2026-05-11T13:09:59.280426Z",
+          "kind": "handoff"
+        }
+      }
+    },
+    "6a779240-6242-4866-9e6a-380000da54da": {
+      "uuid": "6a779240-6242-4866-9e6a-380000da54da",
+      "display_id": 27,
+      "title": "Add safe.directory wildcard detection and removal",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:40:33.673556Z",
+      "updated_at": "2026-03-31T10:42:28.644545Z",
+      "closed_at": "2026-03-31T10:42:28.644545Z",
+      "labels": [
+        "security"
+      ],
+      "comments": {
+        "f6a52620-e371-46ec-b44d-fb9ecb3edeef": {
+          "author": "anon-31e9bd66",
+          "content": "safe.directory wildcard detection was implemented alongside issue #26 in both audit_git_config and apply_git_config. Audit checks git config --global --get-all safe.directory for '*' value. Apply offers to remove it with --unset.",
+          "created_at": "2026-03-31T10:42:27.435677Z",
+          "kind": "result"
+        }
+      }
+    },
+    "6ad6ebfe-dfcf-42e3-be06-b8bb70cab503": {
+      "uuid": "6ad6ebfe-dfcf-42e3-be06-b8bb70cab503",
+      "display_id": 55,
+      "title": "Spec v0.8: 1Password plaintext-secret inventory + migration advisor",
+      "status": "open",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-06-23T12:32:46.678553Z",
+      "updated_at": "2026-06-23T12:32:50.095311Z",
+      "labels": [
+        "spec"
+      ],
+      "comments": {
+        "46ae9d85-a650-4fd1-9642-aaed0f362ed2": {
+          "author": "anon-31e9bd66",
+          "content": "Spec hardened (commit ba51e63): minimal-read discipline (FR1.1), ripgrep-preferred-with-grep-fallback scanner (FR1.2, common-subset regex + LC_ALL=C + errexit safety), and Daria's pre-impl review folded in. Accepted ~all of Daria's findings; rejected only the C3 depth off-by-one (formula N+1 is correct — added an explicit depth table to prove it). Key fixes: forced base-8 stat masking (silent macOS bug), BSD-safe find + -print0, per-finding tier (no sticky leak), value-byte-hardened/re-tiered FP-prone patterns. 19 ACs incl. new errexit/parity/fallback/tier-leak regressions. Open Questions empty — ready to implement Phase 1.",
+          "created_at": "2026-06-23T12:58:29.798745Z",
+          "kind": "note"
+        },
+        "db42c9cd-0405-473a-8d71-3522ebcbda18": {
+          "author": "anon-31e9bd66",
+          "content": "Spec written: docs/specs/2026-06-23-1password-secret-migration.md (commit ffdcd6c). 1Password-only. Decisions locked: chmod 600 is an applied action (default-Yes interactive, auto in -y); .env walk default depth 2 (covers $HOME/projects/<repo>/.env) with --scan-depth override. 5 implementation phases, 14 acceptance criteria, pre-mortem with mitigations. Open questions: none. Ready to implement.",
+          "created_at": "2026-06-23T12:37:41.911536Z",
+          "kind": "note"
+        }
+      }
+    },
+    "6b7b98fb-a91c-44d0-be90-2ce097366cbe": {
+      "uuid": "6b7b98fb-a91c-44d0-be90-2ce097366cbe",
+      "display_id": 31,
+      "title": "Add SSH key hygiene audit",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:40:43.462692Z",
+      "updated_at": "2026-03-31T10:44:21.656737Z",
+      "closed_at": "2026-03-31T10:44:21.656737Z",
+      "labels": [
+        "security"
+      ],
+      "comments": {
+        "2c125c69-a473-440f-b206-cccefd38a121": {
+          "author": "anon-31e9bd66",
+          "content": "Implemented audit_ssh_key_hygiene. Scans ~/.ssh/*.pub plus IdentityFile directives from ~/.ssh/config. Classifies ed25519/ed25519-sk as OK, RSA by bit length, DSA/ECDSA as warnings. Audit-only.",
+          "created_at": "2026-03-31T10:44:20.554741Z",
+          "kind": "result"
+        }
+      }
+    },
+    "6cc9b889-1a34-40e9-90b7-273132648635": {
+      "uuid": "6cc9b889-1a34-40e9-90b7-273132648635",
+      "display_id": 35,
+      "title": "Group apply prompts and add explanations",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T13:29:05.316144Z",
+      "updated_at": "2026-03-31T13:30:05.521853Z",
+      "closed_at": "2026-03-31T13:30:05.521853Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "7c128b3f-b2c9-48f1-a2b3-7d124afc84e1": {
+          "author": "anon-31e9bd66",
+          "content": "Replaced per-setting prompts with 6 grouped prompts. Each group shows a table of pending changes with one-line explanations. Reduces ~25 y/n prompts to ~6. 92/92 BATS + 4/4 interactive tests passing.",
+          "created_at": "2026-03-31T13:29:08.239462Z",
+          "kind": "result"
+        }
+      }
+    },
+    "6ddf6723-198f-4719-9422-f8ca9aa1fb4f": {
+      "uuid": "6ddf6723-198f-4719-9422-f8ca9aa1fb4f",
+      "display_id": 32,
+      "title": "Update BATS tests for all v0.2.0 features",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:40:45.646745Z",
+      "updated_at": "2026-03-31T10:51:32.343977Z",
+      "closed_at": "2026-03-31T10:51:32.343977Z",
+      "labels": [
+        "feature"
+      ],
+      "blockers": [
+        "63c20074-41d7-4df9-ae18-4cab530e5911",
+        "6a779240-6242-4866-9e6a-380000da54da",
+        "6b7b98fb-a91c-44d0-be90-2ce097366cbe",
+        "93eb1d74-3797-4590-bbc1-4a36a7fe7263",
+        "d6c91105-46af-488b-9e62-cacf63bff1df",
+        "fe30e167-6d25-4a44-9330-a7991511ceb1"
+      ],
+      "comments": {
+        "276a221f-5c12-4ff5-bf10-f65bf6a4ac8c": {
+          "author": "anon-31e9bd66",
+          "content": "Added 26 new tests covering all v0.2.0 features. All 90 tests pass (64 existing + 26 new). Tests cover: new config settings, core.symlinks -y skip, safe.directory wildcard, pre-commit hook (audit + no-overwrite), global gitignore (create + skip + pattern audit), credential hygiene (all 4 file types + no false positives), SSH key hygiene (ed25519 OK, RSA warn, IdentityFile parsing), version bump.",
+          "created_at": "2026-03-31T10:51:31.222599Z",
+          "kind": "result"
+        },
+        "aee9a2f9-a3c4-4443-87dd-926ff9221ff3": {
+          "author": "anon-31e9bd66",
+          "content": "Adding tests for: new git config settings, safe.directory wildcard, global gitignore, credential hygiene, SSH key hygiene, and gitleaks pre-commit hook.",
+          "created_at": "2026-03-31T10:49:20.011113Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "6e8749d1-d0ce-47cb-a867-cd493fe56175": {
+      "uuid": "6e8749d1-d0ce-47cb-a867-cd493fe56175",
+      "display_id": 45,
+      "title": "Run e2e container tests in parallel",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:41:40.150041Z",
+      "updated_at": "2026-03-31T16:43:25.183071Z",
+      "closed_at": "2026-03-31T16:43:25.183071Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "183a7cee-fb03-4604-bd3d-900bf0a50445": {
+          "author": "anon-31e9bd66",
+          "content": "Build images sequentially (shared cache), then run all container tests in parallel with output captured to temp files. Results printed in order at the end. Failed distros show last 20 lines of log.",
+          "created_at": "2026-03-31T16:43:23.938596Z",
+          "kind": "result"
+        },
+        "497c2c55-2185-4a51-a222-024e7773b97f": {
+          "author": "anon-31e9bd66",
+          "content": "Build images sequentially (shared layer cache benefits), then run all container tests in parallel using background processes. Collect PIDs and wait for all. Log output to temp files to avoid interleaved stdout.",
+          "created_at": "2026-03-31T16:41:48.228147Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "6fe723a2-5841-4ac7-b947-67cdf4fcb8a2": {
+      "uuid": "6fe723a2-5841-4ac7-b947-67cdf4fcb8a2",
+      "display_id": 19,
+      "title": "Implement test/e2e.sh runner script",
+      "status": "open",
+      "priority": "high",
+      "parent_uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:30:38.295824Z",
+      "updated_at": "2026-03-30T22:30:39.582969Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "088f5bcd-7384-4d2e-8773-5f3c4646a12c": {
+          "author": "anon-31e9bd66",
+          "content": "Plan: Implement test/e2e.sh following project shell standards (AGENTS.md). Features: --runtime flag, single-distro mode, TAP parsing, summary table, --network=none, --rm, non-root, error handling for missing runtime.",
+          "created_at": "2026-03-30T22:32:18.648565Z",
+          "kind": "plan"
+        },
+        "7980b34d-c677-4c51-aa68-a708249ca9ae": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: test/e2e.sh runner script with --runtime flag, single-distro mode, --rebuild flag, summary table, --network=none isolation, non-root containers, shellcheck clean.",
+          "created_at": "2026-03-30T22:52:59.592119Z",
+          "kind": "result"
+        }
+      }
+    },
+    "725199d4-50a7-4064-aab8-a938e416f5c8": {
+      "uuid": "725199d4-50a7-4064-aab8-a938e416f5c8",
+      "display_id": 52,
+      "title": "Clarify signing wizard Skip option for agent-container use",
+      "status": "open",
+      "priority": "low",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-05-11T15:07:15.649786Z",
+      "updated_at": "2026-05-11T15:07:38.019029Z",
+      "labels": [
+        "docs"
+      ],
+      "comments": {
+        "29a3b22a-899d-478a-a116-c9bbb7bafaea": {
+          "author": "anon-31e9bd66",
+          "content": "Session auto-ended (stale after 5006 minutes). No handoff notes provided.",
+          "created_at": "2026-05-15T00:36:40.308258Z",
+          "kind": "handoff"
+        }
+      }
+    },
+    "766ad77d-424d-4660-b29e-57c0a5c2e672": {
+      "uuid": "766ad77d-424d-4660-b29e-57c0a5c2e672",
+      "display_id": 9,
+      "title": "Fix potential octal interpretation in version_gte",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T21:43:33.164168Z",
+      "updated_at": "2026-03-30T22:11:49.565177Z",
+      "closed_at": "2026-03-30T22:11:49.565177Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "06a574fa-ee5a-4bce-bb97-cb6d60eae956": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Force base-10 with 10# prefix in version_gte arithmetic. 2 new tests for leading-zero versions (64 total, all passing).",
+          "created_at": "2026-03-30T21:44:28.443445Z",
+          "kind": "result"
+        }
+      }
+    },
+    "7b9f3d18-90e9-4be4-9dd8-b0d7a53585d6": {
+      "uuid": "7b9f3d18-90e9-4be4-9dd8-b0d7a53585d6",
+      "display_id": 2,
+      "title": "git-harden.sh — Design Spec",
+      "description": "Created by crosslink kickoff",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-27T17:05:19.836720Z",
+      "updated_at": "2026-03-30T22:11:41.438838Z",
+      "closed_at": "2026-03-30T22:11:41.438838Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "256f663b-027a-4b59-b6ed-a437a624bcbe": {
+          "author": "BP3j-2A5y-git-harden-sh-design-spec-216a",
+          "content": "Design spec for git-harden.sh was already complete (3 commits on feature branch, merged to main). Spec covers all hardening settings, signing wizard, SSH hardening, platform detection, Bash 3.2 compat, and admin recommendations. Knowledge page synced. No additional work required.",
+          "created_at": "2026-03-27T17:06:48.225780Z",
+          "kind": "handoff"
+        },
+        "eb580576-a53f-4abb-9d2a-d5262e620e52": {
+          "author": "BP3j-2A5y-git-harden-sh-design-spec-216a",
+          "content": "Result: Design spec was already complete when session started. Spec at docs/superpowers/specs/2026-03-25-git-harden-design.md went through authoring (1efd68a), spec review (9b7cfd8), and external review (10465da). Knowledge page synced. Feature branch = main at 10465da. No additional work needed.",
+          "created_at": "2026-03-27T17:06:37.903666Z",
+          "kind": "result"
+        }
+      }
+    },
+    "82821bdb-d858-41cf-8d98-eae77d95696d": {
+      "uuid": "82821bdb-d858-41cf-8d98-eae77d95696d",
+      "display_id": 20,
+      "title": "Create tmux-based interactive test scripts",
+      "status": "open",
+      "priority": "medium",
+      "parent_uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:30:40.704047Z",
+      "updated_at": "2026-03-30T22:30:42.320592Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "11f5a99d-85df-43e5-87de-fe36dbc79641": {
+          "author": "anon-31e9bd66",
+          "content": "Plan: Create test/interactive/ with bash scripts using tmux send-keys to drive git-harden.sh interactively. Scenarios: full accept, safety gate decline, signing wizard generate key, signing wizard skip. Include wait_for helper.",
+          "created_at": "2026-03-30T22:53:05.821006Z",
+          "kind": "plan"
+        },
+        "8b0d6e19-946b-4544-a5cd-d6252a1cd73d": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: 4 interactive tmux test scripts (full-accept, safety-gate-decline, signing-generate, signing-skip) plus helpers.sh and run-all.sh runner. All pass shellcheck.",
+          "created_at": "2026-03-31T09:24:04.340126Z",
+          "kind": "result"
+        }
+      }
+    },
+    "841ad3fb-859e-41e9-a621-f867256e786a": {
+      "uuid": "841ad3fb-859e-41e9-a621-f867256e786a",
+      "display_id": 1,
+      "title": "Gap analysis for git-harden.sh design spec",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "plan-git-harden-sh-design-spec-2153",
+      "created_at": "2026-03-27T16:51:54.048920Z",
+      "updated_at": "2026-03-30T22:11:40.340791Z",
+      "closed_at": "2026-03-30T22:11:40.340791Z",
+      "labels": [
+        "planning"
+      ],
+      "comments": {
+        "9a9f1534-78f6-4cfe-a370-8a9c2bcba0ea": {
+          "author": "anon-31e9bd66",
+          "content": "Design doc converted to crosslink format: .design/git-harden.md",
+          "created_at": "2026-03-27T17:02:13.535086Z",
+          "kind": "plan"
+        },
+        "b707aa6c-4b9f-4601-9739-3e380189088c": {
+          "author": "plan-git-harden-sh-design-spec-2153",
+          "content": "Completed gap analysis for git-harden.sh design spec. Found 1 blocking gap (missing user.email handling in signing wizard), 13 advisory gaps, 8 assumptions, 12 estimated subtasks (~1100 lines total), 0 conflicts. Greenfield project - no existing implementation code.",
+          "created_at": "2026-03-27T16:52:42.799255Z",
+          "kind": "handoff"
+        }
+      }
+    },
+    "84b606e9-d671-4804-aa49-ec842586d995": {
+      "uuid": "84b606e9-d671-4804-aa49-ec842586d995",
+      "display_id": 42,
+      "title": "Fix SSH dir permissions test failing in containers",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:21:32.804102Z",
+      "updated_at": "2026-03-31T16:29:40.438502Z",
+      "closed_at": "2026-03-31T16:29:40.438502Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "1e445de6-e993-4c49-82fa-3520f6741f97": {
+          "author": "anon-31e9bd66",
+          "content": "Test 38 creates ~/.ssh in setup() without chmod, then checks permissions after apply_ssh_config. But apply_ssh_config only chmods if the dir doesn't exist. Fix: remove ~/.ssh before this test so apply_ssh_config creates it fresh with correct perms.",
+          "created_at": "2026-03-31T16:21:41.527241Z",
+          "kind": "plan"
+        },
+        "91e9cbc9-d776-4207-8d7e-8376907f1fd4": {
+          "author": "anon-31e9bd66",
+          "content": "Fixed stat format detection — use if/else instead of || which fails under set -e. Also removed run wrapper for apply_ssh_config to avoid subshell issues.",
+          "created_at": "2026-03-31T16:29:18.348014Z",
+          "kind": "result"
+        }
+      }
+    },
+    "862d89b7-0c37-4858-939f-56a0b2da700e": {
+      "uuid": "862d89b7-0c37-4858-939f-56a0b2da700e",
+      "display_id": 47,
+      "title": "Fix summary table alignment and color in e2e.sh",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:58:30.599080Z",
+      "updated_at": "2026-03-31T17:40:07.538077Z",
+      "closed_at": "2026-03-31T17:40:07.538077Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "ebc09700-e7fa-4d83-9217-b32024d38c53": {
+          "author": "anon-31e9bd66",
+          "content": "Fixed: IFS=newline was breaking read and array join in summary. Added IFS=' ' to read and used subshell IFS for distro list display.",
+          "created_at": "2026-03-31T17:40:06.254835Z",
+          "kind": "result"
+        }
+      }
+    },
+    "87ad499d-4d8b-431d-b0f1-84618278c875": {
+      "uuid": "87ad499d-4d8b-431d-b0f1-84618278c875",
+      "display_id": 40,
+      "title": "Fix unbound variable error for empty build_args array in e2e.sh",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:07:40.375919Z",
+      "updated_at": "2026-03-31T16:08:21.274880Z",
+      "closed_at": "2026-03-31T16:08:21.274880Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "82975608-7105-4e9d-aade-2c5b3b11d29e": {
+          "author": "anon-31e9bd66",
+          "content": "Used ${build_args[@]+\"${build_args[@]}\"} — standard bash workaround for empty arrays with nounset.",
+          "created_at": "2026-03-31T16:08:19.891047Z",
+          "kind": "result"
+        }
+      }
+    },
+    "899c9ef9-0aae-47dd-abbf-55663fb6c081": {
+      "uuid": "899c9ef9-0aae-47dd-abbf-55663fb6c081",
+      "display_id": 11,
+      "title": "Fix safety gate default and gemini CLI syntax",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T21:49:50.206036Z",
+      "updated_at": "2026-03-30T22:11:51.835612Z",
+      "closed_at": "2026-03-30T22:11:51.835612Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "3f1d07a8-df8c-4852-bf84-f3a8f7b8a2a3": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Safety gate now defaults to 'n' (shows [y/N]). Gemini CLI command fixed to use -p flag for non-interactive mode. Review prompt consolidated into a variable for DRY. All 64 tests pass.",
+          "created_at": "2026-03-30T21:50:34.306753Z",
+          "kind": "result"
+        }
+      }
+    },
+    "8a71732d-9a6a-41a6-8e56-7dbb19ae9eec": {
+      "uuid": "8a71732d-9a6a-41a6-8e56-7dbb19ae9eec",
+      "display_id": 37,
+      "title": "Fix FIDO2 detection freezing on macOS",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T15:41:34.562462Z",
+      "updated_at": "2026-03-31T15:47:16.026541Z",
+      "closed_at": "2026-03-31T15:47:16.026541Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "0c7399b3-be6f-4bf4-9b79-657268e54db1": {
+          "author": "anon-31e9bd66",
+          "content": "Fixed: detect brew openssh via ssh-sk-helper presence instead of running ssh-keygen. No blocking, no FIDO touch during detection.",
+          "created_at": "2026-03-31T15:45:52.221886Z",
+          "kind": "result"
+        },
+        "c2b8848a-ee63-47ba-abfb-a99f7c06bb97": {
+          "author": "anon-31e9bd66",
+          "content": "The brew ssh-keygen probe actually invokes key generation which blocks waiting for a FIDO touch. Fix: detect brew openssh by checking for ssh-sk-helper in the same libexec dir instead of running keygen.",
+          "created_at": "2026-03-31T15:41:42.640446Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "8d93b4ec-e800-4c3c-a113-fcef21c9e2f5": {
+      "uuid": "8d93b4ec-e800-4c3c-a113-fcef21c9e2f5",
+      "display_id": 10,
+      "title": "Update e2e spec for safety review gate prompt",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T21:46:31.936295Z",
+      "updated_at": "2026-03-30T22:11:50.643348Z",
+      "closed_at": "2026-03-30T22:11:50.643348Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "6ec1da5f-828d-4962-80dd-32fa5ffd1d48": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Updated interactive scenarios table to include safety gate prompt in all sequences, added new 'safety gate decline' scenario, updated acceptance criteria to reference gate.",
+          "created_at": "2026-03-30T21:47:02.403519Z",
+          "kind": "result"
+        }
+      }
+    },
+    "9013ee4a-865b-4a4a-bf67-e7fc3c15b99f": {
+      "uuid": "9013ee4a-865b-4a4a-bf67-e7fc3c15b99f",
+      "display_id": 22,
+      "title": "Add interactive test execution to e2e runner",
+      "status": "open",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T09:38:39.179212Z",
+      "updated_at": "2026-03-31T09:38:40.211092Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "24d64b56-6085-46a4-9d59-c0e34da0921c": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: e2e.sh now runs both BATS tests and interactive tmux tests per distro. Three-phase pipeline: build -> BATS -> interactive. Failure at any stage is labeled in the summary (build/bats/interactive).",
+          "created_at": "2026-03-31T09:39:14.472898Z",
+          "kind": "result"
+        }
+      }
+    },
+    "91415850-4320-495d-a779-4cec0b77f409": {
+      "uuid": "91415850-4320-495d-a779-4cec0b77f409",
+      "display_id": 6,
+      "title": "Add BATS test suite for git-harden.sh",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T20:38:02.786870Z",
+      "updated_at": "2026-03-30T22:11:46.084264Z",
+      "closed_at": "2026-03-30T22:11:46.084264Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "0091378e-b0c3-47e8-a7d7-9d7a4e56da57": {
+          "author": "anon-31e9bd66",
+          "content": "Plan: Create BATS test suite testing all major functions in git-harden.sh. Use isolated HOME/GIT_CONFIG to avoid touching real config. Test categories: arg parsing, version comparison, audit phase (git config + SSH), apply phase, signing detection, SSH config hardening. Will install bats-core via git submodule in test/libs/.",
+          "created_at": "2026-03-30T20:38:10.877805Z",
+          "kind": "plan"
+        },
+        "50dea818-c294-4117-994c-d17098060d3d": {
+          "author": "anon-31e9bd66",
+          "content": "Decision: Install bats-core, bats-support, and bats-assert as git submodules in test/libs/ rather than requiring a system install. This makes the tests self-contained and runnable on any machine with bash.",
+          "created_at": "2026-03-30T20:40:01.802882Z",
+          "kind": "decision"
+        },
+        "a124baed-ee27-470d-8b24-f41a476baba8": {
+          "author": "anon-31e9bd66",
+          "content": "Session auto-ended (stale after 4620 minutes). No handoff notes provided.",
+          "created_at": "2026-03-30T21:06:55.693973Z",
+          "kind": "handoff"
+        },
+        "c17d1e22-4b94-4d00-b84c-41a11dd75b05": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: 50 BATS tests covering arg parsing, version comparison, audit phase (git config, signing, SSH), apply phase (git config, SSH directives, url rewrite), signing key detection (standard paths, IdentityFile, tilde expansion, sk preference), allowed signers, -y mode behavior, backup, end-to-end audit/apply, idempotency. All tests pass. Tests run in isolated HOME to avoid touching real config.",
+          "created_at": "2026-03-30T21:08:29.791026Z",
+          "kind": "result"
+        }
+      }
+    },
+    "93eb1d74-3797-4590-bbc1-4a36a7fe7263": {
+      "uuid": "93eb1d74-3797-4590-bbc1-4a36a7fe7263",
+      "display_id": 30,
+      "title": "Add plaintext credential file detection",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:40:41.061628Z",
+      "updated_at": "2026-03-31T10:44:15.279054Z",
+      "closed_at": "2026-03-31T10:44:15.279054Z",
+      "labels": [
+        "security"
+      ],
+      "comments": {
+        "b3cdd136-3f6c-41c9-8b2d-502496f5cdcc": {
+          "author": "anon-31e9bd66",
+          "content": "Implemented audit_credential_hygiene. Checks ~/.git-credentials, ~/.netrc, ~/.npmrc (with _authToken=.+ regex), ~/.pypirc (with password regex). Audit-only, no apply action.",
+          "created_at": "2026-03-31T10:44:14.172291Z",
+          "kind": "result"
+        }
+      }
+    },
+    "9c3302b7-1564-4e4a-9390-8c8e1a8bc4c3": {
+      "uuid": "9c3302b7-1564-4e4a-9390-8c8e1a8bc4c3",
+      "display_id": 16,
+      "title": "Release v0.1.0 (final)",
+      "status": "open",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:24:31.861829Z",
+      "updated_at": "2026-03-30T22:24:32.826878Z",
+      "labels": [
+        "feature"
+      ]
+    },
+    "9e0853d2-d851-44e9-b10b-5c77a4f783df": {
+      "uuid": "9e0853d2-d851-44e9-b10b-5c77a4f783df",
+      "display_id": 15,
+      "title": "Fix minor hygiene issues from code review",
+      "status": "open",
+      "priority": "low",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:18:32.608432Z",
+      "updated_at": "2026-03-30T22:18:33.698341Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "26e97e12-4c97-4127-8f33-7fe87610dd20": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Removed unused export on SIGNING_KEY_PATH (and removed the variable entirely as dead code), added trap for temp file cleanup in apply_ssh_directive, added -- separator to ssh-keygen -f calls, added info message when falling back to credential cache on Linux.",
+          "created_at": "2026-03-30T22:20:32.587351Z",
+          "kind": "result"
+        }
+      }
+    },
+    "a1d77f4c-e7f0-4466-852a-f4bc35497c51": {
+      "uuid": "a1d77f4c-e7f0-4466-852a-f4bc35497c51",
+      "display_id": 14,
+      "title": "Update README for v0.1.0",
+      "status": "open",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:15:08.228339Z",
+      "updated_at": "2026-03-30T22:15:09.311732Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "b16a5bc7-6c70-43f2-a076-a00d3c08ba76": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Added safety review gate mention in Quick Start, OSINT privacy note in Signing Setup, per-org signing key in admin recs, Running Tests section, fixed placeholder URL.",
+          "created_at": "2026-03-30T22:15:35.880318Z",
+          "kind": "result"
+        }
+      }
+    },
+    "b1b088a3-3ebf-40c9-81ec-5d6c63661d1a": {
+      "uuid": "b1b088a3-3ebf-40c9-81ec-5d6c63661d1a",
+      "display_id": 21,
+      "title": "Run full matrix and fix platform-specific failures",
+      "status": "open",
+      "priority": "high",
+      "parent_uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T22:30:44.373422Z",
+      "updated_at": "2026-03-30T22:30:45.396435Z",
+      "labels": [
+        "feature"
+      ]
+    },
+    "ba3282e1-b547-4700-be43-286974a09997": {
+      "uuid": "ba3282e1-b547-4700-be43-286974a09997",
+      "display_id": 25,
+      "title": "Implement v0.2.0 expanded hardening features",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:40:15.124089Z",
+      "updated_at": "2026-03-31T10:51:40.745163Z",
+      "closed_at": "2026-03-31T10:51:40.745163Z",
+      "labels": [
+        "feature"
+      ],
+      "related": [
+        "63c20074-41d7-4df9-ae18-4cab530e5911",
+        "6a779240-6242-4866-9e6a-380000da54da",
+        "6b7b98fb-a91c-44d0-be90-2ce097366cbe",
+        "6ddf6723-198f-4719-9422-f8ca9aa1fb4f",
+        "93eb1d74-3797-4590-bbc1-4a36a7fe7263",
+        "d6c91105-46af-488b-9e62-cacf63bff1df",
+        "fe30e167-6d25-4a44-9330-a7991511ceb1"
+      ],
+      "comments": {
+        "27c85fd2-15a4-4d95-8b7e-1c755557f03a": {
+          "author": "anon-31e9bd66",
+          "content": "All 7 subissues complete (#26-#32). v0.2.0 implementation done: 8 new git config settings, safe.directory wildcard detection, global gitignore, gitleaks pre-commit hook, credential hygiene audit, SSH key hygiene audit. 90/90 tests passing, shellcheck clean.",
+          "created_at": "2026-03-31T10:51:39.680832Z",
+          "kind": "result"
+        }
+      }
+    },
+    "bc5cfbb7-aefd-43f7-bbcc-05742e512555": {
+      "uuid": "bc5cfbb7-aefd-43f7-bbcc-05742e512555",
+      "display_id": 44,
+      "title": "Update README test instructions with full test matrix",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:38:22.438157Z",
+      "updated_at": "2026-03-31T16:38:50.469379Z",
+      "closed_at": "2026-03-31T16:38:50.469379Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "086be9c9-c455-488e-bdfe-0f49031a4a9a": {
+          "author": "anon-31e9bd66",
+          "content": "Updated README test section with all three tiers, usage examples, and requirements table.",
+          "created_at": "2026-03-31T16:38:49.338339Z",
+          "kind": "result"
+        }
+      }
+    },
+    "cba69afd-8762-4034-a70d-acd236169e13": {
+      "uuid": "cba69afd-8762-4034-a70d-acd236169e13",
+      "display_id": 49,
+      "title": "Enhance credential helper detection with package install hints",
+      "status": "open",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-04-04T11:38:15.917911Z",
+      "updated_at": "2026-04-04T11:38:17.223797Z",
+      "labels": [
+        "enhancement"
+      ],
+      "comments": {
+        "3265de9a-6d67-4b6e-8a59-6dd9cab599d3": {
+          "author": "anon-31e9bd66",
+          "content": "Committing credential helper detection enhancement with GCM support, distro install hints, and keychain-aware audit",
+          "created_at": "2026-04-04T12:10:40.019360Z",
+          "kind": "note"
+        }
+      }
+    },
+    "cd645342-07cd-4510-b3c8-af5a78fd8437": {
+      "uuid": "cd645342-07cd-4510-b3c8-af5a78fd8437",
+      "display_id": 23,
+      "title": "Add host-side interactive test runner",
+      "status": "open",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T09:40:26.169750Z",
+      "updated_at": "2026-03-31T09:40:27.136601Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "5215ded4-9f9c-4d45-8831-ee57ae0488df": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Added test/run-interactive.sh for host-side interactive tests in isolated HOME. Updated test/e2e.sh to run host interactive tests as first entry in the summary (before container matrix). Gracefully skips if tmux not installed.",
+          "created_at": "2026-03-31T10:35:33.471093Z",
+          "kind": "result"
+        },
+        "8cd6689b-1b6a-4849-af80-a3e4a9078cf5": {
+          "author": "anon-31e9bd66",
+          "content": "Plan: Add test/run-interactive.sh that runs the tmux interactive tests on the host in an isolated HOME (same mktemp pattern as BATS). Checks for tmux, creates temp HOME, copies script, runs test/interactive/run-all.sh, cleans up. Also update test/e2e.sh to run host interactive tests as a first step before the container matrix.",
+          "created_at": "2026-03-31T09:40:33.921872Z",
+          "kind": "plan"
+        },
+        "d8f222fc-3814-44ea-bad4-64d52c70642f": {
+          "author": "anon-31e9bd66",
+          "content": "Decision: Interactive tests run in an isolated HOME via mktemp, NOT in the user's real HOME. This matches the BATS isolation pattern and prevents touching real git/SSH config. The script copies git-harden.sh into the temp home and sets HOME before invoking run-all.sh.",
+          "created_at": "2026-03-31T09:40:41.084571Z",
+          "kind": "decision"
+        }
+      }
+    },
+    "cd7ea37a-aa03-4a67-ad7b-64432d08d681": {
+      "uuid": "cd7ea37a-aa03-4a67-ad7b-64432d08d681",
+      "display_id": 12,
+      "title": "Add OSINT advisory about signing key reuse to signing wizard",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T21:58:38.274462Z",
+      "updated_at": "2026-03-30T22:11:52.968481Z",
+      "closed_at": "2026-03-30T22:11:52.968481Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "7f82f9fe-6e2e-4953-98e6-7fa858fcfb7c": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Added OSINT privacy note to signing wizard (shown before key selection) and added per-org signing key recommendation to admin recommendations section.",
+          "created_at": "2026-03-30T21:59:26.783406Z",
+          "kind": "result"
+        }
+      }
+    },
+    "d2c6aa68-0d76-4d7d-b3e5-61ebae559f41": {
+      "uuid": "d2c6aa68-0d76-4d7d-b3e5-61ebae559f41",
+      "display_id": 56,
+      "title": "Implement v0.7 agent-backed keys + v0.8 secret inventory (ultracode)",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-06-23T13:08:46.943610Z",
+      "updated_at": "2026-06-24T18:42:40.048310Z",
+      "closed_at": "2026-06-24T18:42:40.048310Z",
+      "labels": [
+        "implementation"
+      ],
+      "comments": {
+        "4eb54fb5-1918-4294-afc4-b1e22fcf4292": {
+          "author": "anon-31e9bd66",
+          "content": "Interactive test failures ROOT-CAUSED and fixed — NOT a script regression. Each of the 5 interactive tmux tests passes reliably in isolation (verified identity-guard 3/3, signing-generate, all 5 with per-test HOME). The consistent 3-pass/2-fail in run-all.sh was shared-HOME state leakage: earlier tests pre-harden the config, changing later tests' prompt count/timing and racing accept_until into a free-form prompt. Fixed test/interactive/run-all.sh to give each test a pristine HOME with its own script copy (+ clears SSH_AUTH_SOCK so a dev-box vault agent can't alter the signing-wizard path). Result: 5 passed, 0 failed on host; shellcheck clean. Re-running full container e2e via podman to confirm BATS+interactive green across distros. Also confirmed: the earlier --audit hang was solely my real 1Password agent (ssh-add -L) — still flagged as a bounded-probe robustness follow-up. Commit HELD.",
+          "created_at": "2026-06-24T10:53:43.238774Z",
+          "kind": "note"
+        },
+        "bc56d584-ea16-448c-84b3-0d52015caaab": {
+          "author": "anon-31e9bd66",
+          "content": "Workflow COMPLETE (24 agents, ~2M tokens, all 10 phases Daria-pass). Independent verification: BATS 250/250 green, shellcheck clean, VERSION 0.8.0, no commits (HEAD still ba51e63). Final holistic Daria review found 1 blocker + 3 legit majors; all fixed in main loop with regression tests: (1) BLOCKER IdentityFile stub collapse -> added append_ssh_directive helper, multi-key no-collapse test; (2) audit_signing missing set_tier security (could let misconfigured signing pass --audit) -> pinned + test; (3) GPG-only false all-clear -> condition now checks SECRET_FINDINGS + test; (4) key_count grep -c errexit fragility -> guarded. Suite now 253/253 green, shellcheck clean. Docker e2e matrix (5 distros) running. Deferred (note, not a feature defect): source_functions strips set -u/IFS so unit tests don't exercise nounset/IFS in new array code — test-harness improvement for a follow-up. Commit still HELD per instruction.",
+          "created_at": "2026-06-24T09:39:55.183651Z",
+          "kind": "note"
+        },
+        "d990405e-4edb-4c2b-b5dd-e859a7eb6df1": {
+          "author": "anon-31e9bd66",
+          "content": "Docker/e2e validation in progress. Findings so far: (1) host BATS 253/253 green, shellcheck clean — solid. (2) --audit completes correctly (exit 2) with stdin /dev/null; a one-time hang was my real 1Password SSH agent blocking on ssh-add -L pending approval — a genuine robustness follow-up (agent probes should be bounded; macOS lacks 'timeout' so needs a portable guard), DEFERRED, noted. (3) Interactive tmux tests fail on macOS HOST with status 127 because helpers.sh hardcodes SCRIPT_PATH=$HOME/git-harden.sh — they are container-only by design (Containerfile stages the script there); not a code regression. Colima was down; brought up podman machine and re-running full container e2e (ubuntu/debian/fedora/alpine; arch skipped on arm64) which runs BATS + interactive INSIDE each distro. Awaiting result. Commit still HELD.",
+          "created_at": "2026-06-24T10:31:36.947876Z",
+          "kind": "note"
+        },
+        "e9eab116-a97e-45f7-bff9-bc8196b22aeb": {
+          "author": "anon-31e9bd66",
+          "content": "FULLY GREEN. Container e2e via podman: ubuntu/debian/fedora/alpine + host all PASS (arch SKIP, no arm64 image), 0 'not ok', exit 0. Host: BATS 253/253, interactive 5/5, shellcheck clean (git-harden.sh + run-all.sh), VERSION 0.8.0. Both specs fully implemented and thoroughly tested across BATS + Docker matrix. Diff: git-harden.sh +1915, tests +2060, run-all.sh +22, REASONING +87, README +78, CHANGELOG +31. Awaiting maintainer go-ahead to commit (held per instruction). Two documented non-blocking follow-ups: bounded agent-probe in --audit; BATS harness set -u/IFS gap.",
+          "created_at": "2026-06-24T11:00:58.287908Z",
+          "kind": "note"
+        }
+      }
+    },
+    "d41855c2-2525-4c19-8900-6ae2ebad6a6f": {
+      "uuid": "d41855c2-2525-4c19-8900-6ae2ebad6a6f",
+      "display_id": 38,
+      "title": "Release v0.2.2",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T15:48:03.069404Z",
+      "updated_at": "2026-03-31T15:49:20.614103Z",
+      "closed_at": "2026-03-31T15:49:20.614103Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "82781aae-f550-4b75-a1b9-c95f6e94edb1": {
+          "author": "anon-31e9bd66",
+          "content": "Version bumped to 0.2.2, CHANGELOG updated, 92/92 tests pass.",
+          "created_at": "2026-03-31T15:49:08.233615Z",
+          "kind": "result"
+        },
+        "fc72da90-ac68-4692-8532-9cbe47145686": {
+          "author": "anon-31e9bd66",
+          "content": "Bump version to 0.2.2, update CHANGELOG with v0.2.2 section consolidating the two post-0.2.1 fixes, update version test.",
+          "created_at": "2026-03-31T15:48:10.640348Z",
+          "kind": "plan"
+        }
+      }
+    },
+    "d6c91105-46af-488b-9e62-cacf63bff1df": {
+      "uuid": "d6c91105-46af-488b-9e62-cacf63bff1df",
+      "display_id": 28,
+      "title": "Add global gitignore creation and security pattern audit",
+      "status": "closed",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:40:36.149208Z",
+      "updated_at": "2026-03-31T10:44:09.083064Z",
+      "closed_at": "2026-03-31T10:44:09.083064Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "68a7d2ea-f14e-4e56-bbe4-bee189e00bc0": {
+          "author": "anon-31e9bd66",
+          "content": "Adding audit_global_gitignore and apply_global_gitignore functions. Audit checks core.excludesFile config and scans existing file for security patterns. Apply creates ~/.config/git/ignore with security-focused patterns.",
+          "created_at": "2026-03-31T10:42:38.088209Z",
+          "kind": "plan"
+        },
+        "6be7d763-d923-47be-8ebd-0743b224af7e": {
+          "author": "anon-31e9bd66",
+          "content": "Implemented audit_global_gitignore and apply_global_gitignore. Audit checks core.excludesFile config and scans for security patterns. Apply creates ~/.config/git/ignore with security-focused patterns.",
+          "created_at": "2026-03-31T10:44:07.989372Z",
+          "kind": "result"
+        }
+      }
+    },
+    "d8970dd4-b66c-407a-b4df-c46cec9ad1df": {
+      "uuid": "d8970dd4-b66c-407a-b4df-c46cec9ad1df",
+      "display_id": 7,
+      "title": "Add pre-execution safety review prompt",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-30T21:16:08.656942Z",
+      "updated_at": "2026-03-30T22:11:47.258493Z",
+      "closed_at": "2026-03-30T22:11:47.258493Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "80232ff1-8566-40b7-9f75-0e9b1e18f042": {
+          "author": "anon-31e9bd66",
+          "content": "Plan: Add a safety_review_gate() function called at the start of main(), before any config changes. Skipped with -y (assumes user has already reviewed). On 'no', print instructions for piping script to Claude Code or Gemini CLI for review, then exit 0.",
+          "created_at": "2026-03-30T21:16:16.421434Z",
+          "kind": "plan"
+        },
+        "ffb9d428-9027-453e-88d4-aed2e395b482": {
+          "author": "anon-31e9bd66",
+          "content": "Delivered: Added safety_review_gate() before any config operations. Prompts user to confirm they've reviewed the script. On 'no', prints instructions for Claude Code, Gemini CLI, and manual review. Skipped with -y and --audit. 3 new tests added (53 total, all passing).",
+          "created_at": "2026-03-30T21:20:36.020994Z",
+          "kind": "result"
+        }
+      }
+    },
+    "ea270205-669c-4b21-aaae-5f0399c4d31e": {
+      "uuid": "ea270205-669c-4b21-aaae-5f0399c4d31e",
+      "display_id": 54,
+      "title": "Research: surfacing dev/CLI plaintext secrets + 1Password/Bitwarden migration paths",
+      "status": "open",
+      "priority": "medium",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-06-23T12:02:56.496555Z",
+      "updated_at": "2026-06-23T12:03:00.591498Z",
+      "labels": [
+        "research"
+      ],
+      "comments": {
+        "79e268ff-c5cf-409f-9d76-8cb1170fc812": {
+          "author": "anon-31e9bd66",
+          "content": "Research deliverable committed (1715ec4); fed directly into spec #55.",
+          "created_at": "2026-06-23T12:37:45.675056Z",
+          "kind": "note"
+        },
+        "85ae84bc-7514-4e9b-b6a7-3ce16191c10f": {
+          "author": "anon-31e9bd66",
+          "content": "Completed research. Deliverable: docs/research/2026-06-23-plaintext-secret-surfacing.md. Scope locked with maintainer: dev/CLI credentials only, detect+advise (no CLI driving, no deletion), standalone research doc. Covers ~25 credential locations across 6 families (cloud CLIs, git hosting, package registries, containers/k8s, db clients, generic .env/dotfiles) on top of the 4 already audited; detection design principles (path+kind only, existence vs content confidence, permission checks, tiering); five migration solution shapes verified against current 1Password (1password.dev) and Bitwarden docs; per-credential playbook; recommended v0.8 phase structure (detect → advise → chmod-only apply → docs); risks/non-goals; 6 open questions. Key finding: 1Password shell plugins are the biggest 1P-vs-BW asymmetry for an interactive workstation.",
+          "created_at": "2026-06-23T12:18:57.006586Z",
+          "kind": "note"
+        }
+      }
+    },
+    "f18d1bc1-a500-453d-9260-6cd49f6b92a5": {
+      "uuid": "f18d1bc1-a500-453d-9260-6cd49f6b92a5",
+      "display_id": 43,
+      "title": "Fix empty GIT_CONFIG_GLOBAL in container tmux sessions",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T16:32:53.022167Z",
+      "updated_at": "2026-03-31T16:37:16.000134Z",
+      "closed_at": "2026-03-31T16:37:16.000134Z",
+      "labels": [
+        "fix"
+      ],
+      "comments": {
+        "3501cd29-fe40-419c-9225-f571be320393": {
+          "author": "anon-31e9bd66",
+          "content": "start_session exports GIT_CONFIG_GLOBAL='' (empty string) when not set. An empty value tells git 'no global config' vs unset which uses ~/.gitconfig. Fix: only export GIT_CONFIG_GLOBAL if it was already set.",
+          "created_at": "2026-03-31T16:33:01.816553Z",
+          "kind": "observation"
+        },
+        "d69f4993-f13a-4ca8-b50f-70ac43ecb10d": {
+          "author": "anon-31e9bd66",
+          "content": "Session auto-ended (stale after 420 minutes). No handoff notes provided.",
+          "created_at": "2026-03-31T16:35:17.690914Z",
+          "kind": "handoff"
+        }
+      }
+    },
+    "fdf25e87-e3ec-47ff-9599-11f2f144276a": {
+      "uuid": "fdf25e87-e3ec-47ff-9599-11f2f144276a",
+      "display_id": 50,
+      "title": "Refactor apply_setting_group to use bash arrays instead of sed indexing",
+      "status": "open",
+      "priority": "low",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-04-04T12:16:29.095087Z",
+      "updated_at": "2026-04-04T12:16:30.278582Z",
+      "labels": [
+        "refactor"
+      ],
+      "comments": {
+        "5a330801-8b4b-461e-b351-7058b4f373ee": {
+          "author": "anon-31e9bd66",
+          "content": "Tagging v0.4.0 release",
+          "created_at": "2026-04-04T13:00:28.060813Z",
+          "kind": "note"
+        }
+      }
+    },
+    "fe30e167-6d25-4a44-9330-a7991511ceb1": {
+      "uuid": "fe30e167-6d25-4a44-9330-a7991511ceb1",
+      "display_id": 29,
+      "title": "Add gitleaks pre-commit hook installation",
+      "status": "closed",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-03-31T10:40:38.850042Z",
+      "updated_at": "2026-03-31T10:49:11.140765Z",
+      "closed_at": "2026-03-31T10:49:11.140765Z",
+      "labels": [
+        "feature"
+      ],
+      "comments": {
+        "9f0d7e90-4bc9-4189-9dc5-481fbbd9379a": {
+          "author": "anon-31e9bd66",
+          "content": "Implemented audit_precommit_hook and apply_precommit_hook. Audit checks for gitleaks in hook. Apply creates hook with SKIP_GITLEAKS bypass, never overwrites existing hooks. Shellcheck clean, all 64 existing tests pass.",
+          "created_at": "2026-03-31T10:49:10.001564Z",
+          "kind": "result"
+        },
+        "d3572b7e-d69b-4872-b113-12cd71b13a40": {
+          "author": "anon-31e9bd66",
+          "content": "Adding audit_precommit_hook and apply_precommit_hook functions. Hook checks for gitleaks, installs pre-commit script with SKIP_GITLEAKS bypass, never overwrites existing hooks.",
+          "created_at": "2026-03-31T10:44:30.317785Z",
+          "kind": "plan"
+        }
+      }
+    }
+  },
+  "next_milestone_id": 1,
+  "watermark": {
+    "timestamp": "2026-03-27T17:10:32.652172Z",
+    "agent_id": "BP3j-Uz4t-git-harden-sh-00eb",
+    "agent_seq": 1
+  }
+}
