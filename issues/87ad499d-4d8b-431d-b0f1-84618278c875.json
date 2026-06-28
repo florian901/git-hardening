@@ -1,0 +1,23 @@
+{
+  "uuid": "87ad499d-4d8b-431d-b0f1-84618278c875",
+  "display_id": 40,
+  "title": "Fix unbound variable error for empty build_args array in e2e.sh",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T16:07:40.375919Z",
+  "updated_at": "2026-03-31T16:08:21.274880Z",
+  "closed_at": "2026-03-31T16:08:21.274880Z",
+  "labels": [
+    "fix"
+  ],
+  "comments": [
+    {
+      "uuid": "82975608-7105-4e9d-aade-2c5b3b11d29e",
+      "author": "anon-31e9bd66",
+      "content": "Used ${build_args[@]+\"${build_args[@]}\"} — standard bash workaround for empty arrays with nounset.",
+      "created_at": "2026-03-31T16:08:19.891047Z",
+      "kind": "result"
+    }
+  ]
+}

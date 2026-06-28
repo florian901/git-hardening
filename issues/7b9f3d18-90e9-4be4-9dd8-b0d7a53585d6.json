@@ -1,0 +1,31 @@
+{
+  "uuid": "7b9f3d18-90e9-4be4-9dd8-b0d7a53585d6",
+  "display_id": 2,
+  "title": "git-harden.sh — Design Spec",
+  "description": "Created by crosslink kickoff",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-27T17:05:19.836720Z",
+  "updated_at": "2026-03-30T22:11:41.438838Z",
+  "closed_at": "2026-03-30T22:11:41.438838Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "eb580576-a53f-4abb-9d2a-d5262e620e52",
+      "author": "BP3j-2A5y-git-harden-sh-design-spec-216a",
+      "content": "Result: Design spec was already complete when session started. Spec at docs/superpowers/specs/2026-03-25-git-harden-design.md went through authoring (1efd68a), spec review (9b7cfd8), and external review (10465da). Knowledge page synced. Feature branch = main at 10465da. No additional work needed.",
+      "created_at": "2026-03-27T17:06:37.903666Z",
+      "kind": "result"
+    },
+    {
+      "uuid": "256f663b-027a-4b59-b6ed-a437a624bcbe",
+      "author": "BP3j-2A5y-git-harden-sh-design-spec-216a",
+      "content": "Design spec for git-harden.sh was already complete (3 commits on feature branch, merged to main). Spec covers all hardening settings, signing wizard, SSH hardening, platform detection, Bash 3.2 compat, and admin recommendations. Knowledge page synced. No additional work required.",
+      "created_at": "2026-03-27T17:06:48.225780Z",
+      "kind": "handoff"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "uuid": "6e8749d1-d0ce-47cb-a867-cd493fe56175",
+  "display_id": 45,
+  "title": "Run e2e container tests in parallel",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T16:41:40.150041Z",
+  "updated_at": "2026-03-31T16:43:25.183071Z",
+  "closed_at": "2026-03-31T16:43:25.183071Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "497c2c55-2185-4a51-a222-024e7773b97f",
+      "author": "anon-31e9bd66",
+      "content": "Build images sequentially (shared layer cache benefits), then run all container tests in parallel using background processes. Collect PIDs and wait for all. Log output to temp files to avoid interleaved stdout.",
+      "created_at": "2026-03-31T16:41:48.228147Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "183a7cee-fb03-4604-bd3d-900bf0a50445",
+      "author": "anon-31e9bd66",
+      "content": "Build images sequentially (shared cache), then run all container tests in parallel with output captured to temp files. Results printed in order at the end. Failed distros show last 20 lines of log.",
+      "created_at": "2026-03-31T16:43:23.938596Z",
+      "kind": "result"
+    }
+  ]
+}

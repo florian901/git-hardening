@@ -1,0 +1,30 @@
+{
+  "uuid": "841ad3fb-859e-41e9-a621-f867256e786a",
+  "display_id": 1,
+  "title": "Gap analysis for git-harden.sh design spec",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "plan-git-harden-sh-design-spec-2153",
+  "created_at": "2026-03-27T16:51:54.048920Z",
+  "updated_at": "2026-03-30T22:11:40.340791Z",
+  "closed_at": "2026-03-30T22:11:40.340791Z",
+  "labels": [
+    "planning"
+  ],
+  "comments": [
+    {
+      "uuid": "b707aa6c-4b9f-4601-9739-3e380189088c",
+      "author": "plan-git-harden-sh-design-spec-2153",
+      "content": "Completed gap analysis for git-harden.sh design spec. Found 1 blocking gap (missing user.email handling in signing wizard), 13 advisory gaps, 8 assumptions, 12 estimated subtasks (~1100 lines total), 0 conflicts. Greenfield project - no existing implementation code.",
+      "created_at": "2026-03-27T16:52:42.799255Z",
+      "kind": "handoff"
+    },
+    {
+      "uuid": "9a9f1534-78f6-4cfe-a370-8a9c2bcba0ea",
+      "author": "anon-31e9bd66",
+      "content": "Design doc converted to crosslink format: .design/git-harden.md",
+      "created_at": "2026-03-27T17:02:13.535086Z",
+      "kind": "plan"
+    }
+  ]
+}

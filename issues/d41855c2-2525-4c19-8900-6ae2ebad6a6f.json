@@ -1,0 +1,30 @@
+{
+  "uuid": "d41855c2-2525-4c19-8900-6ae2ebad6a6f",
+  "display_id": 38,
+  "title": "Release v0.2.2",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T15:48:03.069404Z",
+  "updated_at": "2026-03-31T15:49:20.614103Z",
+  "closed_at": "2026-03-31T15:49:20.614103Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "fc72da90-ac68-4692-8532-9cbe47145686",
+      "author": "anon-31e9bd66",
+      "content": "Bump version to 0.2.2, update CHANGELOG with v0.2.2 section consolidating the two post-0.2.1 fixes, update version test.",
+      "created_at": "2026-03-31T15:48:10.640348Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "82781aae-f550-4b75-a1b9-c95f6e94edb1",
+      "author": "anon-31e9bd66",
+      "content": "Version bumped to 0.2.2, CHANGELOG updated, 92/92 tests pass.",
+      "created_at": "2026-03-31T15:49:08.233615Z",
+      "kind": "result"
+    }
+  ]
+}

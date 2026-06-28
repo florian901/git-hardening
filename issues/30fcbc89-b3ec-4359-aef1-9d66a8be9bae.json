@@ -1,0 +1,30 @@
+{
+  "uuid": "30fcbc89-b3ec-4359-aef1-9d66a8be9bae",
+  "display_id": 34,
+  "title": "Release v0.2.0",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T12:03:09.798056Z",
+  "updated_at": "2026-03-31T12:03:36.961113Z",
+  "closed_at": "2026-03-31T12:03:36.961113Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "b5914f33-6ade-48d8-9f63-571393249b6f",
+      "author": "anon-31e9bd66",
+      "content": "Committing all v0.2.0 changes: 6 new features, research reports, spec, updated README/CHANGELOG, 92 tests.",
+      "created_at": "2026-03-31T12:03:15.903948Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "2d1cccb6-8fe9-411b-af06-1400e3638384",
+      "author": "anon-31e9bd66",
+      "content": "Committed as 8037cb7. Working tree clean.",
+      "created_at": "2026-03-31T12:03:35.819423Z",
+      "kind": "result"
+    }
+  ]
+}

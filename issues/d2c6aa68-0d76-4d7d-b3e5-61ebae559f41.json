@@ -1,0 +1,44 @@
+{
+  "uuid": "d2c6aa68-0d76-4d7d-b3e5-61ebae559f41",
+  "display_id": 56,
+  "title": "Implement v0.7 agent-backed keys + v0.8 secret inventory (ultracode)",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-06-23T13:08:46.943610Z",
+  "updated_at": "2026-06-24T18:42:40.048310Z",
+  "closed_at": "2026-06-24T18:42:40.048310Z",
+  "labels": [
+    "implementation"
+  ],
+  "comments": [
+    {
+      "uuid": "bc56d584-ea16-448c-84b3-0d52015caaab",
+      "author": "anon-31e9bd66",
+      "content": "Workflow COMPLETE (24 agents, ~2M tokens, all 10 phases Daria-pass). Independent verification: BATS 250/250 green, shellcheck clean, VERSION 0.8.0, no commits (HEAD still ba51e63). Final holistic Daria review found 1 blocker + 3 legit majors; all fixed in main loop with regression tests: (1) BLOCKER IdentityFile stub collapse -> added append_ssh_directive helper, multi-key no-collapse test; (2) audit_signing missing set_tier security (could let misconfigured signing pass --audit) -> pinned + test; (3) GPG-only false all-clear -> condition now checks SECRET_FINDINGS + test; (4) key_count grep -c errexit fragility -> guarded. Suite now 253/253 green, shellcheck clean. Docker e2e matrix (5 distros) running. Deferred (note, not a feature defect): source_functions strips set -u/IFS so unit tests don't exercise nounset/IFS in new array code — test-harness improvement for a follow-up. Commit still HELD per instruction.",
+      "created_at": "2026-06-24T09:39:55.183651Z",
+      "kind": "note"
+    },
+    {
+      "uuid": "d990405e-4edb-4c2b-b5dd-e859a7eb6df1",
+      "author": "anon-31e9bd66",
+      "content": "Docker/e2e validation in progress. Findings so far: (1) host BATS 253/253 green, shellcheck clean — solid. (2) --audit completes correctly (exit 2) with stdin /dev/null; a one-time hang was my real 1Password SSH agent blocking on ssh-add -L pending approval — a genuine robustness follow-up (agent probes should be bounded; macOS lacks 'timeout' so needs a portable guard), DEFERRED, noted. (3) Interactive tmux tests fail on macOS HOST with status 127 because helpers.sh hardcodes SCRIPT_PATH=$HOME/git-harden.sh — they are container-only by design (Containerfile stages the script there); not a code regression. Colima was down; brought up podman machine and re-running full container e2e (ubuntu/debian/fedora/alpine; arch skipped on arm64) which runs BATS + interactive INSIDE each distro. Awaiting result. Commit still HELD.",
+      "created_at": "2026-06-24T10:31:36.947876Z",
+      "kind": "note"
+    },
+    {
+      "uuid": "4eb54fb5-1918-4294-afc4-b1e22fcf4292",
+      "author": "anon-31e9bd66",
+      "content": "Interactive test failures ROOT-CAUSED and fixed — NOT a script regression. Each of the 5 interactive tmux tests passes reliably in isolation (verified identity-guard 3/3, signing-generate, all 5 with per-test HOME). The consistent 3-pass/2-fail in run-all.sh was shared-HOME state leakage: earlier tests pre-harden the config, changing later tests' prompt count/timing and racing accept_until into a free-form prompt. Fixed test/interactive/run-all.sh to give each test a pristine HOME with its own script copy (+ clears SSH_AUTH_SOCK so a dev-box vault agent can't alter the signing-wizard path). Result: 5 passed, 0 failed on host; shellcheck clean. Re-running full container e2e via podman to confirm BATS+interactive green across distros. Also confirmed: the earlier --audit hang was solely my real 1Password agent (ssh-add -L) — still flagged as a bounded-probe robustness follow-up. Commit HELD.",
+      "created_at": "2026-06-24T10:53:43.238774Z",
+      "kind": "note"
+    },
+    {
+      "uuid": "e9eab116-a97e-45f7-bff9-bc8196b22aeb",
+      "author": "anon-31e9bd66",
+      "content": "FULLY GREEN. Container e2e via podman: ubuntu/debian/fedora/alpine + host all PASS (arch SKIP, no arm64 image), 0 'not ok', exit 0. Host: BATS 253/253, interactive 5/5, shellcheck clean (git-harden.sh + run-all.sh), VERSION 0.8.0. Both specs fully implemented and thoroughly tested across BATS + Docker matrix. Diff: git-harden.sh +1915, tests +2060, run-all.sh +22, REASONING +87, README +78, CHANGELOG +31. Awaiting maintainer go-ahead to commit (held per instruction). Two documented non-blocking follow-ups: bounded agent-probe in --audit; BATS harness set -u/IFS gap.",
+      "created_at": "2026-06-24T11:00:58.287908Z",
+      "kind": "note"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "uuid": "bc5cfbb7-aefd-43f7-bbcc-05742e512555",
+  "display_id": 44,
+  "title": "Update README test instructions with full test matrix",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T16:38:22.438157Z",
+  "updated_at": "2026-03-31T16:38:50.469379Z",
+  "closed_at": "2026-03-31T16:38:50.469379Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "086be9c9-c455-488e-bdfe-0f49031a4a9a",
+      "author": "anon-31e9bd66",
+      "content": "Updated README test section with all three tiers, usage examples, and requirements table.",
+      "created_at": "2026-03-31T16:38:49.338339Z",
+      "kind": "result"
+    }
+  ]
+}

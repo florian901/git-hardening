@@ -1,0 +1,22 @@
+{
+  "uuid": "9e0853d2-d851-44e9-b10b-5c77a4f783df",
+  "display_id": 15,
+  "title": "Fix minor hygiene issues from code review",
+  "status": "open",
+  "priority": "low",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-30T22:18:32.608432Z",
+  "updated_at": "2026-03-30T22:18:33.698341Z",
+  "labels": [
+    "fix"
+  ],
+  "comments": [
+    {
+      "uuid": "26e97e12-4c97-4127-8f33-7fe87610dd20",
+      "author": "anon-31e9bd66",
+      "content": "Delivered: Removed unused export on SIGNING_KEY_PATH (and removed the variable entirely as dead code), added trap for temp file cleanup in apply_ssh_directive, added -- separator to ssh-keygen -f calls, added info message when falling back to credential cache on Linux.",
+      "created_at": "2026-03-30T22:20:32.587351Z",
+      "kind": "result"
+    }
+  ]
+}

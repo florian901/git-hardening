@@ -1,0 +1,30 @@
+{
+  "uuid": "49346966-4387-44c1-a1d6-c9bc42124115",
+  "display_id": 48,
+  "title": "Add REASONING.md documenting trade-offs for each hardening default",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T17:52:04.186430Z",
+  "updated_at": "2026-03-31T17:59:31.682480Z",
+  "closed_at": "2026-03-31T17:59:31.682480Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "bf0d7b12-5090-4ee2-b86c-abeb9a9f4575",
+      "author": "anon-31e9bd66",
+      "content": "Create docs/REASONING.md covering every setting the script audits/applies. For each: what it does, what attack it mitigates, what breaks if you enable it, and why we chose this default. Source from the research reports and the spec.",
+      "created_at": "2026-03-31T17:52:11.538267Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "af0ddabb-a643-4f3e-878c-9253ff3c5331",
+      "author": "anon-31e9bd66",
+      "content": "Created docs/REASONING.md covering all settings: identity, object integrity, protocols, filesystem, hooks, pre-commit, repo safety, pull/merge, transport, credentials, gitignore, defaults, forensics, visibility, signing, SSH config, key hygiene, and admin recommendations. Each entry covers what/why/what-breaks/trade-off.",
+      "created_at": "2026-03-31T17:59:30.606495Z",
+      "kind": "result"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "uuid": "5fa3c21b-a03f-4af8-ad85-49679b3694eb",
+  "display_id": 57,
+  "title": "Advisor: full store+use 1Password steps; op install instructions when missing",
+  "status": "open",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-06-26T09:28:48.086939Z",
+  "updated_at": "2026-06-26T09:28:51.617811Z",
+  "labels": [
+    "enhancement"
+  ],
+  "comments": [
+    {
+      "uuid": "0163b407-66e3-4201-bb34-bd5cf2ce1114",
+      "author": "anon-31e9bd66",
+      "content": "Done + tested (uncommitted). Advisor now: (1) prints a store->use intro for any finding — '1. Store: op item create ...' then '2. Use: op read/op run/op inject'; generic path shows explicit store:/use: lines. (2) When op is absent, op_install_hint prints concrete platform/distro install commands (brew install 1password-cli on macOS + Linux Homebrew; Arch AUR; official repo steps for Debian/Fedora) plus the URL. Per-finding tailored steps unchanged (op plugin init / op inject / op run). 2 new BATS tests (255 total, all green); shellcheck clean; no-secret-leak test still passes; AC-8 URL check still holds. CHANGELOG [Unreleased] updated. Held for commit.",
+      "created_at": "2026-06-26T09:50:20.064381Z",
+      "kind": "note"
+    },
+    {
+      "uuid": "3851276c-63b8-4ef4-822d-463e93326a87",
+      "author": "anon-31e9bd66",
+      "content": "Added Watchtower bulk-import note to --migrate SSH-key instructions (1Password app → Watchtower → 'Developer credentials on disk'). Maintainer simplified the detected-1Password branch to lead with Watchtower; reconciled test 6 to the new wording. 255/255 BATS green, shellcheck clean. CHANGELOG [Unreleased] updated. Held for commit.",
+      "created_at": "2026-06-26T10:01:13.155830Z",
+      "kind": "note"
+    }
+  ]
+}

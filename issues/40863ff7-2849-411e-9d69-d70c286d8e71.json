@@ -1,0 +1,22 @@
+{
+  "uuid": "40863ff7-2849-411e-9d69-d70c286d8e71",
+  "display_id": 13,
+  "title": "Release v0.1.0",
+  "status": "open",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-30T22:01:01.245601Z",
+  "updated_at": "2026-03-30T22:01:02.320084Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "cdfb869f-87cb-42dc-a258-cd7dd2cbc418",
+      "author": "anon-31e9bd66",
+      "content": "Delivered: CHANGELOG.md updated with full v0.1.0 release notes, VERSION constant set to 0.1.0.",
+      "created_at": "2026-03-30T22:12:42.210287Z",
+      "kind": "result"
+    }
+  ]
+}

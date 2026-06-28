@@ -1,0 +1,23 @@
+{
+  "uuid": "60a175b7-d772-47ef-82c7-10ab11674a96",
+  "display_id": 53,
+  "title": "Fix critical/high security-review findings, audit tiers, doc accuracy",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-06-09T21:23:17.179485Z",
+  "updated_at": "2026-06-09T21:55:34.995655Z",
+  "closed_at": "2026-06-09T21:55:34.995655Z",
+  "labels": [
+    "security"
+  ],
+  "comments": [
+    {
+      "uuid": "a6e5275e-6305-4fb9-844a-3a9863a99c63",
+      "author": "anon-31e9bd66",
+      "content": "Implemented all critical/high fixes (reset-signing key safety, FIDO retry loop, hook dispatch stubs, SSH scope-aware parsing, algo-restriction guards, backup perms 600, pubkey validation, signing smoke test), audit tiers (security/hygiene/preference; --audit exit 2 on security only), REASONING.md accuracy updates, CHANGELOG 0.6.0, and docs/specs/2026-06-09-agent-backed-keys.md plan for 1Password/Bitwarden/forwarded-agent support. shellcheck clean, 126/126 BATS tests pass. Not yet committed.",
+      "created_at": "2026-06-09T21:47:28.497335Z",
+      "kind": "note"
+    }
+  ]
+}

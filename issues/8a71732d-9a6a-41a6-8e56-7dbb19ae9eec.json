@@ -1,0 +1,30 @@
+{
+  "uuid": "8a71732d-9a6a-41a6-8e56-7dbb19ae9eec",
+  "display_id": 37,
+  "title": "Fix FIDO2 detection freezing on macOS",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T15:41:34.562462Z",
+  "updated_at": "2026-03-31T15:47:16.026541Z",
+  "closed_at": "2026-03-31T15:47:16.026541Z",
+  "labels": [
+    "fix"
+  ],
+  "comments": [
+    {
+      "uuid": "c2b8848a-ee63-47ba-abfb-a99f7c06bb97",
+      "author": "anon-31e9bd66",
+      "content": "The brew ssh-keygen probe actually invokes key generation which blocks waiting for a FIDO touch. Fix: detect brew openssh by checking for ssh-sk-helper in the same libexec dir instead of running keygen.",
+      "created_at": "2026-03-31T15:41:42.640446Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "0c7399b3-be6f-4bf4-9b79-657268e54db1",
+      "author": "anon-31e9bd66",
+      "content": "Fixed: detect brew openssh via ssh-sk-helper presence instead of running ssh-keygen. No blocking, no FIDO touch during detection.",
+      "created_at": "2026-03-31T15:45:52.221886Z",
+      "kind": "result"
+    }
+  ]
+}

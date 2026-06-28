@@ -1,0 +1,32 @@
+{
+  "uuid": "ba3282e1-b547-4700-be43-286974a09997",
+  "display_id": 25,
+  "title": "Implement v0.2.0 expanded hardening features",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T10:40:15.124089Z",
+  "updated_at": "2026-03-31T10:51:40.745163Z",
+  "closed_at": "2026-03-31T10:51:40.745163Z",
+  "labels": [
+    "feature"
+  ],
+  "related": [
+    "63c20074-41d7-4df9-ae18-4cab530e5911",
+    "6a779240-6242-4866-9e6a-380000da54da",
+    "6b7b98fb-a91c-44d0-be90-2ce097366cbe",
+    "6ddf6723-198f-4719-9422-f8ca9aa1fb4f",
+    "93eb1d74-3797-4590-bbc1-4a36a7fe7263",
+    "d6c91105-46af-488b-9e62-cacf63bff1df",
+    "fe30e167-6d25-4a44-9330-a7991511ceb1"
+  ],
+  "comments": [
+    {
+      "uuid": "27c85fd2-15a4-4d95-8b7e-1c755557f03a",
+      "author": "anon-31e9bd66",
+      "content": "All 7 subissues complete (#26-#32). v0.2.0 implementation done: 8 new git config settings, safe.directory wildcard detection, global gitignore, gitleaks pre-commit hook, credential hygiene audit, SSH key hygiene audit. 90/90 tests passing, shellcheck clean.",
+      "created_at": "2026-03-31T10:51:39.680832Z",
+      "kind": "result"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "uuid": "d6c91105-46af-488b-9e62-cacf63bff1df",
+  "display_id": 28,
+  "title": "Add global gitignore creation and security pattern audit",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T10:40:36.149208Z",
+  "updated_at": "2026-03-31T10:44:09.083064Z",
+  "closed_at": "2026-03-31T10:44:09.083064Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "68a7d2ea-f14e-4e56-bbe4-bee189e00bc0",
+      "author": "anon-31e9bd66",
+      "content": "Adding audit_global_gitignore and apply_global_gitignore functions. Audit checks core.excludesFile config and scans existing file for security patterns. Apply creates ~/.config/git/ignore with security-focused patterns.",
+      "created_at": "2026-03-31T10:42:38.088209Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "6be7d763-d923-47be-8ebd-0743b224af7e",
+      "author": "anon-31e9bd66",
+      "content": "Implemented audit_global_gitignore and apply_global_gitignore. Audit checks core.excludesFile config and scans for security patterns. Apply creates ~/.config/git/ignore with security-focused patterns.",
+      "created_at": "2026-03-31T10:44:07.989372Z",
+      "kind": "result"
+    }
+  ]
+}

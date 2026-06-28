@@ -1,0 +1,29 @@
+{
+  "uuid": "ea270205-669c-4b21-aaae-5f0399c4d31e",
+  "display_id": 54,
+  "title": "Research: surfacing dev/CLI plaintext secrets + 1Password/Bitwarden migration paths",
+  "status": "open",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-06-23T12:02:56.496555Z",
+  "updated_at": "2026-06-23T12:03:00.591498Z",
+  "labels": [
+    "research"
+  ],
+  "comments": [
+    {
+      "uuid": "85ae84bc-7514-4e9b-b6a7-3ce16191c10f",
+      "author": "anon-31e9bd66",
+      "content": "Completed research. Deliverable: docs/research/2026-06-23-plaintext-secret-surfacing.md. Scope locked with maintainer: dev/CLI credentials only, detect+advise (no CLI driving, no deletion), standalone research doc. Covers ~25 credential locations across 6 families (cloud CLIs, git hosting, package registries, containers/k8s, db clients, generic .env/dotfiles) on top of the 4 already audited; detection design principles (path+kind only, existence vs content confidence, permission checks, tiering); five migration solution shapes verified against current 1Password (1password.dev) and Bitwarden docs; per-credential playbook; recommended v0.8 phase structure (detect → advise → chmod-only apply → docs); risks/non-goals; 6 open questions. Key finding: 1Password shell plugins are the biggest 1P-vs-BW asymmetry for an interactive workstation.",
+      "created_at": "2026-06-23T12:18:57.006586Z",
+      "kind": "note"
+    },
+    {
+      "uuid": "79e268ff-c5cf-409f-9d76-8cb1170fc812",
+      "author": "anon-31e9bd66",
+      "content": "Research deliverable committed (1715ec4); fed directly into spec #55.",
+      "created_at": "2026-06-23T12:37:45.675056Z",
+      "kind": "note"
+    }
+  ]
+}

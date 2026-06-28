@@ -1,0 +1,29 @@
+{
+  "uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+  "display_id": 17,
+  "title": "Add e2e container test harness for multi-distro testing",
+  "status": "open",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-30T22:27:00.151820Z",
+  "updated_at": "2026-03-30T22:27:01.312291Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "cf42de65-6446-47cd-a8e4-ab9903858cbe",
+      "author": "anon-31e9bd66",
+      "content": "Plan: Implement the e2e container test harness per spec at docs/specs/2026-03-30-e2e-container-tests.md. Four subissues: #18 Containerfiles, #19 runner script, #20 interactive tmux tests, #21 fix platform failures. Will implement sequentially since each depends on the prior.",
+      "created_at": "2026-03-30T22:30:52.805906Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "7412149e-b23d-4ea0-b84a-f41a83af8d63",
+      "author": "anon-31e9bd66",
+      "content": "Session auto-ended (stale after 747 minutes). No handoff notes provided.",
+      "created_at": "2026-03-31T09:34:20.509320Z",
+      "kind": "handoff"
+    }
+  ]
+}

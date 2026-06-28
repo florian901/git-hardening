@@ -1,0 +1,22 @@
+{
+  "uuid": "a1d77f4c-e7f0-4466-852a-f4bc35497c51",
+  "display_id": 14,
+  "title": "Update README for v0.1.0",
+  "status": "open",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-30T22:15:08.228339Z",
+  "updated_at": "2026-03-30T22:15:09.311732Z",
+  "labels": [
+    "fix"
+  ],
+  "comments": [
+    {
+      "uuid": "b16a5bc7-6c70-43f2-a076-a00d3c08ba76",
+      "author": "anon-31e9bd66",
+      "content": "Delivered: Added safety review gate mention in Quick Start, OSINT privacy note in Signing Setup, per-org signing key in admin recs, Running Tests section, fixed placeholder URL.",
+      "created_at": "2026-03-30T22:15:35.880318Z",
+      "kind": "result"
+    }
+  ]
+}

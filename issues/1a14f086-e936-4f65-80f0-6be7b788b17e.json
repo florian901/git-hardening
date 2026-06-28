@@ -1,0 +1,15 @@
+{
+  "uuid": "1a14f086-e936-4f65-80f0-6be7b788b17e",
+  "display_id": 3,
+  "title": "git-harden.sh",
+  "description": "Created by crosslink kickoff",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-27T17:09:46.578937Z",
+  "updated_at": "2026-03-30T22:11:42.636444Z",
+  "closed_at": "2026-03-30T22:11:42.636444Z",
+  "labels": [
+    "feature"
+  ]
+}

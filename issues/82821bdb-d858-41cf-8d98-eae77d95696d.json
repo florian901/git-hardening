@@ -1,0 +1,30 @@
+{
+  "uuid": "82821bdb-d858-41cf-8d98-eae77d95696d",
+  "display_id": 20,
+  "title": "Create tmux-based interactive test scripts",
+  "status": "open",
+  "priority": "medium",
+  "parent_uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-30T22:30:40.704047Z",
+  "updated_at": "2026-03-30T22:30:42.320592Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "11f5a99d-85df-43e5-87de-fe36dbc79641",
+      "author": "anon-31e9bd66",
+      "content": "Plan: Create test/interactive/ with bash scripts using tmux send-keys to drive git-harden.sh interactively. Scenarios: full accept, safety gate decline, signing wizard generate key, signing wizard skip. Include wait_for helper.",
+      "created_at": "2026-03-30T22:53:05.821006Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "8b0d6e19-946b-4544-a5cd-d6252a1cd73d",
+      "author": "anon-31e9bd66",
+      "content": "Delivered: 4 interactive tmux test scripts (full-accept, safety-gate-decline, signing-generate, signing-skip) plus helpers.sh and run-all.sh runner. All pass shellcheck.",
+      "created_at": "2026-03-31T09:24:04.340126Z",
+      "kind": "result"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "uuid": "9013ee4a-865b-4a4a-bf67-e7fc3c15b99f",
+  "display_id": 22,
+  "title": "Add interactive test execution to e2e runner",
+  "status": "open",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T09:38:39.179212Z",
+  "updated_at": "2026-03-31T09:38:40.211092Z",
+  "labels": [
+    "fix"
+  ],
+  "comments": [
+    {
+      "uuid": "24d64b56-6085-46a4-9d59-c0e34da0921c",
+      "author": "anon-31e9bd66",
+      "content": "Delivered: e2e.sh now runs both BATS tests and interactive tmux tests per distro. Three-phase pipeline: build -> BATS -> interactive. Failure at any stage is labeled in the summary (build/bats/interactive).",
+      "created_at": "2026-03-31T09:39:14.472898Z",
+      "kind": "result"
+    }
+  ]
+}

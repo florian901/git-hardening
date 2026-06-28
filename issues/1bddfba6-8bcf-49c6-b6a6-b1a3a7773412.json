@@ -1,0 +1,30 @@
+{
+  "uuid": "1bddfba6-8bcf-49c6-b6a6-b1a3a7773412",
+  "display_id": 33,
+  "title": "Update README and CHANGELOG for v0.2.0 release",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T11:49:24.194933Z",
+  "updated_at": "2026-03-31T11:58:07.271621Z",
+  "closed_at": "2026-03-31T11:58:07.271621Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "4bc7a2a1-c227-42af-a2a8-44e444a66e86",
+      "author": "anon-31e9bd66",
+      "content": "Rewriting CHANGELOG with proper v0.2.0 section separated from v0.1.0, and updating README to document all new features.",
+      "created_at": "2026-03-31T11:49:39.708442Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "b0b2426f-184c-46c2-b200-a72e17753d9e",
+      "author": "anon-31e9bd66",
+      "content": "All files staged. FIDO2 detection fixed to use ioreg on macOS (detects YubiKey without ykman). Pre-existing test 42 fixed (missing source_functions). 92/92 tests pass.",
+      "created_at": "2026-03-31T11:58:06.142514Z",
+      "kind": "result"
+    }
+  ]
+}

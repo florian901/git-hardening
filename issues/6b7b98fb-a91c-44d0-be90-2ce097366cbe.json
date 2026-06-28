@@ -1,0 +1,23 @@
+{
+  "uuid": "6b7b98fb-a91c-44d0-be90-2ce097366cbe",
+  "display_id": 31,
+  "title": "Add SSH key hygiene audit",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T10:40:43.462692Z",
+  "updated_at": "2026-03-31T10:44:21.656737Z",
+  "closed_at": "2026-03-31T10:44:21.656737Z",
+  "labels": [
+    "security"
+  ],
+  "comments": [
+    {
+      "uuid": "2c125c69-a473-440f-b206-cccefd38a121",
+      "author": "anon-31e9bd66",
+      "content": "Implemented audit_ssh_key_hygiene. Scans ~/.ssh/*.pub plus IdentityFile directives from ~/.ssh/config. Classifies ed25519/ed25519-sk as OK, RSA by bit length, DSA/ECDSA as warnings. Audit-only.",
+      "created_at": "2026-03-31T10:44:20.554741Z",
+      "kind": "result"
+    }
+  ]
+}

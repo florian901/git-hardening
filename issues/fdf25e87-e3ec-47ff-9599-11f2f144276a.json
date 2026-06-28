@@ -1,0 +1,22 @@
+{
+  "uuid": "fdf25e87-e3ec-47ff-9599-11f2f144276a",
+  "display_id": 50,
+  "title": "Refactor apply_setting_group to use bash arrays instead of sed indexing",
+  "status": "open",
+  "priority": "low",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-04-04T12:16:29.095087Z",
+  "updated_at": "2026-04-04T12:16:30.278582Z",
+  "labels": [
+    "refactor"
+  ],
+  "comments": [
+    {
+      "uuid": "5a330801-8b4b-461e-b351-7058b4f373ee",
+      "author": "anon-31e9bd66",
+      "content": "Tagging v0.4.0 release",
+      "created_at": "2026-04-04T13:00:28.060813Z",
+      "kind": "note"
+    }
+  ]
+}

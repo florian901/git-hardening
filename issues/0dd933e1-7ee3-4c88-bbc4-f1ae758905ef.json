@@ -1,0 +1,44 @@
+{
+  "uuid": "0dd933e1-7ee3-4c88-bbc4-f1ae758905ef",
+  "display_id": 24,
+  "title": "Add v0.2.0 feature spec for expanded hardening coverage",
+  "status": "closed",
+  "priority": "medium",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T10:00:15.481014Z",
+  "updated_at": "2026-03-31T10:40:09.856016Z",
+  "closed_at": "2026-03-31T10:40:09.856016Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "b37358a3-d2a8-4be2-ba55-cc9da30a8e53",
+      "author": "anon-31e9bd66",
+      "content": "Writing feature spec based on gap analysis of two research reports (Claude Opus 4.6 and Gemini 3.1 Pro). Six new feature areas identified: gitleaks pre-commit hook, global gitignore, plaintext credential detection, SSH key hygiene audit, 8 new git config settings, and safe.directory wildcard detection.",
+      "created_at": "2026-03-31T10:00:22.375971Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "d4dad351-c443-48ff-a67f-4e0e3e6c384a",
+      "author": "anon-31e9bd66",
+      "content": "Spec written to docs/specs/2026-03-31-v0.2.0-expanded-hardening.md. Self-review passed: no TBDs, no contradictions, scope is focused on additive changes only.",
+      "created_at": "2026-03-31T10:03:16.728608Z",
+      "kind": "result"
+    },
+    {
+      "uuid": "79450157-51d4-4e83-99bf-55d21ae741a6",
+      "author": "anon-31e9bd66",
+      "content": "Applied four fixes from code review: (1) gitignore audit now checks existing files for missing security patterns, (2) SSH key hygiene scans IdentityFile directives from ~/.ssh/config, (3) .npmrc regex tightened to _authToken=.+, (4) core.symlinks=false is interactive-only with default=yes, skipped in -y mode.",
+      "created_at": "2026-03-31T10:39:33.923478Z",
+      "kind": "decision"
+    },
+    {
+      "uuid": "ddf29a30-43c4-4561-af81-cb0f870b8187",
+      "author": "anon-31e9bd66",
+      "content": "Spec complete and reviewed. Proceeding to implementation.",
+      "created_at": "2026-03-31T10:40:08.727589Z",
+      "kind": "result"
+    }
+  ]
+}

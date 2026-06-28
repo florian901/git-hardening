@@ -1,0 +1,44 @@
+{
+  "uuid": "91415850-4320-495d-a779-4cec0b77f409",
+  "display_id": 6,
+  "title": "Add BATS test suite for git-harden.sh",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-30T20:38:02.786870Z",
+  "updated_at": "2026-03-30T22:11:46.084264Z",
+  "closed_at": "2026-03-30T22:11:46.084264Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "0091378e-b0c3-47e8-a7d7-9d7a4e56da57",
+      "author": "anon-31e9bd66",
+      "content": "Plan: Create BATS test suite testing all major functions in git-harden.sh. Use isolated HOME/GIT_CONFIG to avoid touching real config. Test categories: arg parsing, version comparison, audit phase (git config + SSH), apply phase, signing detection, SSH config hardening. Will install bats-core via git submodule in test/libs/.",
+      "created_at": "2026-03-30T20:38:10.877805Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "50dea818-c294-4117-994c-d17098060d3d",
+      "author": "anon-31e9bd66",
+      "content": "Decision: Install bats-core, bats-support, and bats-assert as git submodules in test/libs/ rather than requiring a system install. This makes the tests self-contained and runnable on any machine with bash.",
+      "created_at": "2026-03-30T20:40:01.802882Z",
+      "kind": "decision"
+    },
+    {
+      "uuid": "a124baed-ee27-470d-8b24-f41a476baba8",
+      "author": "anon-31e9bd66",
+      "content": "Session auto-ended (stale after 4620 minutes). No handoff notes provided.",
+      "created_at": "2026-03-30T21:06:55.693973Z",
+      "kind": "handoff"
+    },
+    {
+      "uuid": "c17d1e22-4b94-4d00-b84c-41a11dd75b05",
+      "author": "anon-31e9bd66",
+      "content": "Delivered: 50 BATS tests covering arg parsing, version comparison, audit phase (git config, signing, SSH), apply phase (git config, SSH directives, url rewrite), signing key detection (standard paths, IdentityFile, tilde expansion, sk preference), allowed signers, -y mode behavior, backup, end-to-end audit/apply, idempotency. All tests pass. Tests run in isolated HOME to avoid touching real config.",
+      "created_at": "2026-03-30T21:08:29.791026Z",
+      "kind": "result"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "uuid": "6a779240-6242-4866-9e6a-380000da54da",
+  "display_id": 27,
+  "title": "Add safe.directory wildcard detection and removal",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T10:40:33.673556Z",
+  "updated_at": "2026-03-31T10:42:28.644545Z",
+  "closed_at": "2026-03-31T10:42:28.644545Z",
+  "labels": [
+    "security"
+  ],
+  "comments": [
+    {
+      "uuid": "f6a52620-e371-46ec-b44d-fb9ecb3edeef",
+      "author": "anon-31e9bd66",
+      "content": "safe.directory wildcard detection was implemented alongside issue #26 in both audit_git_config and apply_git_config. Audit checks git config --global --get-all safe.directory for '*' value. Apply offers to remove it with --unset.",
+      "created_at": "2026-03-31T10:42:27.435677Z",
+      "kind": "result"
+    }
+  ]
+}

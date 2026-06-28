@@ -1,0 +1,30 @@
+{
+  "uuid": "fe30e167-6d25-4a44-9330-a7991511ceb1",
+  "display_id": 29,
+  "title": "Add gitleaks pre-commit hook installation",
+  "status": "closed",
+  "priority": "high",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-31T10:40:38.850042Z",
+  "updated_at": "2026-03-31T10:49:11.140765Z",
+  "closed_at": "2026-03-31T10:49:11.140765Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "d3572b7e-d69b-4872-b113-12cd71b13a40",
+      "author": "anon-31e9bd66",
+      "content": "Adding audit_precommit_hook and apply_precommit_hook functions. Hook checks for gitleaks, installs pre-commit script with SKIP_GITLEAKS bypass, never overwrites existing hooks.",
+      "created_at": "2026-03-31T10:44:30.317785Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "9f0d7e90-4bc9-4189-9dc5-481fbbd9379a",
+      "author": "anon-31e9bd66",
+      "content": "Implemented audit_precommit_hook and apply_precommit_hook. Audit checks for gitleaks in hook. Apply creates hook with SKIP_GITLEAKS bypass, never overwrites existing hooks. Shellcheck clean, all 64 existing tests pass.",
+      "created_at": "2026-03-31T10:49:10.001564Z",
+      "kind": "result"
+    }
+  ]
+}

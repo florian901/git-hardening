@@ -1,0 +1,30 @@
+{
+  "uuid": "6fe723a2-5841-4ac7-b947-67cdf4fcb8a2",
+  "display_id": 19,
+  "title": "Implement test/e2e.sh runner script",
+  "status": "open",
+  "priority": "high",
+  "parent_uuid": "6148d429-21f4-48ae-8919-09c3e9bf0240",
+  "created_by": "anon-31e9bd66",
+  "created_at": "2026-03-30T22:30:38.295824Z",
+  "updated_at": "2026-03-30T22:30:39.582969Z",
+  "labels": [
+    "feature"
+  ],
+  "comments": [
+    {
+      "uuid": "088f5bcd-7384-4d2e-8773-5f3c4646a12c",
+      "author": "anon-31e9bd66",
+      "content": "Plan: Implement test/e2e.sh following project shell standards (AGENTS.md). Features: --runtime flag, single-distro mode, TAP parsing, summary table, --network=none, --rm, non-root, error handling for missing runtime.",
+      "created_at": "2026-03-30T22:32:18.648565Z",
+      "kind": "plan"
+    },
+    {
+      "uuid": "7980b34d-c677-4c51-aa68-a708249ca9ae",
+      "author": "anon-31e9bd66",
+      "content": "Delivered: test/e2e.sh runner script with --runtime flag, single-distro mode, --rebuild flag, summary table, --network=none isolation, non-root containers, shellcheck clean.",
+      "created_at": "2026-03-30T22:52:59.592119Z",
+      "kind": "result"
+    }
+  ]
+}
