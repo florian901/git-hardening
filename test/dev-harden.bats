@@ -2307,6 +2307,10 @@ SSHEOF
 
 @test "IdentitiesOnly guard: safe when a global IdentityFile already exists" {
     source_functions
+    unset SSH_AUTH_SOCK SSH_AGENT_PID
+    # The referenced key must actually exist — otherwise it is a dangling
+    # IdentityFile, which the guard now (correctly) treats as unsafe.
+    ssh-keygen -t ed25519 -f "${HOME}/.ssh/id_ed25519" -N "" -q
     cat > "${HOME}/.ssh/config" <<'SSHEOF'
 IdentityFile ~/.ssh/id_ed25519
 SSHEOF
@@ -3944,4 +3948,86 @@ SSHEOF
     assert_success
     assert_output --partial "lives in the agent at"
     grep -q "IdentityAgent ${HOME}/.bitwarden-ssh-agent.sock" "${HOME}/.ssh/config"
+}
+
+# ===========================================================================
+# Dangling IdentityFile detection (before applying IdentitiesOnly yes)
+# ===========================================================================
+
+@test "list_dangling_identityfiles: flags a missing key, ignores ones with a .pub or file" {
+    source_functions
+    printf 'ssh-ed25519 AAAAstub stub\n' > "${HOME}/.ssh/have.pub"
+    ssh-keygen -t ed25519 -f "${HOME}/.ssh/real" -N "" -q
+    cat > "${HOME}/.ssh/config" <<SSHEOF
+Host a
+  IdentityFile ~/.ssh/gone
+Host b
+  IdentityFile ~/.ssh/have
+Host c
+  IdentityFile ~/.ssh/real
+SSHEOF
+    run list_dangling_identityfiles
+    assert_success
+    assert_output --partial "${HOME}/.ssh/gone"
+    refute_output --partial "/.ssh/have"
+    refute_output --partial "/.ssh/real"
+}
+
+@test "list_dangling_identityfiles: detects a dangling IdentityFile in an Include'd file" {
+    source_functions
+    mkdir -p "${HOME}/.ssh/conf.d"
+    printf 'Include ~/.ssh/conf.d/*.conf\n' > "${HOME}/.ssh/config"
+    cat > "${HOME}/.ssh/conf.d/gh.conf" <<SSHEOF
+Host github.com
+  IdentityFile ~/.ssh/gh-missing
+SSHEOF
+    run list_dangling_identityfiles
+    assert_success
+    assert_output --partial "${HOME}/.ssh/gh-missing"
+}
+
+@test "audit_ssh_config warns about a dangling IdentityFile" {
+    source_functions
+    cat > "${HOME}/.ssh/config" <<SSHEOF
+Host x
+  IdentityFile ~/.ssh/gone
+SSHEOF
+    run audit_ssh_config
+    assert_output --partial "references a missing key"
+    assert_output --partial "${HOME}/.ssh/gone"
+}
+
+@test "identities_only_guard reconstructs a dangling .pub stub from the matching agent key" {
+    source_functions
+    AUTO_YES=false
+    start_test_agent
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/gone" -C "gone" -N "" -q
+    ssh-add "${TEST_HOME}/gone" >/dev/null 2>&1
+    # The key is only in the agent now; the on-disk file/.pub are gone.
+    rm -f "${TEST_HOME}/gone" "${TEST_HOME}/gone.pub"
+    cat > "${HOME}/.ssh/config" <<SSHEOF
+Host x
+  IdentityFile ~/.ssh/gone
+SSHEOF
+    prompt_yn() { return 0; }   # accept the reconstruct prompt
+
+    run identities_only_guard
+    assert_success
+    # The stub was rebuilt from the agent key (comment "gone" == basename).
+    [ -f "${HOME}/.ssh/gone.pub" ]
+}
+
+@test "identities_only_guard skips IdentitiesOnly when a dangling IdentityFile is unresolvable and user declines" {
+    source_functions
+    AUTO_YES=false
+    unset SSH_AUTH_SOCK SSH_AGENT_PID   # no agent → cannot reconstruct
+    cat > "${HOME}/.ssh/config" <<SSHEOF
+Host x
+  IdentityFile ~/.ssh/gone
+SSHEOF
+    prompt_yn() { return 1; }   # decline "apply anyway"
+
+    run identities_only_guard
+    assert_failure
+    refute [ -f "${HOME}/.ssh/gone.pub" ]
 }

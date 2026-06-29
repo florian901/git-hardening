@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- Internal: converted all `[ … ]` test conditionals to `[[ … ]]` per the project shell standard (AGENTS.md), and use block-scoped `local IFS` in `version_gte`. Semantics-preserving — there were no `-a`/`-o` or unquoted-glob-RHS cases (those constructs were already `[[ … ]]`); verified by `shellcheck` and the full test suite
+
 ### Fixed
+- **Dangling `IdentityFile` entries are now caught before `IdentitiesOnly yes`.** A configured `IdentityFile` (any scope, including `Include`-d files) whose key file *and* `.pub` are both missing makes ssh fail ("no such identity") under `IdentitiesOnly yes` instead of falling back to the agent — which broke pushes after a key was moved into a vault agent. The guard now scans for these, offers to reconstruct the missing `.pub` stub from a matching agent key (key comment == file basename), and otherwise skips `IdentitiesOnly` rather than locking you out; the audit reports them at hygiene tier
 - **Multi-agent signing was mixed up.** The signing wizard aggregates keys across every reachable agent (1Password, Bitwarden, gpg), but signing/verification only ever used the agent at `SSH_AUTH_SOCK` — so choosing a key from one vault (e.g. Bitwarden) while `SSH_AUTH_SOCK` pointed at another (1Password) failed with "Couldn't find key in agent". Now each candidate is labelled with its agent (`[agent:bitwarden]`), the chosen key's holding socket is tracked, verification signs against *that* socket, and the wizard warns — with the exact `export SSH_AUTH_SOCK=…` — when the key's agent isn't the one git will sign commits with
 - The `IdentityAgent` offer no longer blindly picks the first detected vault agent. It now **prefers the agent that holds your signing key**, offers to repair an existing `IdentityAgent` that points at the wrong agent, and declines to auto-set one when multiple vault agents are present (a wrong pick can break ssh auth). Clarified that `IdentityAgent` governs ssh authentication, not commit signing (which uses `SSH_AUTH_SOCK`)
 

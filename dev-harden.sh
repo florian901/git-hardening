@@ -39,7 +39,7 @@ readonly DISPATCH_HOOK_NAMES=(
 )
 
 # Color codes (empty if not a terminal)
-if [ -t 2 ]; then
+if [[ -t 2 ]]; then
     readonly RED='\033[0;31m'
     readonly GREEN='\033[0;32m'
     readonly YELLOW='\033[0;33m'
@@ -184,13 +184,13 @@ strip_ssh_value() {
 # expansion (globs and ~ resolved; relative paths resolve to ~/.ssh/).
 # Deeper nesting is not followed — audit_ssh_config warns when Includes exist.
 ssh_config_files() {
-    [ -f "$SSH_CONFIG" ] || return 0
+    [[ -f "$SSH_CONFIG" ]] || return 0
     printf '%s\n' "$SSH_CONFIG"
 
     local inc_line
     while IFS= read -r inc_line; do
         inc_line="$(strip_ssh_value "$inc_line")"
-        [ -z "$inc_line" ] && continue
+        [[ -z "$inc_line" ]] && continue
         local IFS_SAVE="$IFS"
         IFS=' 	'
         local pattern f
@@ -202,7 +202,7 @@ ssh_config_files() {
             esac
             # shellcheck disable=SC2086 # Intentional: Include values may glob
             for f in $pattern; do
-                if [ -f "$f" ]; then
+                if [[ -f "$f" ]]; then
                     printf '%s\n' "$f"
                 fi
             done
@@ -218,7 +218,7 @@ EOF
 list_identity_files() {
     local cfg
     while IFS= read -r cfg; do
-        [ -n "$cfg" ] || continue
+        [[ -n "$cfg" ]] || continue
         grep -i '^[[:space:]]*IdentityFile[[:space:]=]' "$cfg" 2>/dev/null | \
             sed 's/^[[:space:]]*[Ii][Dd][Ee][Nn][Tt][Ii][Tt][Yy][Ff][Ii][Ll][Ee][[:space:]=]*//' || true
     done <<EOF
@@ -260,7 +260,7 @@ print_miss() {
 # private key material ending up in allowed_signers or git config.
 is_public_key_file() {
     local f="$1"
-    [ -f "$f" ] || return 1
+    [[ -f "$f" ]] || return 1
     local first
     first="$(head -1 "$f" 2>/dev/null || true)"
     is_public_key_material "$first"
@@ -291,12 +291,12 @@ prompt_yn() {
     local prompt="$1"
     local default="${2:-y}"
 
-    if [ "$AUTO_YES" = true ]; then
+    if [[ "$AUTO_YES" = true ]]; then
         return 0
     fi
 
     local yn_hint
-    if [ "$default" = "y" ]; then
+    if [[ "$default" = "y" ]]; then
         yn_hint="[Y/n]"
     else
         yn_hint="[y/N]"
@@ -310,7 +310,7 @@ prompt_yn() {
         [Yy]*) return 0 ;;
         [Nn]*) return 1 ;;
         "")
-            if [ "$default" = "y" ]; then
+            if [[ "$default" = "y" ]]; then
                 return 0
             else
                 return 1
@@ -325,7 +325,7 @@ prompt_yn() {
 # ------------------------------------------------------------------------------
 
 parse_args() {
-    while [ $# -gt 0 ]; do
+    while [[ $# -gt 0 ]]; do
         case "$1" in
             -y|--yes)
                 AUTO_YES=true
@@ -344,7 +344,7 @@ parse_args() {
                 shift
                 ;;
             --scan-depth)
-                if [ $# -lt 2 ]; then
+                if [[ $# -lt 2 ]]; then
                     die "--scan-depth requires a non-negative integer argument. Use --help for usage."
                 fi
                 # Validate as a STRING regex BEFORE any arithmetic: a bad value
@@ -419,20 +419,19 @@ detect_platform() {
 
 # Compare version strings: returns 0 if $1 >= $2
 version_gte() {
-    local IFS_SAVE="$IFS"
-    IFS='.'
+    # Block-scoped IFS: split on "." for the set -- below; restored on return.
+    local IFS='.'
     # shellcheck disable=SC2086
     set -- $1 $2
-    IFS="$IFS_SAVE"
     # Force base-10 interpretation to avoid octal issues with leading zeros
     local a1=$((10#${1:-0})) a2=$((10#${2:-0})) a3=$((10#${3:-0}))
     local b1=$((10#${4:-0})) b2=$((10#${5:-0})) b3=$((10#${6:-0}))
 
-    if [ "$a1" -gt "$b1" ]; then return 0; fi
-    if [ "$a1" -lt "$b1" ]; then return 1; fi
-    if [ "$a2" -gt "$b2" ]; then return 0; fi
-    if [ "$a2" -lt "$b2" ]; then return 1; fi
-    if [ "$a3" -ge "$b3" ]; then return 0; fi
+    if [[ "$a1" -gt "$b1" ]]; then return 0; fi
+    if [[ "$a1" -lt "$b1" ]]; then return 1; fi
+    if [[ "$a2" -gt "$b2" ]]; then return 0; fi
+    if [[ "$a2" -lt "$b2" ]]; then return 1; fi
+    if [[ "$a3" -ge "$b3" ]]; then return 0; fi
     return 1
 }
 
@@ -444,7 +443,7 @@ check_dependencies() {
 
     local git_version
     git_version="$(git --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
-    if [ -z "$git_version" ]; then
+    if [[ -z "$git_version" ]]; then
         die "Could not parse git version from: $(git --version)"
     fi
     if ! version_gte "$git_version" "2.34.0"; then
@@ -538,13 +537,13 @@ detect_credential_helper() {
                 /usr/lib/git-core/git-credential-libsecret \
                 /usr/libexec/git-core/git-credential-libsecret \
                 /usr/lib/git/git-credential-libsecret; do
-                if [ -x "$path" ]; then
+                if [[ -x "$path" ]]; then
                     libsecret_path="$path"
                     break
                 fi
             done
 
-            if [ -n "$libsecret_path" ]; then
+            if [[ -n "$libsecret_path" ]]; then
                 DETECTED_CRED_HELPER="$libsecret_path"
                 return
             fi
@@ -606,9 +605,9 @@ audit_git_setting() {
     local current
     current="$(git config --global --get "$key" 2>/dev/null || true)"
 
-    if [ -z "$current" ]; then
+    if [[ -z "$current" ]]; then
         print_miss "$label (expected: $expected)"
-    elif [ "$current" = "$expected" ]; then
+    elif [[ "$current" = "$expected" ]]; then
         print_ok "$label = $current"
     else
         print_warn "$label = $current (expected: $expected)"
@@ -676,7 +675,7 @@ audit_git_config() {
     # AC-15: warn if pull.rebase is set (conflicts with pull.ff=only)
     local pull_rebase
     pull_rebase="$(git config --global --get pull.rebase 2>/dev/null || true)"
-    if [ -n "$pull_rebase" ]; then
+    if [[ -n "$pull_rebase" ]]; then
         print_warn "pull.rebase = $pull_rebase (conflicts with pull.ff=only — consider unsetting)"
     fi
 
@@ -685,9 +684,9 @@ audit_git_config() {
     # url.<base>.insteadOf needs special handling
     local instead_of
     instead_of="$(git config --global --get 'url.https://.insteadOf' 2>/dev/null || true)"
-    if [ -z "$instead_of" ]; then
+    if [[ -z "$instead_of" ]]; then
         print_miss "url.\"https://\".insteadOf (expected: http://)"
-    elif [ "$instead_of" = "http://" ]; then
+    elif [[ "$instead_of" = "http://" ]]; then
         print_ok "url.\"https://\".insteadOf = http://"
     else
         print_warn "url.\"https://\".insteadOf = $instead_of (expected: http://)"
@@ -697,9 +696,9 @@ audit_git_config() {
     # as overridden. Only flag an explicit insecure override.
     local ssl_verify
     ssl_verify="$(git config --global --get http.sslVerify 2>/dev/null || true)"
-    if [ -z "$ssl_verify" ]; then
+    if [[ -z "$ssl_verify" ]]; then
         print_ok "http.sslVerify unset (git default: true — not overridden)"
-    elif [ "$ssl_verify" = "true" ]; then
+    elif [[ "$ssl_verify" = "true" ]]; then
         print_ok "http.sslVerify = true"
     else
         print_warn "http.sslVerify = $ssl_verify (MITM risk — remove this override)"
@@ -708,15 +707,15 @@ audit_git_config() {
     print_header "Credential Storage"
     local cred_current
     cred_current="$(git config --global --get credential.helper 2>/dev/null || true)"
-    if [ -z "$cred_current" ]; then
+    if [[ -z "$cred_current" ]]; then
         set_tier hygiene
         print_miss "credential.helper not set (credentials won't be cached)"
         set_tier security
-    elif [ "$cred_current" = "store" ]; then
+    elif [[ "$cred_current" = "store" ]]; then
         print_warn "credential.helper = store (INSECURE: stores passwords in plaintext ~/.git-credentials)"
     elif is_keychain_credential_helper "$cred_current"; then
         print_ok "credential.helper = $cred_current (keychain-backed)"
-    elif [ "$cred_current" = "$DETECTED_CRED_HELPER" ]; then
+    elif [[ "$cred_current" = "$DETECTED_CRED_HELPER" ]]; then
         print_ok "credential.helper = $cred_current"
     else
         print_warn "credential.helper = $cred_current (not a known keychain-backed helper)"
@@ -742,12 +741,12 @@ audit_precommit_hook() {
 
     local hook_path="${HOOKS_DIR}/pre-commit"
 
-    if [ ! -f "$hook_path" ]; then
+    if [[ ! -f "$hook_path" ]]; then
         print_miss "No pre-commit hook at $hook_path"
         return
     fi
 
-    if [ ! -x "$hook_path" ]; then
+    if [[ ! -x "$hook_path" ]]; then
         print_warn "Pre-commit hook exists but is not executable: $hook_path"
         return
     fi
@@ -767,10 +766,10 @@ audit_precommit_hook() {
     # via dispatch stubs
     local hooks_path_cfg
     hooks_path_cfg="$(git config --global --get core.hooksPath 2>/dev/null || true)"
-    if [ -n "$hooks_path_cfg" ]; then
+    if [[ -n "$hooks_path_cfg" ]]; then
         local missing=0 name
         for name in "${DISPATCH_HOOK_NAMES[@]}"; do
-            [ -f "${HOOKS_DIR}/${name}" ] || missing=$((missing + 1))
+            [[ -f "${HOOKS_DIR}/${name}" ]] || missing=$((missing + 1))
         done
         if (( missing > 0 )); then
             set_tier hygiene
@@ -788,7 +787,7 @@ audit_global_gitignore() {
     local excludes_file
     excludes_file="$(git config --global --get core.excludesFile 2>/dev/null || true)"
 
-    if [ -z "$excludes_file" ]; then
+    if [[ -z "$excludes_file" ]]; then
         print_miss "core.excludesFile (no global gitignore configured)"
         return
     fi
@@ -797,7 +796,7 @@ audit_global_gitignore() {
     local expanded_path
     expanded_path="${excludes_file/#\~/$HOME}"
 
-    if [ ! -f "$expanded_path" ]; then
+    if [[ ! -f "$expanded_path" ]]; then
         print_warn "core.excludesFile = $excludes_file (file does not exist)"
         return
     fi
@@ -809,7 +808,7 @@ audit_global_gitignore() {
         has_security_patterns=true
     fi
 
-    if [ "$has_security_patterns" = true ]; then
+    if [[ "$has_security_patterns" = true ]]; then
         print_ok "core.excludesFile = $excludes_file (contains security patterns)"
     else
         print_warn "core.excludesFile = $excludes_file (lacks secret patterns: .env, *.pem, *.key — consider adding them)"
@@ -1229,7 +1228,7 @@ audit_secret_inventory() {
     # findings like GPG keys (which use print_info and don't bump AUDIT_WARN).
     # Otherwise we'd print "nothing detected" and then an advisor block for the
     # very finding we just claimed wasn't there.
-    if (( AUDIT_WARN == before_warn )) && [ "${#SECRET_FINDINGS[@]}" -eq 0 ]; then
+    if (( AUDIT_WARN == before_warn )) && [[ "${#SECRET_FINDINGS[@]}" -eq 0 ]]; then
         set_tier security
         print_ok "No plaintext dev credentials detected"
     fi
@@ -1485,7 +1484,7 @@ secret_advisor_cred_helper() {
     qpath="$(printf '%q' "$path")"
     base="$(basename -- "$path")"
     # Platform-appropriate keychain-backed git credential helper.
-    if [ "$PLATFORM" = "macos" ]; then
+    if [[ "$PLATFORM" = "macos" ]]; then
         helper="osxkeychain"
     else
         helper="git-credential-libsecret"
@@ -1751,7 +1750,7 @@ report_ssh_key_hygiene() {
             if [[ -n "$bit_source" ]] && [[ -f "$bit_source" ]]; then
                 bits="$(ssh-keygen -l -f "$bit_source" 2>/dev/null | awk '{print $1}' || true)"
             fi
-            if [ -n "$bits" ] && [ "$bits" -lt 2048 ] 2>/dev/null; then
+            if [[ -n "$bits" ]] && [[ "$bits" -lt 2048 ]] 2>/dev/null; then
                 print_warn "SSH key $label (RSA ${bits}-bit — weak, migrate to ed25519 immediately)"
             else
                 print_warn "SSH key $label (RSA ${bits:-?}-bit — consider migrating to ed25519)"
@@ -1778,7 +1777,7 @@ audit_ssh_key_hygiene() {
     # Collect ~/.ssh/*.pub files
     local f
     for f in "${SSH_DIR}"/*.pub; do
-        [ -f "$f" ] || continue
+        [[ -f "$f" ]] || continue
         pub_files+=("$f")
         seen_files="${seen_files}|${f}"
     done
@@ -1788,10 +1787,10 @@ audit_ssh_key_hygiene() {
     local identity_path
     while IFS= read -r identity_path; do
         identity_path="$(strip_ssh_value "$identity_path")"
-        [ -z "$identity_path" ] && continue
+        [[ -z "$identity_path" ]] && continue
         identity_path="${identity_path/#\~/$HOME}"
         local pub_path="${identity_path}.pub"
-        if [ -f "$pub_path" ]; then
+        if [[ -f "$pub_path" ]]; then
             # Skip if already seen
             case "$seen_files" in
                 *"|${pub_path}"*) continue ;;
@@ -1862,7 +1861,7 @@ EOF
 # are still caught and pubkeys/configs are never misclassified.
 is_private_key_file() {
     local f="$1"
-    [ -f "$f" ] || return 1
+    [[ -f "$f" ]] || return 1
     local first
     first="$(head -1 "$f" 2>/dev/null || true)"
     # One glob covers every PEM/OpenSSH private-key header (OPENSSH/RSA/DSA/EC/
@@ -1895,7 +1894,7 @@ audit_ssh_private_keys() {
     print_header "On-disk Private Keys"
     set_tier security
 
-    [ -d "$SSH_DIR" ] || { print_info "No ~/.ssh directory"; return; }
+    [[ -d "$SSH_DIR" ]] || { print_info "No ~/.ssh directory"; return; }
 
     # Build the set of public-key blobs held by all reachable agents so we can
     # flag encrypted on-disk keys that already live in an agent.
@@ -1919,7 +1918,7 @@ EOF
     local found=false
     local f label pub_blob
     for f in "${SSH_DIR}"/*; do
-        [ -f "$f" ] || continue
+        [[ -f "$f" ]] || continue
         is_private_key_file "$f" || continue
         found=true
         label="$(basename "$f")"
@@ -1932,7 +1931,7 @@ EOF
         # Encrypted key. If its public half is held by an agent, it is a
         # candidate for cleanup once migration is confirmed.
         pub_blob=""
-        if [ -f "${f}.pub" ]; then
+        if [[ -f "${f}.pub" ]]; then
             pub_blob="$(awk '{print $2}' "${f}.pub" 2>/dev/null || true)"
         fi
         if [[ -n "$pub_blob" ]] && [[ "$agent_blobs" == *"|${pub_blob}|"* ]]; then
@@ -1962,7 +1961,7 @@ audit_inline_signing_key() {
     local blob
     blob="$(printf '%s' "$key_material" | awk '{print $2}')"
 
-    if [ -n "$blob" ] && [ -f "$ALLOWED_SIGNERS_FILE" ] && \
+    if [[ -n "$blob" ]] && [[ -f "$ALLOWED_SIGNERS_FILE" ]] && \
        grep -qF "$blob" "$ALLOWED_SIGNERS_FILE" 2>/dev/null; then
         print_ok "user.signingkey = ($label) — present in allowed_signers"
     else
@@ -1986,13 +1985,13 @@ audit_signing() {
     # Check signing key
     local signing_key
     signing_key="$(git config --global --get user.signingkey 2>/dev/null || true)"
-    if [ -z "$signing_key" ]; then
+    if [[ -z "$signing_key" ]]; then
         print_miss "user.signingkey (no signing key configured)"
     else
         # Verify the key file exists
         local expanded_key
         expanded_key="${signing_key/#\~/$HOME}"
-        if [ -f "$expanded_key" ]; then
+        if [[ -f "$expanded_key" ]]; then
             print_ok "user.signingkey = $signing_key"
         else
             case "$signing_key" in
@@ -2028,13 +2027,13 @@ audit_ssh_directive() {
     local current
     current="$(get_ssh_directive_value "$directive")"
 
-    if [ -z "$current" ]; then
+    if [[ -z "$current" ]]; then
         if grep -qi "^[[:space:]]*${directive}[[:space:]=]" "$SSH_CONFIG" 2>/dev/null; then
             print_warn "SSH: $directive set only in host-specific blocks — no global default (expected: $expected)"
         else
             print_miss "SSH: $directive (expected: $expected)"
         fi
-    elif [ "$current" = "$expected" ]; then
+    elif [[ "$current" = "$expected" ]]; then
         print_ok "SSH: $directive = $current"
     else
         print_warn "SSH: $directive = $current (expected: $expected)"
@@ -2044,7 +2043,7 @@ audit_ssh_directive() {
 audit_ssh_config() {
     print_header "SSH Configuration"
 
-    if [ ! -f "$SSH_CONFIG" ]; then
+    if [[ ! -f "$SSH_CONFIG" ]]; then
         set_tier security
         print_miss "$SSH_CONFIG does not exist"
         return
@@ -2063,7 +2062,7 @@ audit_ssh_config() {
     set_tier hygiene
     audit_ssh_directive "AddKeysToAgent" "yes"
     set_tier security
-    if [ -n "$PUBKEY_ALGOS_DIRECTIVE" ]; then
+    if [[ -n "$PUBKEY_ALGOS_DIRECTIVE" ]]; then
         audit_ssh_directive "$PUBKEY_ALGOS_DIRECTIVE" "$PUBKEY_ALGO_LIST"
     fi
 
@@ -2087,6 +2086,24 @@ audit_ssh_config() {
             print_warn "SSH: ForwardAgent = $fa (expected: no or unset globally)"
             ;;
     esac
+
+    # Dangling IdentityFile entries: a configured key (any scope, incl. Include'd
+    # files) whose file and .pub are both gone. Harmless on its own, but under
+    # "IdentitiesOnly yes" ssh fails for those hosts instead of using the agent.
+    set_tier hygiene
+    local io_set="" df
+    io_set="$(get_ssh_directive_value "IdentitiesOnly")"
+    while IFS= read -r df; do
+        [[ -n "$df" ]] || continue
+        if [[ "$io_set" = "yes" ]]; then
+            print_warn "SSH: IdentityFile ${df} references a missing key (no file, no .pub) — with IdentitiesOnly yes, ssh will fail for hosts using it; restore its .pub stub (e.g. from your agent) or remove the entry"
+        else
+            print_warn "SSH: IdentityFile ${df} references a missing key (no file, no .pub) — stale entry; it would break ssh if IdentitiesOnly yes is enabled"
+        fi
+    done <<EOF
+$(list_dangling_identityfiles)
+EOF
+    set_tier security
 }
 
 print_audit_report() {
@@ -2098,7 +2115,7 @@ print_audit_report() {
         "$TIER_SECURITY_ISSUES" "$RESET" \
         "$TIER_HYGIENE_ISSUES" "$TIER_PREFERENCE_ISSUES" >&2
 
-    if [ $((AUDIT_WARN + AUDIT_MISS)) -gt 0 ]; then
+    if [[ $((AUDIT_WARN + AUDIT_MISS)) -gt 0 ]]; then
         return 2
     fi
     return 0
@@ -2127,12 +2144,12 @@ backup_git_config() {
         echo "# dev-harden.sh backup — $timestamp"
         echo "# Global git config snapshot"
         echo ""
-        if [ -f "$config_file" ]; then
+        if [[ -f "$config_file" ]]; then
             echo "## ~/.gitconfig"
             cat "$config_file"
             echo ""
         fi
-        if [ -f "$xdg_config" ]; then
+        if [[ -f "$xdg_config" ]]; then
             echo "## ~/.config/git/config"
             cat "$xdg_config"
             echo ""
@@ -2150,7 +2167,7 @@ setting_needs_change() {
     local value="$2"
     local current
     current="$(git config --global --get "$key" 2>/dev/null || true)"
-    [ "$current" != "$value" ]
+    [[ "$current" != "$value" ]]
 }
 
 # Apply a group of git config settings with a single prompt.
@@ -2165,7 +2182,7 @@ apply_setting_group() {
     local pending_vals=()
     local pending_explanations=()
 
-    while [ $# -ge 3 ]; do
+    while [[ $# -ge 3 ]]; do
         local key="$1" value="$2" explanation="$3"
         shift 3
         if setting_needs_change "$key" "$value"; then
@@ -2178,7 +2195,7 @@ apply_setting_group() {
     local count="${#pending_keys[@]}"
 
     # Nothing to do
-    if [ "$count" -eq 0 ]; then
+    if [[ "$count" -eq 0 ]]; then
         return 0
     fi
 
@@ -2250,10 +2267,10 @@ apply_git_config() {
     fi
 
     # core.symlinks: interactive-only (may break symlink-dependent workflows)
-    if [ "$AUTO_YES" = false ]; then
+    if [[ "$AUTO_YES" = false ]]; then
         local current_symlinks
         current_symlinks="$(git config --global --get core.symlinks 2>/dev/null || true)"
-        if [ "$current_symlinks" != "false" ]; then
+        if [[ "$current_symlinks" != "false" ]]; then
             if prompt_yn "Disable symlinks (CVE-2024-32002)? May break Node.js monorepos, etc."; then
                 git config --global core.symlinks false
                 print_info "Set core.symlinks = false"
@@ -2286,7 +2303,7 @@ apply_git_config() {
         "http.sslVerify"        "true"       "Enforce TLS certificate validation"
 
     # url rewrite is separate (not a simple key=value)
-    if [ "$instead_of" != "http://" ]; then
+    if [[ "$instead_of" != "http://" ]]; then
         if prompt_yn "Rewrite http:// URLs to https:// automatically?"; then
             git config --global 'url.https://.insteadOf' 'http://'
             print_info "Set url.\"https://\".insteadOf = http://"
@@ -2362,9 +2379,9 @@ apply_git_config() {
     # Credential helper needs special logic — accept any keychain-backed helper
     if is_keychain_credential_helper "$cred_current" 2>/dev/null; then
         : # Already using a keychain-backed helper — leave it alone
-    elif [ "$cred_current" != "$DETECTED_CRED_HELPER" ]; then
+    elif [[ "$cred_current" != "$DETECTED_CRED_HELPER" ]]; then
         local cred_prompt="Set credential.helper = $DETECTED_CRED_HELPER?"
-        if [ "$cred_current" = "store" ]; then
+        if [[ "$cred_current" = "store" ]]; then
             cred_prompt="Replace INSECURE credential.helper=store with $DETECTED_CRED_HELPER?"
         fi
         if prompt_yn "$cred_prompt"; then
@@ -2395,7 +2412,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-if [ "${SKIP_GITLEAKS:-0}" = "1" ]; then
+if [[ "${SKIP_GITLEAKS:-0}" = "1" ]]; then
     :
 elif command -v gitleaks >/dev/null 2>&1; then
     gitleaks protect --staged --redact --verbose
@@ -2409,7 +2426,7 @@ fi
 # `git rev-parse --git-path hooks` would resolve back to THIS directory.
 git_dir="$(git rev-parse --git-dir 2>/dev/null)" || exit 0
 local_hook="${git_dir}/hooks/pre-commit"
-if [ -x "$local_hook" ]; then
+if [[ -x "$local_hook" ]]; then
     exec "$local_hook" "$@"
 fi
 exit 0
@@ -2423,7 +2440,7 @@ apply_precommit_hook() {
 
     local hook_path="${HOOKS_DIR}/pre-commit"
 
-    if [ -f "$hook_path" ]; then
+    if [[ -f "$hook_path" ]]; then
         if grep -q 'gitleaks' "$hook_path" 2>/dev/null; then
             # Our pre-dispatch hook version silently disabled repo-local
             # hooks — offer the upgrade
@@ -2458,18 +2475,18 @@ apply_dispatch_hooks() {
     local hooks_path_cfg
     hooks_path_cfg="$(git config --global --get core.hooksPath 2>/dev/null || true)"
     local expanded_cfg="${hooks_path_cfg/#\~/$HOME}"
-    if [ "$expanded_cfg" != "$HOOKS_DIR" ]; then
+    if [[ "$expanded_cfg" != "$HOOKS_DIR" ]]; then
         return 0
     fi
 
     local missing=() name
     for name in "${DISPATCH_HOOK_NAMES[@]}"; do
-        if [ ! -f "${HOOKS_DIR}/${name}" ]; then
+        if [[ ! -f "${HOOKS_DIR}/${name}" ]]; then
             missing+=("$name")
         fi
     done
 
-    if [ ${#missing[@]} -eq 0 ]; then
+    if [[ ${#missing[@]} -eq 0 ]]; then
         return 0
     fi
 
@@ -2497,7 +2514,7 @@ set -o nounset
 hook_name="$(basename "$0")"
 git_dir="$(git rev-parse --git-dir 2>/dev/null)" || exit 0
 local_hook="${git_dir}/hooks/${hook_name}"
-if [ -x "$local_hook" ]; then
+if [[ -x "$local_hook" ]]; then
     exec "$local_hook" "$@"
 fi
 exit 0
@@ -2513,17 +2530,17 @@ apply_global_gitignore() {
     local excludes_file
     excludes_file="$(git config --global --get core.excludesFile 2>/dev/null || true)"
 
-    if [ -n "$excludes_file" ]; then
+    if [[ -n "$excludes_file" ]]; then
         local expanded_path
         expanded_path="${excludes_file/#\~/$HOME}"
         print_info "core.excludesFile already set to $excludes_file"
-        if [ -f "$expanded_path" ]; then
+        if [[ -f "$expanded_path" ]]; then
             local has_security_patterns=false
             if grep -q '\.env' "$expanded_path" 2>/dev/null && \
                grep -q '\*\.pem' "$expanded_path" 2>/dev/null; then
                 has_security_patterns=true
             fi
-            if [ "$has_security_patterns" = false ]; then
+            if [[ "$has_security_patterns" = false ]]; then
                 print_warn "Your global gitignore lacks secret patterns (.env, *.pem, *.key) — consider adding them"
             fi
         fi
@@ -2591,9 +2608,9 @@ apply_signing_config() {
     # Detect existing signing key
     detect_existing_keys
 
-    if [ "$AUTO_YES" = true ]; then
+    if [[ "$AUTO_YES" = true ]]; then
         # In -y mode: only enable signing if key exists
-        if [ "$SIGNING_KEY_FOUND" = true ] && [ -n "$SIGNING_PUB_PATH" ] && [ -f "$SIGNING_PUB_PATH" ]; then
+        if [[ "$SIGNING_KEY_FOUND" = true ]] && [[ -n "$SIGNING_PUB_PATH" ]] && [[ -f "$SIGNING_PUB_PATH" ]]; then
             enable_signing "$SIGNING_PUB_PATH"
         else
             # No file-based key. If EXACTLY ONE modern key is loaded in an
@@ -2603,7 +2620,7 @@ apply_signing_config() {
             local agent_keys agent_key_count
             agent_keys="$(list_modern_agent_keys)"
             agent_key_count="$(printf '%s' "$agent_keys" | grep -c . || true)"
-            if [ -n "$agent_keys" ] && [ "$agent_key_count" -eq 1 ]; then
+            if [[ -n "$agent_keys" ]] && [[ "$agent_key_count" -eq 1 ]]; then
                 enable_signing_agent_key "$agent_keys"
             else
                 print_info "No SSH signing key found. Skipping commit.gpgsign and tag.gpgsign."
@@ -2624,7 +2641,7 @@ detect_existing_keys() {
     # Check if a signing key is already configured
     local configured_key
     configured_key="$(git config --global --get user.signingkey 2>/dev/null || true)"
-    if [ -n "$configured_key" ]; then
+    if [[ -n "$configured_key" ]]; then
         local expanded_key
         expanded_key="${configured_key/#\~/$HOME}"
         # git accepts a PRIVATE key path in user.signingkey — never treat one
@@ -2634,13 +2651,13 @@ detect_existing_keys() {
             SIGNING_PUB_PATH="$expanded_key"
             return
         fi
-        if [ -f "$expanded_key" ] && is_public_key_file "${expanded_key}.pub"; then
+        if [[ -f "$expanded_key" ]] && is_public_key_file "${expanded_key}.pub"; then
             print_warn "user.signingkey points to a private key — using ${expanded_key}.pub instead"
             SIGNING_KEY_FOUND=true
             SIGNING_PUB_PATH="${expanded_key}.pub"
             return
         fi
-        if [ -f "$expanded_key" ]; then
+        if [[ -f "$expanded_key" ]]; then
             print_warn "user.signingkey = $configured_key is not a public key file — ignoring it"
         fi
     fi
@@ -2650,7 +2667,7 @@ detect_existing_keys() {
     for key_type in id_ed25519_sk_signing id_ecdsa_sk_signing id_ed25519_signing id_ed25519_sk id_ed25519; do
         priv_path="${SSH_DIR}/${key_type}"
         pub_path="${priv_path}.pub"
-        if [ -f "$pub_path" ]; then
+        if [[ -f "$pub_path" ]]; then
             SIGNING_KEY_FOUND=true
 
             SIGNING_PUB_PATH="$pub_path"
@@ -2664,12 +2681,12 @@ detect_existing_keys() {
     while IFS= read -r identity_path; do
         # Strip inline comments and quotes
         identity_path="$(strip_ssh_value "$identity_path")"
-        [ -z "$identity_path" ] && continue
+        [[ -z "$identity_path" ]] && continue
         # Expand tilde safely
         identity_path="${identity_path/#\~/$HOME}"
 
         pub_path="${identity_path}.pub"
-        if [ -f "$pub_path" ]; then
+        if [[ -f "$pub_path" ]]; then
             # Only use ed25519, ed25519-sk, or ecdsa-sk keys for signing
             local key_type_str
             key_type_str="$(head -1 "$pub_path" 2>/dev/null || true)"
@@ -2689,19 +2706,19 @@ EOF
 
 detect_fido2_hardware() {
     # Check via ykman (cross-platform)
-    if [ "$HAS_YKMAN" = true ]; then
+    if [[ "$HAS_YKMAN" = true ]]; then
         if ykman info >/dev/null 2>&1; then
             return 0
         fi
     fi
     # Check via fido2-token (Linux)
-    if [ "$HAS_FIDO2_TOKEN" = true ]; then
+    if [[ "$HAS_FIDO2_TOKEN" = true ]]; then
         if fido2-token -L 2>/dev/null | grep -q .; then
             return 0
         fi
     fi
     # macOS: check IOKit USB registry for FIDO devices (works without ykman)
-    if [ "$PLATFORM" = "macos" ]; then
+    if [[ "$PLATFORM" = "macos" ]]; then
         if ioreg -p IOUSB -l 2>/dev/null | grep -qi "fido\|yubikey\|security key\|titan"; then
             return 0
         fi
@@ -2709,10 +2726,10 @@ detect_fido2_hardware() {
     # Linux: check hidraw report descriptors for the FIDO HID usage page (0xF1D0).
     # Bytes 06 d0 f1 at the start of the descriptor = HID usage page 0xF1D0.
     # This works for any FIDO key vendor (Yubico, SoloKeys, Google Titan, etc.).
-    if [ "$PLATFORM" = "linux" ]; then
+    if [[ "$PLATFORM" = "linux" ]]; then
         local rdesc
         for rdesc in /sys/class/hidraw/hidraw*/device/report_descriptor; do
-            [ -f "$rdesc" ] || continue
+            [[ -f "$rdesc" ]] || continue
             if od -A n -t x1 -N 3 "$rdesc" 2>/dev/null | grep -qi '06 d0 f1'; then
                 return 0
             fi
@@ -2727,10 +2744,10 @@ detect_fido2_hardware() {
 # whether a chosen signing key is reachable for actual signing.
 agent_socket_for_blob() {
     local target="$1"
-    [ -n "$target" ] || return 0
+    [[ -n "$target" ]] || return 0
     local agent_type sock
     while IFS=$'\t' read -r agent_type sock; do
-        [ -n "$sock" ] || continue
+        [[ -n "$sock" ]] || continue
         if agent_list_keys "$sock" | awk '{print $2}' | grep -qxF -- "$target"; then
             printf '%s' "$sock"
             return 0
@@ -2760,15 +2777,15 @@ list_signing_candidates() {
     # that holds it (dedup by blob across agents; first agent wins).
     local agent_type sock key seen_blobs=""
     while IFS=$'\t' read -r agent_type sock; do
-        [ -n "$sock" ] || continue
+        [[ -n "$sock" ]] || continue
         while IFS= read -r key; do
-            [ -n "$key" ] || continue
+            [[ -n "$key" ]] || continue
             case "$key" in
                 ssh-ed25519\ *|sk-ssh-ed25519*|ecdsa-sha2-*\ *|sk-ecdsa-sha2*) ;;
                 *) continue ;;
             esac
             blob="$(printf '%s' "$key" | awk '{print $2}')"
-            [ -n "$blob" ] || continue
+            [[ -n "$blob" ]] || continue
             case "$seen_blobs" in *"|${blob}|"*) continue ;; esac
             seen_blobs="${seen_blobs}|${blob}|"
             keytype="$(printf '%s' "$key" | awk '{print $1}')"
@@ -2787,20 +2804,20 @@ OUTER_EOF
     # Candidate on-disk .pub paths: ~/.ssh/*.pub plus IdentityFile-referenced.
     local pubpaths="" f ip
     for f in "${SSH_DIR}"/*.pub; do
-        [ -f "$f" ] && pubpaths="${pubpaths}${f}"$'\n'
+        [[ -f "$f" ]] && pubpaths="${pubpaths}${f}"$'\n'
     done
     while IFS= read -r ip; do
         ip="$(strip_ssh_value "$ip")"
-        [ -n "$ip" ] || continue
+        [[ -n "$ip" ]] || continue
         ip="${ip/#\~/$HOME}"
-        [ -f "${ip}.pub" ] && pubpaths="${pubpaths}${ip}.pub"$'\n'
+        [[ -f "${ip}.pub" ]] && pubpaths="${pubpaths}${ip}.pub"$'\n'
     done <<EOF
 $(list_identity_files)
 EOF
 
     local seen_paths="" path comment base
     while IFS= read -r path; do
-        [ -n "$path" ] || continue
+        [[ -n "$path" ]] || continue
         case "$seen_paths" in *"|${path}|"*) continue ;; esac
         seen_paths="${seen_paths}|${path}|"
         is_public_key_file "$path" || continue
@@ -2810,13 +2827,13 @@ EOF
             *) continue ;;
         esac
         blob="$(awk 'NR==1{print $2}' "$path" 2>/dev/null || true)"
-        if [ -n "$blob" ]; then
+        if [[ -n "$blob" ]]; then
             case "$agent_blobs" in *"$blob"*) continue ;; esac
         fi
         base="$(basename -- "$path")"
         comment="$(awk 'NR==1{$1="";$2="";sub(/^[ \t]+/,"");print}' "$path" 2>/dev/null || true)"
         label="[disk] ${keytype} ${base}"
-        [ -n "$comment" ] && label="${label} (${comment})"
+        [[ -n "$comment" ]] && label="${label} (${comment})"
         case "$keytype" in
             sk-*) printf -v rec '%s\t%s\t%s\t%s\t%s\n' disk 1 "$path" "$label" ""; sk_out="${sk_out}${rec}" ;;
             *)    printf -v rec '%s\t%s\t%s\t%s\t%s\n' disk 0 "$path" "$label" ""; other_out="${other_out}${rec}" ;;
@@ -2841,7 +2858,7 @@ signing_wizard() {
     local kinds=() sks=() values=() labels=() socks=()
     local kind sk value label sock
     while IFS=$'\t' read -r kind sk value label sock; do
-        [ -n "$kind" ] || continue
+        [[ -n "$kind" ]] || continue
         kinds+=("$kind"); sks+=("$sk"); values+=("$value"); labels+=("$label"); socks+=("$sock")
     done <<EOF
 $(list_signing_candidates)
@@ -2849,7 +2866,7 @@ EOF
 
     local n=${#kinds[@]} any_sk=false i
     for (( i = 0; i < n; i++ )); do
-        [ "${sks[$i]}" = 1 ] && { any_sk=true; break; }
+        [[ "${sks[$i]}" = 1 ]] && { any_sk=true; break; }
     done
 
     if (( n > 0 )); then
@@ -2865,7 +2882,7 @@ EOF
     # interactive tests anchor on it.
     printf '\n  Signing key options:\n' >&2
     printf '    g) Generate a new ed25519 SSH key (software)\n' >&2
-    if [ "$any_sk" = true ]; then
+    if [[ "$any_sk" = true ]]; then
         printf '    h) Generate a hardware-backed (-sk) SSH key (FIDO2/security key)\n' >&2
     else
         printf '    h) Generate a hardware-backed (-sk) SSH key (FIDO2/security key) — recommended; none found\n' >&2
@@ -2888,7 +2905,7 @@ EOF
         *)
             if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= n )); then
                 i=$(( choice - 1 ))
-                if [ "${kinds[$i]}" = agent ]; then
+                if [[ "${kinds[$i]}" = agent ]]; then
                     enable_signing_agent_key "${values[$i]}" "${socks[$i]}"
                 else
                     enable_signing "${values[$i]}"
@@ -2901,7 +2918,7 @@ EOF
     esac
 
     # Generation paths set SIGNING_KEY_FOUND/SIGNING_PUB_PATH on success.
-    if [ "$SIGNING_KEY_FOUND" = true ]; then
+    if [[ "$SIGNING_KEY_FOUND" = true ]]; then
         if prompt_yn "Enable commit and tag signing with this key?"; then
             enable_signing "$SIGNING_PUB_PATH"
         fi
@@ -2915,7 +2932,7 @@ agent_key_label() {
     local keytype comment
     keytype="$(printf '%s' "$key" | awk '{print $1}')"
     comment="$(printf '%s' "$key" | awk '{$1=""; $2=""; sub(/^[ \t]+/, ""); print}')"
-    if [ -n "$comment" ]; then
+    if [[ -n "$comment" ]]; then
         printf '%s %s' "$keytype" "$comment"
     else
         printf '%s (no comment)' "$keytype"
@@ -2951,13 +2968,13 @@ EOF
 private_key_pub_blob() {
     local key="$1"
     local blob=""
-    if [ -f "${key}.pub" ]; then
+    if [[ -f "${key}.pub" ]]; then
         blob="$(awk 'NR==1{print $2}' "${key}.pub" 2>/dev/null || true)"
     fi
-    if [ -z "$blob" ]; then
+    if [[ -z "$blob" ]]; then
         blob="$(ssh-keygen -y -P "" -f "$key" </dev/null 2>/dev/null | awk 'NR==1{print $2}' || true)"
     fi
-    [ -n "$blob" ] && printf '%s' "$blob"
+    [[ -n "$blob" ]] && printf '%s' "$blob"
 }
 
 # Print vault-import instructions for the detected agent type(s). PRINT ONLY:
@@ -2995,7 +3012,7 @@ print_vault_import_instructions() {
 $(list_ssh_agent_sockets)
 EOF
 
-    if [ "$saw_vault" = false ]; then
+    if [[ "$saw_vault" = false ]]; then
         printf '\n  No 1Password/Bitwarden agent detected. Import %s into your vault of choice:\n' "$key" >&2
         printf '    • 1Password: app → New Item → SSH Key → Import a private key, then enable\n' >&2
         printf '      the SSH agent under Settings → Developer. To import every on-disk key\n' >&2
@@ -3016,7 +3033,7 @@ migration_offer_delete() {
 
     # Deleting key material is irreversible — never without an explicit,
     # interactive yes (prompt_yn auto-accepts in -y, so guard AUTO_YES first).
-    if [ "$AUTO_YES" = true ]; then
+    if [[ "$AUTO_YES" = true ]]; then
         print_info "Key files left in place (-y mode never deletes keys)."
         return
     fi
@@ -3050,12 +3067,12 @@ run_migration() {
 
     # AC-2 belt-and-braces: this path is interactive only and must never run
     # under -y. main() already gates this, but guard here too.
-    if [ "$AUTO_YES" = true ]; then
+    if [[ "$AUTO_YES" = true ]]; then
         print_info "Migration is interactive only and never runs in -y mode. Re-run without -y."
         return
     fi
 
-    if [ ! -d "$SSH_DIR" ]; then
+    if [[ ! -d "$SSH_DIR" ]]; then
         print_info "No ~/.ssh directory — nothing to migrate."
         return
     fi
@@ -3064,7 +3081,7 @@ run_migration() {
     local priv_keys=()
     local f
     for f in "${SSH_DIR}"/*; do
-        [ -f "$f" ] || continue
+        [[ -f "$f" ]] || continue
         is_private_key_file "$f" || continue
         priv_keys+=("$f")
     done
@@ -3078,7 +3095,7 @@ run_migration() {
     local agent_blobs=""
     local blob
     while IFS= read -r blob; do
-        [ -n "$blob" ] || continue
+        [[ -n "$blob" ]] || continue
         agent_blobs="${agent_blobs}|${blob}|"
     done <<EOF
 $(list_agent_pub_blobs)
@@ -3088,7 +3105,7 @@ EOF
     local key pub_blob in_agent
     for key in "${priv_keys[@]}"; do
         pub_blob="$(private_key_pub_blob "$key")"
-        if [ -n "$pub_blob" ] && [[ "$agent_blobs" == *"|${pub_blob}|"* ]]; then
+        if [[ -n "$pub_blob" ]] && [[ "$agent_blobs" == *"|${pub_blob}|"* ]]; then
             printf '    %s  (already in an agent)\n' "$key" >&2
         else
             printf '    %s\n' "$key" >&2
@@ -3102,11 +3119,11 @@ EOF
 
         pub_blob="$(private_key_pub_blob "$key")"
         in_agent=false
-        if [ -n "$pub_blob" ] && [[ "$agent_blobs" == *"|${pub_blob}|"* ]]; then
+        if [[ -n "$pub_blob" ]] && [[ "$agent_blobs" == *"|${pub_blob}|"* ]]; then
             in_agent=true
         fi
 
-        if [ "$in_agent" = false ]; then
+        if [[ "$in_agent" = false ]]; then
             print_vault_import_instructions "$key"
             if ! prompt_yn "Have you imported ${key} into a vault agent?" "n"; then
                 print_info "Skipping ${key} — import it, then re-run --migrate."
@@ -3116,13 +3133,13 @@ EOF
             # actually holds this key's public half.
             agent_blobs=""
             while IFS= read -r blob; do
-                [ -n "$blob" ] || continue
+                [[ -n "$blob" ]] || continue
                 agent_blobs="${agent_blobs}|${blob}|"
             done <<EOF
 $(list_agent_pub_blobs)
 EOF
             pub_blob="$(private_key_pub_blob "$key")"
-            if [ -z "$pub_blob" ] || [[ "$agent_blobs" != *"|${pub_blob}|"* ]]; then
+            if [[ -z "$pub_blob" ]] || [[ "$agent_blobs" != *"|${pub_blob}|"* ]]; then
                 print_warn "The agent does not yet hold ${key}'s public key — not offering deletion. Verify the import and that the agent is running."
                 continue
             fi
@@ -3148,7 +3165,7 @@ reset_signing() {
     local signing_key
     signing_key="$(git config --global --get user.signingkey 2>/dev/null || true)"
 
-    if [ -n "$signing_key" ]; then
+    if [[ -n "$signing_key" ]]; then
         printf '  Current signing key: %s\n' "$signing_key" >&2
 
         # Remove git config entries
@@ -3160,7 +3177,7 @@ reset_signing() {
 
         # Remove allowed_signers entry if the key file exists
         local key_path="${signing_key/#\~/$HOME}"
-        if [ -f "$key_path" ] && [ -f "$ALLOWED_SIGNERS_FILE" ]; then
+        if [[ -f "$key_path" ]] && [[ -f "$ALLOWED_SIGNERS_FILE" ]]; then
             local pub_key
             pub_key="$(cat "$key_path")"
             local tmpfile
@@ -3221,7 +3238,7 @@ reset_signing() {
 
         # Deleting keys is irreversible — never do it without an explicit,
         # interactive yes (prompt_yn auto-accepts in -y mode, so guard first)
-        if [ "$AUTO_YES" = true ]; then
+        if [[ "$AUTO_YES" = true ]]; then
             print_info "Key files left in place (-y mode never deletes keys). Re-run interactively to remove them."
         elif prompt_yn "Delete these key files? (irreversible)" "n"; then
             for kf in "${key_files[@]}"; do
@@ -3281,15 +3298,15 @@ enable_signing_agent_key() {
     # 1Password), signing will fail with "Couldn't find key in agent" until the
     # two match. Derive the holding socket if the caller didn't pass it, then
     # warn with the exact export the user needs.
-    if [ -z "$sock" ]; then
+    if [[ -z "$sock" ]]; then
         local blob
         blob="$(printf '%s' "$pub_key" | awk '{print $2}')"
         sock="$(agent_socket_for_blob "$blob")"
     fi
-    if [ -n "$sock" ] && [ "${SSH_AUTH_SOCK:-}" != "$sock" ]; then
+    if [[ -n "$sock" ]] && [[ "${SSH_AUTH_SOCK:-}" != "$sock" ]]; then
         print_warn "This signing key lives in the SSH agent at:"
         printf '    %s\n' "$sock" >&2
-        if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+        if [[ -n "${SSH_AUTH_SOCK:-}" ]]; then
             printf '  but SSH_AUTH_SOCK points elsewhere (%s).\n' "$SSH_AUTH_SOCK" >&2
         else
             printf '  but SSH_AUTH_SOCK is unset.\n' >&2
@@ -3314,19 +3331,19 @@ verify_signing_setup() {
 
     # Signing may require a hardware-key touch or a passphrase — never
     # attempt it in non-interactive mode
-    if [ "$AUTO_YES" = true ]; then
+    if [[ "$AUTO_YES" = true ]]; then
         return 0
     fi
-    if [ -z "$SIGNING_PRINCIPAL" ] || [ ! -f "$ALLOWED_SIGNERS_FILE" ]; then
+    if [[ -z "$SIGNING_PRINCIPAL" ]] || [[ ! -f "$ALLOWED_SIGNERS_FILE" ]]; then
         return 0
     fi
 
     # Two paths: a private key file next to the .pub (file-based), or an
     # agent-held key (the private half lives in the agent — sign with -U).
     local agent_mode=false
-    if [ -n "$pub_key" ]; then
+    if [[ -n "$pub_key" ]]; then
         agent_mode=true
-    elif [ ! -f "$priv_path" ]; then
+    elif [[ ! -f "$priv_path" ]]; then
         return 0
     fi
 
@@ -3340,7 +3357,7 @@ verify_signing_setup() {
 
     local verify_ok=false
     # Keep sign stderr visible — it carries the touch/passphrase/approval prompts
-    if [ "$agent_mode" = true ]; then
+    if [[ "$agent_mode" = true ]]; then
         # The private half lives in the agent: write the public key to a temp
         # file and sign with -U (use the agent for the matching private key).
         # Target the socket that actually holds the key (the chosen key may live
@@ -3359,7 +3376,7 @@ verify_signing_setup() {
     fi
     rm -rf "$tmpdir"
 
-    if [ "$verify_ok" = true ]; then
+    if [[ "$verify_ok" = true ]]; then
         print_info "Signature round-trip verified: key signs and allowed_signers matches principal ${SIGNING_PRINCIPAL}"
     else
         print_warn "Signature verification failed — commits will be signed, but verification will show 'No principal matched'"
@@ -3371,7 +3388,7 @@ verify_signing_setup() {
 generate_ssh_key() {
     local key_path="${SSH_DIR}/id_ed25519_signing"
 
-    if [ -f "$key_path" ]; then
+    if [[ -f "$key_path" ]]; then
         print_info "$key_path already exists — using existing key"
         SIGNING_KEY_FOUND=true
         SIGNING_PUB_PATH="${key_path}.pub"
@@ -3382,7 +3399,7 @@ generate_ssh_key() {
 
     local email
     email="$(git config --global --get user.email 2>/dev/null || true)"
-    if [ -z "$email" ]; then
+    if [[ -z "$email" ]]; then
         printf '  Enter email for key comment: ' >&2
         read -r email </dev/tty || email="git-signing"
     fi
@@ -3392,7 +3409,7 @@ generate_ssh_key() {
 
     ssh-keygen -t ed25519 -C "$email" -f "$key_path" </dev/tty
 
-    if [ -f "${key_path}.pub" ]; then
+    if [[ -f "${key_path}.pub" ]]; then
         SIGNING_KEY_FOUND=true
 
         SIGNING_PUB_PATH="${key_path}.pub"
@@ -3410,7 +3427,7 @@ detect_fido2_sk_type() {
     #   1. ykman — checks for FIDO2 application support (vs U2F-only)
     #   2. fido2-token — probes device for ed25519 algorithm support
     #   3. Default to ed25519-sk — ssh-keygen will fail fast if unsupported
-    if [ "$HAS_YKMAN" = true ]; then
+    if [[ "$HAS_YKMAN" = true ]]; then
         local ykman_out
         ykman_out="$(ykman info 2>/dev/null || true)"
         if printf '%s' "$ykman_out" | grep -qi 'FIDO2'; then
@@ -3422,14 +3439,14 @@ detect_fido2_sk_type() {
             return
         fi
     fi
-    if [ "$HAS_FIDO2_TOKEN" = true ]; then
+    if [[ "$HAS_FIDO2_TOKEN" = true ]]; then
         local device
         device="$(fido2-token -L 2>/dev/null | head -1 | cut -d: -f1-2 || true)"
-        if [ -n "$device" ] && fido2-token -I "$device" 2>/dev/null | grep -qi 'ed25519'; then
+        if [[ -n "$device" ]] && fido2-token -I "$device" 2>/dev/null | grep -qi 'ed25519'; then
             printf 'ed25519-sk'
             return
         fi
-        if [ -n "$device" ]; then
+        if [[ -n "$device" ]]; then
             printf 'ecdsa-sk'
             return
         fi
@@ -3443,13 +3460,13 @@ generate_fido2_key() {
     local key_path_ed="${SSH_DIR}/id_ed25519_sk_signing"
     local key_path_ec="${SSH_DIR}/id_ecdsa_sk_signing"
 
-    if [ -f "$key_path_ed" ]; then
+    if [[ -f "$key_path_ed" ]]; then
         print_info "$key_path_ed already exists — using existing key"
         SIGNING_KEY_FOUND=true
         SIGNING_PUB_PATH="${key_path_ed}.pub"
         return
     fi
-    if [ -f "$key_path_ec" ]; then
+    if [[ -f "$key_path_ec" ]]; then
         print_info "$key_path_ec already exists — using existing key"
         SIGNING_KEY_FOUND=true
         SIGNING_PUB_PATH="${key_path_ec}.pub"
@@ -3461,7 +3478,7 @@ generate_fido2_key() {
         printf '  Please insert your security key and press Enter to continue (or q to go back): ' >&2
         local reply
         read -r reply </dev/tty || reply="q"
-        if [ "$reply" = "q" ]; then
+        if [[ "$reply" = "q" ]]; then
             return
         fi
         if ! detect_fido2_hardware; then
@@ -3472,7 +3489,7 @@ generate_fido2_key() {
 
     # On Linux, ssh-keygen needs libfido2 for hardware-backed keys.
     # Check ldconfig cache first, then fall back to dpkg/rpm query.
-    if [ "$PLATFORM" = "linux" ]; then
+    if [[ "$PLATFORM" = "linux" ]]; then
         local has_libfido2=false
         if ldconfig -p 2>/dev/null | grep -q libfido2; then
             has_libfido2=true
@@ -3481,7 +3498,7 @@ generate_fido2_key() {
         elif command -v rpm >/dev/null 2>&1 && rpm -q libfido2 >/dev/null 2>&1; then
             has_libfido2=true
         fi
-        if [ "$has_libfido2" = false ]; then
+        if [[ "$has_libfido2" = false ]]; then
             print_warn "libfido2 is not installed (required for hardware-backed SSH keys)."
             printf '  Install it with:\n' >&2
             if command -v apt-get >/dev/null 2>&1; then
@@ -3504,24 +3521,24 @@ generate_fido2_key() {
     # Detect by checking for ssh-sk-helper (NOT by running ssh-keygen, which
     # would block waiting for a FIDO touch).
     local keygen_cmd="ssh-keygen"
-    if [ "$PLATFORM" = "macos" ]; then
+    if [[ "$PLATFORM" = "macos" ]]; then
         local brew_keygen=""
         local brew_path brew_dir
         for brew_path in /opt/homebrew/bin/ssh-keygen /usr/local/bin/ssh-keygen; do
-            [ -x "$brew_path" ] || continue
+            [[ -x "$brew_path" ]] || continue
             # Resolve symlink to find the cellar libexec with ssh-sk-helper
             local real_path
             real_path="$(readlink "$brew_path" 2>/dev/null || true)"
-            if [ -n "$real_path" ]; then
+            if [[ -n "$real_path" ]]; then
                 # Relative symlink: resolve against parent dir
                 brew_dir="$(cd "$(dirname "$brew_path")" && cd "$(dirname "$real_path")" && pwd)"
-                if [ -x "${brew_dir}/../libexec/ssh-sk-helper" ]; then
+                if [[ -x "${brew_dir}/../libexec/ssh-sk-helper" ]]; then
                     brew_keygen="$brew_path"
                     break
                 fi
             fi
         done
-        if [ -z "$brew_keygen" ]; then
+        if [[ -z "$brew_keygen" ]]; then
             print_warn "macOS system ssh-keygen lacks FIDO2 support."
             printf '  Install Homebrew OpenSSH (includes built-in FIDO2):\n' >&2
             printf '    brew install openssh\n' >&2
@@ -3538,7 +3555,7 @@ generate_fido2_key() {
 
     local email
     email="$(git config --global --get user.email 2>/dev/null || true)"
-    if [ -z "$email" ]; then
+    if [[ -z "$email" ]]; then
         printf '  Enter email for key comment: ' >&2
         read -r email </dev/tty || email="git-signing"
     fi
@@ -3549,7 +3566,7 @@ generate_fido2_key() {
     # Build an ordered list of key generation attempts as parallel arrays.
     # Each index holds one attempt: type, path, and whether to use -O resident.
     local attempt_types=() attempt_paths=() attempt_resident=()
-    if [ "$sk_type" = "ecdsa-sk" ]; then
+    if [[ "$sk_type" = "ecdsa-sk" ]]; then
         attempt_types+=("ecdsa-sk")   attempt_paths+=("$key_path_ec") attempt_resident+=(false)
         attempt_types+=("ecdsa-sk")   attempt_paths+=("$key_path_ec") attempt_resident+=(true)
     else
@@ -3575,14 +3592,14 @@ generate_fido2_key() {
         attempt_num=$((attempt_num + 1))
         if (( attempt_num > 1 )); then
             local fallback_desc="$key_type_label"
-            if [ "$resident" = true ]; then
+            if [[ "$resident" = true ]]; then
                 fallback_desc="${key_type_label} (-O resident)"
             fi
             print_warn "Falling back to ${fallback_desc}"
         fi
 
         local label="$key_type_label"
-        if [ "$resident" = true ]; then
+        if [[ "$resident" = true ]]; then
             label="${key_type_label} resident"
         fi
         printf '  Generating %s SSH key (touch your security key when prompted)...\n' "$label" >&2
@@ -3592,19 +3609,19 @@ generate_fido2_key() {
         local tmpstderr keygen_args
         tmpstderr="$(mktemp -t dev-harden-keygen.XXXXXX)"
         keygen_args=(-t "$key_type_label" -C "$email" -f "$key_path")
-        if [ "$resident" = true ]; then
+        if [[ "$resident" = true ]]; then
             keygen_args+=(-O resident)
         fi
         "$keygen_cmd" "${keygen_args[@]}" </dev/tty 2>"$tmpstderr" && keygen_rc=0 || keygen_rc=$?
         keygen_stderr="$(cat "$tmpstderr")"
         rm -f "$tmpstderr"
 
-        if [ -n "$keygen_stderr" ]; then
+        if [[ -n "$keygen_stderr" ]]; then
             printf '%s\n' "$keygen_stderr" >&2
         fi
 
         # Success
-        if (( keygen_rc == 0 )) && [ -f "${key_path}.pub" ]; then
+        if (( keygen_rc == 0 )) && [[ -f "${key_path}.pub" ]]; then
             break
         fi
 
@@ -3638,7 +3655,7 @@ generate_fido2_key() {
         break
     done
 
-    if [ -f "${key_path}.pub" ]; then
+    if [[ -f "${key_path}.pub" ]]; then
         SIGNING_KEY_FOUND=true
         SIGNING_PUB_PATH="${key_path}.pub"
         print_info "Key generated: ${key_path}.pub"
@@ -3659,13 +3676,13 @@ generate_fido2_key() {
 setup_allowed_signers() {
     local pub_key="${1:-}"
 
-    if [ -n "$pub_key" ]; then
+    if [[ -n "$pub_key" ]]; then
         if ! is_public_key_material "$pub_key"; then
             print_warn "Provided signing key material is not an SSH public key — refusing to add it to allowed_signers"
             return
         fi
     else
-        if [ -z "$SIGNING_PUB_PATH" ] || [ ! -f "$SIGNING_PUB_PATH" ]; then
+        if [[ -z "$SIGNING_PUB_PATH" ]] || [[ ! -f "$SIGNING_PUB_PATH" ]]; then
             return
         fi
         # Never write anything but public key material into allowed_signers
@@ -3696,7 +3713,7 @@ setup_allowed_signers() {
     mkdir -p "$(dirname "$ALLOWED_SIGNERS_FILE")"
 
     # Check if this entry already exists
-    if [ -f "$ALLOWED_SIGNERS_FILE" ]; then
+    if [[ -f "$ALLOWED_SIGNERS_FILE" ]]; then
         if grep -qF "$pub_key" "$ALLOWED_SIGNERS_FILE" 2>/dev/null; then
             print_info "Signing key already in allowed_signers"
             return
@@ -3717,7 +3734,7 @@ setup_allowed_signers() {
 # globally and are deliberately ignored here.
 get_ssh_directive_value() {
     local directive="$1"
-    [ -f "$SSH_CONFIG" ] || return 0
+    [[ -f "$SSH_CONFIG" ]] || return 0
     local raw
     raw="$(awk -v d="$(printf '%s' "$directive" | tr '[:upper:]' '[:lower:]')" '
         function ltrim(s) { sub(/^[ \t]+/, "", s); return s }
@@ -3769,7 +3786,7 @@ last_host_block_is_global() {
 ssh_directive_needs_change() {
     local directive="$1"
     local value="$2"
-    [ "$(get_ssh_directive_value "$directive")" != "$value" ]
+    [[ "$(get_ssh_directive_value "$directive")" != "$value" ]]
 }
 
 # Append a directive line at global scope (top-level, or a "Host *" block at
@@ -3784,7 +3801,7 @@ append_ssh_directive() {
     local value="$2"
 
     # Make sure the file ends with a newline before appending.
-    if [ -s "$SSH_CONFIG" ] && [ -n "$(tail -c 1 "$SSH_CONFIG")" ]; then
+    if [[ -s "$SSH_CONFIG" ]] && [[ -n "$(tail -c 1 "$SSH_CONFIG")" ]]; then
         printf '\n' >> "$SSH_CONFIG"
     fi
 
@@ -3812,7 +3829,7 @@ apply_single_ssh_directive() {
     local current
     current="$(get_ssh_directive_value "$directive")"
 
-    if [ -n "$current" ]; then
+    if [[ -n "$current" ]]; then
         # Replace the first GLOBAL-scope occurrence (top-level or inside a
         # "Host *" block). Occurrences inside host-specific blocks are left
         # alone — rewriting those would change behavior for that host only
@@ -3820,7 +3837,7 @@ apply_single_ssh_directive() {
         local tmpfile
         tmpfile="$(mktemp "${SSH_CONFIG}.XXXXXX")"
         local replaced=false in_global=true line indent
-        while IFS= read -r line || [ -n "$line" ]; do
+        while IFS= read -r line || [[ -n "$line" ]]; do
             if printf '%s' "$line" | grep -qiE '^[[:space:]]*host[[:space:]=]'; then
                 if printf '%s' "$line" | grep -qE '^[[:space:]]*[Hh][Oo][Ss][Tt][[:space:]=]+\*[[:space:]]*$'; then
                     in_global=true
@@ -3835,7 +3852,7 @@ apply_single_ssh_directive() {
                 printf '%s\n' "$line"
                 continue
             fi
-            if [ "$replaced" = false ] && [ "$in_global" = true ] && \
+            if [[ "$replaced" = false ]] && [[ "$in_global" = true ]] && \
                printf '%s' "$line" | grep -qi "^[[:space:]]*${directive}[[:space:]=]"; then
                 indent="${line%%[![:space:]]*}"
                 printf '%s%s %s\n' "$indent" "$directive" "$value"
@@ -3863,7 +3880,7 @@ apply_ssh_directive_group() {
     local pending_vals=()
     local pending_explanations=()
 
-    while [ $# -ge 3 ]; do
+    while [[ $# -ge 3 ]]; do
         local key="$1" value="$2" explanation="$3"
         shift 3
         if ssh_directive_needs_change "$key" "$value"; then
@@ -3875,7 +3892,7 @@ apply_ssh_directive_group() {
 
     local count="${#pending_keys[@]}"
 
-    if [ "$count" -eq 0 ]; then
+    if [[ "$count" -eq 0 ]]; then
         return 0
     fi
 
@@ -3902,7 +3919,7 @@ apply_ssh_directive_group() {
 list_ssh_key_types() {
     local f
     for f in "${SSH_DIR}"/*.pub; do
-        if [ -f "$f" ]; then
+        if [[ -f "$f" ]]; then
             awk '{print $1}' "$f" 2>/dev/null || true
         fi
     done
@@ -3925,7 +3942,7 @@ EOF
 }
 
 has_any_ssh_key() {
-    [ -n "$(list_ssh_key_types)" ]
+    [[ -n "$(list_ssh_key_types)" ]]
 }
 
 # Print the base64 key blobs (field 2) of every on-disk .pub file in ~/.ssh,
@@ -3934,10 +3951,10 @@ has_any_ssh_key() {
 list_disk_pub_blobs() {
     local f blob
     for f in "${SSH_DIR}"/*.pub; do
-        [ -f "$f" ] || continue
+        [[ -f "$f" ]] || continue
         is_public_key_file "$f" || continue
         blob="$(awk 'NR==1{print $2}' "$f" 2>/dev/null || true)"
-        [ -n "$blob" ] && printf '%s\n' "$blob"
+        [[ -n "$blob" ]] && printf '%s\n' "$blob"
     done
 }
 
@@ -3948,10 +3965,10 @@ list_disk_pub_blobs() {
 ssh_pub_stubs_match_agent() {
     local disk_blobs agent_blob
     disk_blobs="$(list_disk_pub_blobs)"
-    [ -n "$disk_blobs" ] || return 1
+    [[ -n "$disk_blobs" ]] || return 1
     while IFS= read -r agent_blob; do
         agent_blob="$(printf '%s' "$agent_blob" | awk '{print $2}')"
-        [ -n "$agent_blob" ] || continue
+        [[ -n "$agent_blob" ]] || continue
         case "|$(printf '%s' "$disk_blobs" | tr '\n' '|')|" in
             *"|${agent_blob}|"*) return 0 ;;
         esac
@@ -3982,7 +3999,7 @@ agent_key_stub_name() {
     local comment stem fp
     comment="$(printf '%s' "$key" | awk '{$1=""; $2=""; sub(/^[ \t]+/, ""); print}')"
     stem="$(sanitize_stub_name "$comment")"
-    if [ -n "$stem" ]; then
+    if [[ -n "$stem" ]]; then
         printf '%s' "$stem"
         return 0
     fi
@@ -4000,31 +4017,133 @@ agent_key_stub_name() {
     # Keep only a short prefix so names stay readable (strip the SHA256_ tag).
     fp="${fp#SHA256_}"
     fp="$(printf '%s' "$fp" | cut -c1-16)"
-    if [ -n "$fp" ]; then
+    if [[ -n "$fp" ]]; then
         printf 'agent_%s' "$fp"
     else
         printf 'agent_key'
     fi
 }
 
+# Emit each IdentityFile path (from the main config and one level of Include,
+# any Host/Match scope) that is DANGLING: neither the private key file nor a
+# sibling .pub exists. Under "IdentitiesOnly yes", ssh offers only the keys
+# named by an IdentityFile and will not fall back to the agent — so a dangling
+# entry makes ssh fail ("no such identity ... No such file") for hosts using
+# it, before the agent is ever tried. Paths are ~-expanded and de-duplicated.
+list_dangling_identityfiles() {
+    local raw path seen=""
+    while IFS= read -r raw; do
+        path="$(strip_ssh_value "$raw")"
+        [[ -n "$path" ]] || continue
+        path="${path/#\~/$HOME}"
+        case "$seen" in *"|${path}|"*) continue ;; esac
+        seen="${seen}|${path}|"
+        # ssh accepts either the private key file or, with the key in an agent,
+        # a sibling .pub. Dangling only when BOTH are absent.
+        if [[ ! -e "$path" ]] && [[ ! -e "${path}.pub" ]]; then
+            printf '%s\n' "$path"
+        fi
+    done <<EOF
+$(list_identity_files)
+EOF
+}
+
+# Print the full agent public-key line whose comment exactly equals $1 (e.g. an
+# IdentityFile basename), or empty. Used to reconstruct a missing .pub stub from
+# the matching key in a reachable agent. $2 is an optional pre-fetched agent key
+# list (newline-separated) to avoid re-probing the agent.
+agent_key_by_comment() {
+    local want="$1"
+    local keys="${2:-}"
+    [[ -n "$want" ]] || return 0
+    [[ -n "$keys" ]] || keys="$(list_modern_agent_keys)"
+    local line comment
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        comment="$(printf '%s' "$line" | awk '{$1="";$2="";sub(/^[ \t]+/,"");print}')"
+        if [[ "$comment" = "$want" ]]; then
+            printf '%s' "$line"
+            return 0
+        fi
+    done <<EOF
+$keys
+EOF
+}
+
+# Handle dangling IdentityFile paths before "IdentitiesOnly yes" is applied.
+# For each, if a reachable agent holds a key whose comment matches the file's
+# basename, offer to reconstruct the missing <path>.pub stub from it (so ssh can
+# match the agent key). Returns 0 if all are resolved (or the user opts to apply
+# anyway), 1 if unresolved entries remain and the user declines — so the caller
+# skips IdentitiesOnly rather than silently breaking ssh.
+resolve_dangling_identityfiles() {
+    local dangling="$1"
+    local agent_keys
+    agent_keys="$(list_modern_agent_keys)"
+
+    print_warn "IdentitiesOnly yes will break ssh for IdentityFile entries whose key is missing:"
+    local path base keyline dir unresolved=()
+    while IFS= read -r path; do
+        [[ -n "$path" ]] || continue
+        printf '    %s (no key file and no %s.pub)\n' "$path" "$path" >&2
+        base="$(basename -- "$path")"
+        keyline="$(agent_key_by_comment "$base" "$agent_keys")"
+        dir="$(dirname -- "$path")"
+        if [[ -n "$keyline" ]] && is_public_key_material "$keyline" && [[ -d "$dir" ]] && [[ "$AUTO_YES" = false ]]; then
+            if prompt_yn "  Reconstruct ${path}.pub from the agent key commented '${base}'?" "y"; then
+                printf '%s\n' "$keyline" > "${path}.pub"
+                chmod 600 "${path}.pub"
+                print_info "Wrote ${path}.pub (public material only)"
+                continue
+            fi
+        fi
+        unresolved+=("$path")
+    done <<EOF
+$dangling
+EOF
+
+    if (( ${#unresolved[@]} == 0 )); then
+        return 0
+    fi
+
+    print_warn "${#unresolved[@]} IdentityFile path(s) still point at a missing key."
+    if [[ "$AUTO_YES" = true ]]; then
+        print_info "Skipping IdentitiesOnly in -y mode (unresolved dangling IdentityFile)."
+        return 1
+    fi
+    if prompt_yn "Apply IdentitiesOnly yes anyway? (ssh will fail for those hosts until you fix them)" "n"; then
+        return 0
+    fi
+    print_warn "Skipping IdentitiesOnly yes — fix the missing IdentityFile entries first"
+    return 1
+}
+
 # IdentitiesOnly guard (v0.7 3a). Returns 0 when "IdentitiesOnly yes" is SAFE to
-# apply, 1 when it must be SKIPPED to avoid locking out an agent-only user.
+# apply, 1 when it must be SKIPPED to avoid locking out the user.
 #
-# Safe when: a global IdentityFile already exists, OR an on-disk .pub stub
-# matches an agent key, OR there are no agents holding keys at all (nothing to
-# lock out — the existing algorithm/file path governs). When the user is
-# agent-only with no matching stubs, offer to write PUBLIC-KEY stubs plus
-# matching IdentityFile lines; decline (or -y mode) => skip with a warning.
+# Safe when: no dangling IdentityFile entries remain (those would fail under
+# IdentitiesOnly), AND (a global IdentityFile already exists, OR an on-disk .pub
+# stub matches an agent key, OR there are no agents holding keys at all). When
+# the user is agent-only with no matching stubs, offer to write PUBLIC-KEY stubs
+# plus matching IdentityFile lines; decline (or -y mode) => skip with a warning.
 identities_only_guard() {
+    # First: any IdentityFile (any scope, incl. Include'd) that points at a
+    # missing key would make ssh fail under IdentitiesOnly. Resolve or skip.
+    local dangling
+    dangling="$(list_dangling_identityfiles)"
+    if [[ -n "$dangling" ]]; then
+        resolve_dangling_identityfiles "$dangling" || return 1
+    fi
+
     # An explicit global IdentityFile already gives IdentitiesOnly something to
     # offer — nothing to guard against.
-    if [ -n "$(get_ssh_directive_value "IdentityFile")" ]; then
+    if [[ -n "$(get_ssh_directive_value "IdentityFile")" ]]; then
         return 0
     fi
 
     local agent_keys
     agent_keys="$(list_modern_agent_keys)"
-    if [ -z "$agent_keys" ]; then
+    if [[ -z "$agent_keys" ]]; then
         # No agent keys to lock out. If there are also no on-disk stubs the user
         # has no global identities at all, but that is the pre-existing behavior
         # (algorithm/key-file path already governs); IdentitiesOnly is harmless.
@@ -4041,7 +4160,7 @@ identities_only_guard() {
     # stop the agent keys from being offered. Never silently lock out.
     print_warn "IdentitiesOnly yes would stop your agent-held key(s) from being offered — no matching IdentityFile or .pub stub exists"
 
-    if [ "$AUTO_YES" = true ]; then
+    if [[ "$AUTO_YES" = true ]]; then
         print_info "Skipping IdentitiesOnly in -y mode (agent-only setup, no stubs). Re-run interactively to write public-key stubs."
         return 1
     fi
@@ -4061,14 +4180,14 @@ identities_only_guard() {
     # Write a .pub stub + IdentityFile line per agent key.
     local key stem stub_path priv_path written=0
     while IFS= read -r key; do
-        [ -n "$key" ] || continue
+        [[ -n "$key" ]] || continue
         # Guard: only ever write PUBLIC material to disk.
         is_public_key_material "$key" || continue
         stem="$(agent_key_stub_name "$key")"
         stub_path="${SSH_DIR}/${stem}.pub"
         # Avoid clobbering an existing file; suffix until free.
         local n=1
-        while [ -e "$stub_path" ]; do
+        while [[ -e "$stub_path" ]]; do
             stub_path="${SSH_DIR}/${stem}_${n}.pub"
             n=$((n + 1))
         done
@@ -4116,11 +4235,11 @@ apply_identity_agent_offer() {
 
     local existing
     existing="$(get_ssh_directive_value "IdentityAgent")"
-    if [ -n "$existing" ]; then
+    if [[ -n "$existing" ]]; then
         # Already set. Only act if it conflicts with the agent holding the
         # signing key — surface it as an opt-in fix (default No) rather than
         # silently leaving a setup that can't sign / may break ssh auth.
-        if [ -n "$preferred" ] && [ "$existing" != "$preferred" ]; then
+        if [[ -n "$preferred" ]] && [[ "$existing" != "$preferred" ]]; then
             printf '\n  %bIdentityAgent%b (ssh authentication; does NOT affect commit signing)\n' "$BOLD" "$RESET" >&2
             print_warn "IdentityAgent is set to ${existing},"
             printf '  but your signing key lives in the agent at:\n    %s\n' "$preferred" >&2
@@ -4140,16 +4259,16 @@ apply_identity_agent_offer() {
     #     (a wrong pick can break ssh) — leave it to the user.
     local agent_type sock vault_socks=()
     while IFS=$'\t' read -r agent_type sock; do
-        [ -n "$sock" ] || continue
+        [[ -n "$sock" ]] || continue
         case "$agent_type" in 1password|bitwarden) ;; *) continue ;; esac
-        [ "${SSH_AUTH_SOCK:-}" = "$sock" ] && continue
+        [[ "${SSH_AUTH_SOCK:-}" = "$sock" ]] && continue
         vault_socks+=("$sock")
     done <<EOF
 $(list_ssh_agent_sockets)
 EOF
 
     local chosen="" reason=""
-    if [ -n "$preferred" ] && [ "${SSH_AUTH_SOCK:-}" != "$preferred" ]; then
+    if [[ -n "$preferred" ]] && [[ "${SSH_AUTH_SOCK:-}" != "$preferred" ]]; then
         chosen="$preferred"
         reason=" (this is the agent that holds your signing key)"
     elif (( ${#vault_socks[@]} == 1 )); then
@@ -4159,7 +4278,7 @@ EOF
         return 0
     fi
 
-    [ -n "$chosen" ] || return 0
+    [[ -n "$chosen" ]] || return 0
 
     printf '\n  %bIdentityAgent%b (controls which agent ssh uses to AUTHENTICATE to hosts;\n' "$BOLD" "$RESET" >&2
     printf '  this does NOT affect git commit signing, which uses SSH_AUTH_SOCK)\n' >&2
@@ -4176,14 +4295,14 @@ apply_ssh_config() {
     print_header "SSH Config Hardening"
 
     # Ensure ~/.ssh/ exists with correct permissions
-    if [ ! -d "$SSH_DIR" ]; then
+    if [[ ! -d "$SSH_DIR" ]]; then
         mkdir -p "$SSH_DIR"
         chmod 700 "$SSH_DIR"
         print_info "Created $SSH_DIR with mode 700"
     fi
 
     # Ensure ~/.ssh/config exists with correct permissions
-    if [ ! -f "$SSH_CONFIG" ]; then
+    if [[ ! -f "$SSH_CONFIG" ]]; then
         touch "$SSH_CONFIG"
         chmod 600 "$SSH_CONFIG"
         print_info "Created $SSH_CONFIG with mode 600"
@@ -4249,7 +4368,7 @@ apply_ssh_config() {
     #     in ~/.ssh/config makes EVERY ssh invocation fail
     #  2. if the user's only keys are RSA/DSA, restricting algorithms locks
     #     them out of every server those keys authenticate to
-    if [ -z "$PUBKEY_ALGOS_DIRECTIVE" ]; then
+    if [[ -z "$PUBKEY_ALGOS_DIRECTIVE" ]]; then
         print_info "Skipping SSH pubkey algorithm restrictions (OpenSSH version too old or unknown)"
         return 0
     fi
@@ -4257,7 +4376,7 @@ apply_ssh_config() {
     if ssh_directive_needs_change "$PUBKEY_ALGOS_DIRECTIVE" "$PUBKEY_ALGO_LIST" && \
        has_any_ssh_key && ! has_modern_ssh_key; then
         print_warn "Only legacy (RSA/DSA) SSH keys found — restricting pubkey algorithms would LOCK YOU OUT of servers using those keys"
-        if [ "$AUTO_YES" = true ]; then
+        if [[ "$AUTO_YES" = true ]]; then
             print_info "Skipping algorithm restrictions in -y mode. Generate an ed25519 key, then re-run."
             return 0
         fi
@@ -4295,7 +4414,7 @@ print_admin_recommendations() {
     # are noise the user cannot follow through on. Gate them on the real config.
     local signing_key
     signing_key="$(git config --global --get user.signingkey 2>/dev/null || true)"
-    if [ -n "$signing_key" ]; then
+    if [[ -n "$signing_key" ]]; then
         printf '  • Enable GitHub vigilant mode (Settings → SSH and GPG keys → Flag unsigned commits)\n' >&2
         printf '  • Require signed commits via branch protection (Require signed commits)\n' >&2
         printf '  • Use separate signing keys per org to prevent cross-platform identity correlation (OSINT)\n' >&2
@@ -4310,7 +4429,7 @@ print_admin_recommendations() {
 
 safety_review_gate() {
     # Skip in -y mode (user takes responsibility) or --audit (read-only)
-    if [ "$AUTO_YES" = true ] || [ "$AUDIT_ONLY" = true ]; then
+    if [[ "$AUTO_YES" = true ]] || [[ "$AUDIT_ONLY" = true ]]; then
         return
     fi
 
@@ -4344,14 +4463,14 @@ main() {
     detect_platform
     check_dependencies
 
-    if [ "$RESET_SIGNING" = true ]; then
+    if [[ "$RESET_SIGNING" = true ]]; then
         reset_signing
         exit 0
     fi
 
-    if [ "$MIGRATE" = true ]; then
+    if [[ "$MIGRATE" = true ]]; then
         # Migration is interactive only and never runs under -y (AC-2).
-        if [ "$AUTO_YES" = true ]; then
+        if [[ "$AUTO_YES" = true ]]; then
             die "--migrate is interactive only and cannot be combined with -y."
         fi
         run_migration
@@ -4384,7 +4503,7 @@ main() {
     local audit_exit=0
     print_audit_report || audit_exit=$?
 
-    if [ "$AUDIT_ONLY" = true ]; then
+    if [[ "$AUDIT_ONLY" = true ]]; then
         # Only security-tier issues fail the audit — hygiene and preference
         # items are reported but don't gate CI/compliance checks
         if (( TIER_SECURITY_ISSUES > 0 )); then
@@ -4394,16 +4513,16 @@ main() {
     fi
 
     # If everything is already OK, nothing to do
-    if [ "$audit_exit" -eq 0 ]; then
+    if [[ "$audit_exit" -eq 0 ]]; then
         print_info "All settings already match recommendations. Nothing to do."
-        if [ "$MISSING_DEPENDENCY" = false ]; then
+        if [[ "$MISSING_DEPENDENCY" = false ]]; then
             print_admin_recommendations
         fi
         exit 0
     fi
 
     # --- Apply phase ---
-    if [ "$AUTO_YES" = false ]; then
+    if [[ "$AUTO_YES" = false ]]; then
         printf '\n' >&2
         if ! prompt_yn "Proceed with hardening?"; then
             print_info "Aborted."
@@ -4423,7 +4542,7 @@ main() {
     # Show admin recommendations unless a dependency was missing. The
     # signing-specific items inside are gated on an actual signing key, so a
     # user who skipped signing still gets the non-signing org guidance.
-    if [ "$MISSING_DEPENDENCY" = false ]; then
+    if [[ "$MISSING_DEPENDENCY" = false ]]; then
         print_admin_recommendations
     fi
 
