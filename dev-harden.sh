@@ -10,7 +10,7 @@ IFS=$'\n\t'
 # ------------------------------------------------------------------------------
 # Constants
 # ------------------------------------------------------------------------------
-readonly VERSION="0.8.0"
+readonly VERSION="1.0.0"
 readonly BACKUP_DIR="${HOME}/.config/git"
 readonly HOOKS_DIR="${HOME}/.config/git/hooks"
 readonly ALLOWED_SIGNERS_FILE="${HOME}/.config/git/allowed_signers"
@@ -4445,8 +4445,8 @@ safety_review_gate() {
         printf '\n  You can review this script by piping it to an AI coding assistant:\n\n' >&2
         printf '  %bClaude Code:%b\n' "$BOLD" "$RESET" >&2
         printf '    cat "%s" | claude "%s"\n\n' "$script_path" "$review_prompt" >&2
-        printf '  %bGemini CLI:%b\n' "$BOLD" "$RESET" >&2
-        printf '    cat "%s" | gemini -p "%s"\n\n' "$script_path" "$review_prompt" >&2
+        printf '  %bAntigravity CLI:%b\n' "$BOLD" "$RESET" >&2
+        printf '    cat "%s" | agy -p "%s"\n\n' "$script_path" "$review_prompt" >&2
         printf '  %bManual review:%b\n' "$BOLD" "$RESET" >&2
         printf '    less "%s"\n\n' "$script_path" >&2
         exit 0

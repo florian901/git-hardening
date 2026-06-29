@@ -95,7 +95,7 @@ start_test_agent() {
     run bash "$SCRIPT" --version
     assert_success
     assert_output --partial "dev-harden.sh"
-    assert_output --partial "0.8.0"
+    assert_output --partial "1.0.0"
 }
 
 @test "unknown option exits 1" {
@@ -839,7 +839,7 @@ SSHEOF
     run safety_review_gate
     assert_success  # exit 0, not an error
     assert_output --partial "claude"
-    assert_output --partial "gemini"
+    assert_output --partial "agy"
 }
 
 # ===========================================================================
@@ -1723,12 +1723,12 @@ SSHEOF
 }
 
 # ===========================================================================
-# v0.8.0: Version bump
+# v1.0.0: Version bump
 # ===========================================================================
 
-@test "--version reports 0.8.0" {
+@test "--version reports 1.0.0" {
     run bash "$SCRIPT" --version
-    assert_output --partial "0.8.0"
+    assert_output --partial "1.0.0"
 }
 
 # ===========================================================================

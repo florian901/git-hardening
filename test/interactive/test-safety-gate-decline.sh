@@ -33,7 +33,7 @@ main() {
 
     # Verify: output contains AI review instructions
     assert_contains "$output" "claude"
-    assert_contains "$output" "gemini"
+    assert_contains "$output" "agy"
 
     # Verify: no config changes
     local config_after

@@ -22,7 +22,7 @@ chmod +x dev-harden.sh
 ./dev-harden.sh -y
 ```
 
-On first interactive run, the script asks you to confirm you've reviewed it for safety. If you haven't, it prints instructions for piping it to Claude Code or Gemini CLI for an automated review.
+On first interactive run, the script asks you to confirm you've reviewed it for safety. If you haven't, it prints instructions for piping it to Claude Code or Antigravity CLI for an automated review.
 
 ## What It Does
 
@@ -42,36 +42,35 @@ The script runs in two phases:
 | **Object integrity** | `fsckObjects` on transfer/fetch/receive, `transfer.bundleURI=false`, `fetch.prune=true` |
 | **Protocol restrictions** | Default-deny policy: only HTTPS and SSH. Blocks `git://` and `ext://`. Forces `protocol.version=2` |
 | **Filesystem protection** | `core.protectNTFS`, `core.protectHFS`, `core.fsmonitor=false`, `core.symlinks=false` (interactive-only) |
-| **Hook control** | Redirects `core.hooksPath` to `~/.config/git/hooks` so repo-local hooks can't execute |
-| **Pre-commit hook** | Installs gitleaks secret scanner as global pre-commit hook (with `SKIP_GITLEAKS` bypass) |
+| **Hook control** | Redirects `core.hooksPath` to `~/.config/git/hooks` so malicious repo hooks don't auto-run, and installs dispatch stubs that forward each hook type to the repo's own `.git/hooks/` so legitimate per-repo hooks (husky, lefthook, pre-commit) keep working |
+| **Pre-commit hook** | Installs gitleaks secret scanner as global pre-commit hook (warns loudly if gitleaks is absent; `SKIP_GITLEAKS=1` bypass), then dispatches to any repo-local pre-commit hook |
 | **Repository safety** | `safe.bareRepository=explicit`, `submodule.recurse=false`, detects/removes `safe.directory=*` wildcard |
 | **Pull/merge hardening** | `pull.ff=only`, `merge.ff=only` — refuses non-fast-forward merges |
 | **Transport security** | Rewrites `http://` to `https://`, enforces `http.sslVerify=true` |
 | **Credential storage** | Platform-detected secure helper (`osxkeychain` on macOS, `libsecret` on Linux). Warns if using plaintext `store` |
-| **Credential hygiene** | Warns about plaintext `~/.git-credentials`, `~/.netrc`, `~/.npmrc` (tokens), `~/.pypirc` (passwords) |
+| **Secret inventory** | Scans for plaintext developer credentials beyond SSH keys (AWS/GCP/cloud-CLI/registry tokens, kubeconfig, Docker, DB passwords, `~/.git-credentials`, `~/.netrc`, `.env` …); reports kind+path only, offers `chmod 600`, prints 1Password migration steps (see below) |
 | **Global gitignore** | Creates `~/.config/git/ignore` with patterns for secrets, credentials, and OS/IDE artifacts |
 | **Defaults** | `init.defaultBranch=main` |
 | **Forensic readiness** | Extended reflog retention (`gc.reflogExpire=180.days`, `gc.reflogExpireUnreachable=90.days`) |
-| **Commit signing** | SSH-based signing with interactive key setup wizard (software or FIDO2 hardware key) |
-| **SSH hardening** | `StrictHostKeyChecking=accept-new`, `HashKnownHosts=yes`, `IdentitiesOnly=yes`, modern algorithm restrictions |
-| **SSH key hygiene** | Audits `~/.ssh/*.pub` for weak key types (DSA, ECDSA, short RSA) |
+| **Commit signing** | SSH-based signing; interactive wizard lets you pick any key from a connected agent (1Password/Bitwarden/gpg) or disk — hardware-backed first — or generate one |
+| **SSH hardening** | `StrictHostKeyChecking=accept-new`, `HashKnownHosts=yes`, `IdentitiesOnly=yes` (guarded against dangling `IdentityFile`/agent lockout), `ForwardAgent=no`, optional `IdentityAgent` for a vault socket, modern algorithm restrictions |
+| **SSH key hygiene** | Audits on-disk and agent-held keys for weak types (DSA, ECDSA, short RSA); flags unencrypted on-disk private keys |
 | **Visibility** | `log.showSignature=true` |
 
 A config backup is saved to `~/.config/git/pre-harden-backup-<timestamp>.txt` before any changes.
 
 ### Signing Setup
 
-The script includes an interactive wizard that:
+The interactive wizard presents **one list of every signing key it can find** and lets you choose:
 
-1. Detects existing SSH keys (including custom-named keys from `~/.ssh/config`)
-2. Detects FIDO2 hardware (YubiKey, etc.)
-3. Offers two tiers:
-   - **Software SSH key** — use existing `ed25519` or generate one
-   - **FIDO2 hardware key** — generate `ed25519-sk` with touch-to-sign (if hardware detected)
-4. Configures `user.signingkey`, `commit.gpgsign`, `tag.gpgsign`
-5. Sets up `~/.config/git/allowed_signers` for local signature verification
+- **Existing keys** — held in a connected SSH agent (1Password, Bitwarden, gpg-agent, or a forwarded agent) *and* on disk (`~/.ssh/*.pub` plus `IdentityFile`-referenced keys), with **hardware-backed (`-sk`) keys listed first**. Pick one by number.
+- **Generate** — a new software `ed25519` key, or a hardware-backed FIDO2 (`ed25519-sk`/`ecdsa-sk`) key with touch-to-sign. If no hardware-backed key exists, that option is flagged as recommended.
 
-With `-y`, the script auto-detects the best available key. If no key exists, signing config is prepared but not enabled (to avoid breaking commits).
+It then configures `user.signingkey` (a literal `key::ssh-ed25519 …` value for agent keys, so no private key file is needed on disk), `commit.gpgsign`, `tag.gpgsign`, and `tag.forceSignAnnotated`; writes `~/.config/git/allowed_signers` for local verification; and offers a sign/verify round-trip check.
+
+Signing is **agent-aware**: git signs commits with the agent at `SSH_AUTH_SOCK`, so if you pick a key held in a *different* agent (e.g. a Bitwarden key while `SSH_AUTH_SOCK` points at 1Password), the wizard warns you with the exact `export SSH_AUTH_SOCK=…` needed for signing to work. Tested FIDO2 hardware is listed under [Signing with FIDO2 hardware keys](#signing-with-fido2-hardware-keys) below.
+
+With `-y`, the script adopts a single available key non-interactively when there is exactly one; otherwise it prepares signing config without enabling it (so commits aren't broken).
 
 **Privacy note:** The signing wizard warns that reusing the same signing key across personal and work accounts enables cross-platform identity correlation (OSINT risk). For identity separation, generate dedicated keys per context and use git's `includeIf` for per-org config.
 
@@ -199,27 +198,20 @@ Optional:
 
 The script prints (but does not apply) server/org-level recommendations:
 
-- Enable "require signed commits" on protected branches
-- Enable GitHub/GitLab vigilant mode
 - Restrict force-pushes server-side
 - Use fine-grained, short-lived tokens in CI/CD
-- Maintain an allowed signers file in repos
 - Clone untrusted repos with `--no-recurse-submodules`
+
+The signing-specific recommendations below are printed **only when you have a signing key configured**:
+
+- Enable "require signed commits" on protected branches
+- Enable GitHub/GitLab vigilant mode
+- Maintain an allowed signers file in repos
 - Use separate signing keys per org to prevent cross-platform identity correlation (OSINT)
 
 ## Signing with FIDO2 hardware keys
 
-The script includes an interactive wizard that:
-
-1. Detects existing SSH keys (including custom-named keys from `~/.ssh/config`)
-2. Detects FIDO2 hardware (YubiKey, etc.)
-3. Offers two tiers:
-   - **Software SSH key** — use existing `ed25519` or generate one
-   - **FIDO2 hardware key** — generate `ed25519-sk` with touch-to-sign (if hardware detected)
-4. Configures `user.signingkey`, `commit.gpgsign`, `tag.gpgsign`
-5. Sets up `~/.config/git/allowed_signers` for local signature verification
-
-These combinations of hardware and OS have been tested:
+The signing wizard (see [Signing Setup](#signing-setup)) can generate a hardware-backed `ed25519-sk`/`ecdsa-sk` key with touch-to-sign when a FIDO2 authenticator is detected (via `ykman`, `fido2-token`, or USB/HID probing). These combinations of hardware and OS have been tested:
 
 | Hardware | Firmware | OS | works? |
 |----------|----------|----|--------|
@@ -270,8 +262,8 @@ git submodule update --init --recursive
 
 | Test tier | What it covers | Requirements |
 |-----------|---------------|--------------|
-| `test/run.sh` | 92 BATS unit tests — config audit, apply, signing, key detection | `bats-core` submodule |
-| `test/run-interactive.sh` | 4 tmux-driven tests — full accept, safety gate, signing wizard | `tmux` |
+| `test/run.sh` | 272 BATS unit tests — config audit, apply, signing, agent/key detection, secret inventory, migration | `bats-core` submodule |
+| `test/run-interactive.sh` | 5 tmux-driven tests — full accept, identity guard, safety gate, signing generate/skip | `tmux` |
 | `test/e2e.sh` | Container matrix (Ubuntu, Debian, Fedora, Alpine, Arch) + host interactive | `docker` or `podman` |
 
 All tests run in isolated environments and never modify your real git or SSH configuration.
