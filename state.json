@@ -430,11 +430,12 @@
       "uuid": "5fa3c21b-a03f-4af8-ad85-49679b3694eb",
       "display_id": 57,
       "title": "Advisor: full store+use 1Password steps; op install instructions when missing",
-      "status": "open",
+      "status": "closed",
       "priority": "medium",
       "created_by": "anon-31e9bd66",
       "created_at": "2026-06-26T09:28:48.086939Z",
-      "updated_at": "2026-06-29T09:55:50.416517Z",
+      "updated_at": "2026-06-29T09:55:55.455021Z",
+      "closed_at": "2026-06-29T09:55:55.455019Z",
       "labels": [
         "enhancement"
       ],
@@ -1531,11 +1532,16 @@
       "agent_id": "anon-31e9bd66",
       "agent_seq": 1,
       "timestamp": "2026-06-29T09:55:50.416517Z"
+    },
+    {
+      "agent_id": "anon-31e9bd66",
+      "agent_seq": 2,
+      "timestamp": "2026-06-29T09:55:55.455021Z"
     }
   ],
   "watermark": {
-    "timestamp": "2026-06-29T09:55:50.416517Z",
+    "timestamp": "2026-06-29T09:55:55.455021Z",
     "agent_id": "anon-31e9bd66",
-    "agent_seq": 1
+    "agent_seq": 2
   }
 }
