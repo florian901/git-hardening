@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **Multi-agent signing was mixed up.** The signing wizard aggregates keys across every reachable agent (1Password, Bitwarden, gpg), but signing/verification only ever used the agent at `SSH_AUTH_SOCK` — so choosing a key from one vault (e.g. Bitwarden) while `SSH_AUTH_SOCK` pointed at another (1Password) failed with "Couldn't find key in agent". Now each candidate is labelled with its agent (`[agent:bitwarden]`), the chosen key's holding socket is tracked, verification signs against *that* socket, and the wizard warns — with the exact `export SSH_AUTH_SOCK=…` — when the key's agent isn't the one git will sign commits with
+- The `IdentityAgent` offer no longer blindly picks the first detected vault agent. It now **prefers the agent that holds your signing key**, offers to repair an existing `IdentityAgent` that points at the wrong agent, and declines to auto-set one when multiple vault agents are present (a wrong pick can break ssh auth). Clarified that `IdentityAgent` governs ssh authentication, not commit signing (which uses `SSH_AUTH_SOCK`)
+
+### Changed
+- The SSH signing wizard now lets you **select any existing key** — from a connected agent (1Password/Bitwarden/gpg) or on disk (`~/.ssh/*.pub` and `IdentityFile`-referenced keys) — instead of only offering the one auto-detected key with yes/no. Hardware-backed (`-sk`) keys are listed first, and if none exist the "generate a hardware-backed key" option is flagged as recommended. Modern algorithms only (RSA/DSA excluded from the picker)
+- The migration advisor now handles **credential-helper / auto-consumed files (`~/.git-credentials`, `~/.netrc`) explicitly** instead of the generic "store in 1Password / `op read`" advice — which would have broken git auth. It explains these are read automatically by git, and advises switching `credential.helper` to the OS keychain (`osxkeychain`/`git-credential-libsecret`), re-authenticating, and only *then* deleting the file; for GitHub/GitLab tokens it points to `op plugin init gh`/`glab`
+- **Renamed the tool `git-harden` → `dev-harden`** (script, test suite, container images, and living docs) to reflect its scope beyond git config — it now also inventories plaintext dev credentials, agent-backed keys, and 1Password migration. The dated specs/research under `docs/` keep the historical name
+- Admin/Org-Level Recommendations now print the **signing-specific items (vigilant mode, require-signed-commits, per-org signing keys) only when a signing key is actually configured**; the non-signing org guidance always shows
+- 1Password migration advisor now shows the full move-then-use workflow for each detected secret: how to **store** it in 1Password (`op item create`) and how to **use** it via `op` when needed (`op read` / `op run` / `op inject`). The generic path prints explicit `store:`/`use:` steps (#57)
+- When the `op` CLI is not installed, the advisor prints **concrete, platform/distro-aware install commands** (`brew install 1password-cli`, Arch AUR, Homebrew-on-Linux, and the official repo steps for Debian/Fedora) instead of only a documentation URL (#57)
+- The SSH-key import instructions (`--migrate`) point to the 1Password app's **Watchtower → "Developer credentials on disk"** for bulk-importing every on-disk key at once (#57)
+
 ## [0.8.0] - 2026-06-24
 
 Two features land together: **agent-backed keys** (v0.7,

@@ -7,7 +7,7 @@ set -o pipefail
 IFS=$'\n\t'
 
 TMUX_SESSION="test-$$"
-readonly SCRIPT_PATH="${HOME}/git-harden.sh"
+readonly SCRIPT_PATH="${HOME}/dev-harden.sh"
 
 # Colors
 if [ -t 2 ]; then
@@ -43,7 +43,7 @@ send() {
     tmux send-keys -t "$TMUX_SESSION" "$@"
 }
 
-# Start git-harden.sh in a tmux session.
+# Start dev-harden.sh in a tmux session.
 # Explicitly pass HOME and GIT_CONFIG_GLOBAL — tmux spawns a login shell
 # which resets HOME from the passwd entry, breaking the isolated test env.
 start_session() {

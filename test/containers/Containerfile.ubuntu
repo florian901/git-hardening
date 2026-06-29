@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN useradd -m -s /bin/bash testuser
 
-COPY git-harden.sh /home/testuser/git-harden.sh
+COPY dev-harden.sh /home/testuser/dev-harden.sh
 COPY test/ /home/testuser/test/
 RUN chown -R testuser:testuser /home/testuser
 

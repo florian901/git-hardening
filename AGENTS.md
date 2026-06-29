@@ -1,6 +1,6 @@
 ## Shell Script Development Standards (v2.0)
 
-The following standards are non-negotiable for `git-harden`.
+The following standards are non-negotiable for `dev-harden`.
 
 ### 1. The Header: No More `sh` From the 80s
 Use `bash` via `env` for portability. We need modern features like arrays and local scoping.

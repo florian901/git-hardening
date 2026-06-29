@@ -37,9 +37,9 @@ main() {
     # Accept all [Y/n] prompts until signing wizard
     accept_until "Signing key options"
 
-    # Signing wizard — option 1: generate ed25519
+    # Signing wizard — option g: generate a software ed25519 key
     wait_for "Signing key options" 20
-    send "1" Enter
+    send "g" Enter
 
     # ssh-keygen prompts for passphrase — enter empty twice
     wait_for "Enter passphrase" 10

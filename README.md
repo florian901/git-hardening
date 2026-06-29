@@ -1,4 +1,4 @@
-# git-harden.sh
+# dev-harden.sh
 
 Audit and harden your global git configuration with security-focused defaults.
 
@@ -10,16 +10,16 @@ Protects against history rewriting, supply chain attacks, credential theft, and 
 # Clone and run
 git clone https://github.com/YOUR_ORG/git-hardening.git
 cd git-hardening
-chmod +x git-harden.sh
+chmod +x dev-harden.sh
 
 # Audit your current config (no changes)
-./git-harden.sh --audit
+./dev-harden.sh --audit
 
 # Interactive mode — review and approve each change
-./git-harden.sh
+./dev-harden.sh
 
 # Apply all recommended defaults without prompting
-./git-harden.sh -y
+./dev-harden.sh -y
 ```
 
 On first interactive run, the script asks you to confirm you've reviewed it for safety. If you haven't, it prints instructions for piping it to Claude Code or Gemini CLI for an automated review.
@@ -98,7 +98,7 @@ The goal: working signing **and** authentication with **zero plaintext private k
 
 4. **Run the audit.** The script probes reachable agents read-only, lists their keys, and configures signing without needing any `~/.ssh/id_*` private file:
    ```bash
-   ./git-harden.sh --audit      # then drop --audit to apply
+   ./dev-harden.sh --audit      # then drop --audit to apply
    ```
    - Signing is configured with `user.signingkey = key::ssh-ed25519 …` (the literal public key — no file on disk).
    - Before applying `IdentitiesOnly yes`, the script offers to write **public-key stubs** (`~/.ssh/<name>.pub`, public material only) so agent keys keep being offered. Decline and it skips the directive rather than locking you out.
@@ -109,14 +109,14 @@ The goal: working signing **and** authentication with **zero plaintext private k
 
 ## Moving secrets into 1Password
 
-`git-harden.sh` includes a **Secret Inventory** that scans for plaintext developer credentials beyond SSH keys — `~/.aws/credentials`, cloud-CLI tokens, package-registry tokens, kubeconfigs, database passwords, and `.env` files. For each it reports the **kind and path** (never the value), offers to `chmod 600` any group/world-readable file, and prints the exact 1Password next step. It never reads a secret value into output, never creates vault items, and never deletes a credential file. (Rationale: [`docs/REASONING.md` → "Plaintext Secret Inventory"](docs/REASONING.md).)
+`dev-harden.sh` includes a **Secret Inventory** that scans for plaintext developer credentials beyond SSH keys — `~/.aws/credentials`, cloud-CLI tokens, package-registry tokens, kubeconfigs, database passwords, and `.env` files. For each it reports the **kind and path** (never the value), offers to `chmod 600` any group/world-readable file, and prints the exact 1Password next step. It never reads a secret value into output, never creates vault items, and never deletes a credential file. (Rationale: [`docs/REASONING.md` → "Plaintext Secret Inventory"](docs/REASONING.md).)
 
 ```bash
 # Read-only: list plaintext credentials and their migration steps
-./git-harden.sh --audit
+./dev-harden.sh --audit
 
 # Deeper project trees? Raise the .env walk depth (default 2)
-./git-harden.sh --audit --scan-depth 3
+./dev-harden.sh --audit --scan-depth 3
 ```
 
 The advisor tailors each step to whether the 1Password CLI (`op`) is installed:
@@ -142,7 +142,7 @@ If `op` is not installed, the advisor prints the install pointer (<https://devel
 ## Usage
 
 ```
-git-harden.sh [OPTIONS]
+dev-harden.sh [OPTIONS]
 
 Options:
   --audit          Audit only, no changes (exit code 2 if security issues found)

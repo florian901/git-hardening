@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 
-# git-harden.sh — BATS test suite
+# dev-harden.sh — BATS test suite
 # Runs in an isolated HOME to avoid touching real config.
 
 BATS_TEST_DIRNAME="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
-SCRIPT="${BATS_TEST_DIRNAME}/../git-harden.sh"
+SCRIPT="${BATS_TEST_DIRNAME}/../dev-harden.sh"
 
 load 'libs/bats-support/load'
 load 'libs/bats-assert/load'
@@ -82,19 +82,19 @@ start_test_agent() {
 @test "--help prints usage and exits 0" {
     run bash "$SCRIPT" --help
     assert_success
-    assert_output --partial "Usage: git-harden.sh"
+    assert_output --partial "Usage: dev-harden.sh"
 }
 
 @test "-h prints usage and exits 0" {
     run bash "$SCRIPT" -h
     assert_success
-    assert_output --partial "Usage: git-harden.sh"
+    assert_output --partial "Usage: dev-harden.sh"
 }
 
 @test "--version prints version and exits 0" {
     run bash "$SCRIPT" --version
     assert_success
-    assert_output --partial "git-harden.sh"
+    assert_output --partial "dev-harden.sh"
     assert_output --partial "0.8.0"
 }
 
@@ -906,8 +906,10 @@ SSHEOF
     source_functions
     run print_admin_recommendations
     assert_success
+    # Always-present, non-signing org guidance. The signing-specific items
+    # (vigilant mode, require-signed-commits) are gated on a configured signing
+    # key and covered by their own tests.
     assert_output --partial "branch protection"
-    assert_output --partial "vigilant mode"
 }
 
 # ===========================================================================
@@ -2160,6 +2162,7 @@ SSHEOF
 @test "enable_signing_agent_key sets key:: value and writes allowed_signers" {
     source_functions
     AUTO_YES=true   # skip the interactive smoke test
+    unset SSH_AUTH_SOCK SSH_AGENT_PID   # deterministic: don't probe a real agent
     ssh-keygen -t ed25519 -f "${TEST_HOME}/k1" -N "" -q
     local pub
     pub="$(cat "${TEST_HOME}/k1.pub")"
@@ -2614,7 +2617,9 @@ SSHEOF
     run run_migration
     assert_success
     assert_output --partial "1Password"
-    assert_output --partial "Import a private key"
+    # The 1Password path leads with the Watchtower bulk-import flow.
+    assert_output --partial "Watchtower"
+    assert_output --partial "Developer credentials on disk"
     # Key untouched because import was not confirmed.
     [ -f "${HOME}/.ssh/id_ed25519" ]
 }
@@ -3576,6 +3581,38 @@ make_op_absent_path() {
     assert_output --partial "op plugin init aws"
 }
 
+# When op is absent the advisor prints a concrete install COMMAND, not just a
+# URL ("brew install 1password-cli" appears on both macOS and Linux via the
+# Homebrew line).
+@test "AC-8: op absent prints a concrete install command" {
+    mkdir -p "${HOME}/.aws"
+    printf 'aws_secret_access_key=AKIAexample\n' > "${HOME}/.aws/credentials"
+
+    local cleanpath
+    cleanpath="$(make_op_absent_path)"
+    run env PATH="$cleanpath" "$SCRIPT" --audit
+    rm -rf "$cleanpath"
+
+    assert_output --partial "Install the 1Password CLI (op):"
+    assert_output --partial "brew install 1password-cli"
+}
+
+# The advisor shows BOTH halves of the workflow: store the secret in 1Password
+# (op item create) and use it via op (read/run) — independent of op presence.
+@test "advisor prints both store (op item create) and use (op read/run) steps" {
+    mkdir -p "${HOME}/.aws"
+    printf 'aws_secret_access_key=AKIAexample\n' > "${HOME}/.aws/credentials"
+
+    local cleanpath
+    cleanpath="$(make_op_absent_path)"
+    run env PATH="$cleanpath" "$SCRIPT" --audit
+    rm -rf "$cleanpath"
+
+    assert_output --partial "op item create"
+    assert_output --partial "op read"
+    assert_output --partial "op run"
+}
+
 # AC-8: a config-file CLI (kubeconfig) prints the op inject/op run example
 # marked with the idiomatic-confirmation note.
 @test "AC-8: config-file finding prints op example with idiomatic note" {
@@ -3704,4 +3741,207 @@ make_op_absent_path() {
     audit_signing >/dev/null 2>&1
     set -o errexit
     [ "$TIER_SECURITY_ISSUES" -gt 0 ]
+}
+
+# ===========================================================================
+# Admin recommendations: signing items gated on an actual signing key
+# ===========================================================================
+
+@test "admin recs: signing-specific items hidden when no signing key is configured" {
+    source_functions
+    git config --global --unset user.signingkey 2>/dev/null || true
+
+    run print_admin_recommendations
+    assert_success
+    # Non-signing org guidance always shows.
+    assert_output --partial "branch protection rules on main branches"
+    # Signing-specific items must NOT appear.
+    refute_output --partial "Flag unsigned commits"
+    refute_output --partial "Require signed commits via branch protection"
+    refute_output --partial "separate signing keys per org"
+}
+
+@test "admin recs: signing-specific items shown when a signing key is configured" {
+    source_functions
+    git config --global user.signingkey "key::ssh-ed25519 AAAATESTBLOB test@example.com"
+
+    run print_admin_recommendations
+    assert_success
+    assert_output --partial "branch protection rules on main branches"
+    assert_output --partial "Flag unsigned commits"
+    assert_output --partial "Require signed commits via branch protection"
+    assert_output --partial "separate signing keys per org"
+}
+
+# ===========================================================================
+# Advisor: credential-helper files (.git-credentials, .netrc) get the
+# switch-the-backend guidance, not the misleading generic op-read advice.
+# ===========================================================================
+
+@test "advisor: .git-credentials advises switching the credential helper (not op read)" {
+    printf 'https://user:SENTINEL_LEAK_CHECK@github.com\n' > "${HOME}/.git-credentials"
+
+    local cleanpath
+    cleanpath="$(make_op_absent_path)"
+    run env PATH="$cleanpath" "$SCRIPT" --audit
+    rm -rf "$cleanpath"
+
+    assert_output --partial "credential.helper"
+    assert_output --partial "Migrate the credential HELPER"
+    # The misleading generic vault-item path for THIS file must not appear.
+    refute_output --partial 'op://vault/.git-credentials/credential'
+    refute_output --partial "SENTINEL_LEAK_CHECK"
+}
+
+@test "advisor: .netrc advises a keychain helper for git plus op inject for other tools" {
+    printf 'machine github.com\nlogin user\npassword SENTINEL_LEAK_CHECK\n' > "${HOME}/.netrc"
+
+    local cleanpath
+    cleanpath="$(make_op_absent_path)"
+    run env PATH="$cleanpath" "$SCRIPT" --audit
+    rm -rf "$cleanpath"
+
+    assert_output --partial "credential.helper"
+    assert_output --partial "op inject"
+    refute_output --partial "SENTINEL_LEAK_CHECK"
+}
+
+# ===========================================================================
+# Signing key picker: list any agent/disk key, hardware-backed (sk) first
+# ===========================================================================
+
+@test "list_signing_candidates: on-disk modern keys, hardware-backed (sk) first" {
+    source_functions
+    unset SSH_AUTH_SOCK SSH_AGENT_PID   # deterministic: no agent
+
+    ssh-keygen -t ed25519 -f "${HOME}/.ssh/id_ed25519" -C "soft@host" -N "" -q
+    # Craft an sk public-key stub (real -sk generation needs hardware).
+    printf 'sk-ssh-ed25519@openssh.com AAAAfakeskblob hw@host\n' > "${HOME}/.ssh/id_ed25519_sk.pub"
+
+    run list_signing_candidates
+    assert_success
+    # The hardware-backed key is listed before the software key.
+    [[ "${lines[0]}" == *"sk-ssh-ed25519"* ]]
+    assert_output --partial "id_ed25519.pub"
+    assert_output --partial "id_ed25519_sk.pub"
+    # Both are disk candidates.
+    assert_output --partial $'disk\t1\t'
+    assert_output --partial $'disk\t0\t'
+}
+
+@test "list_signing_candidates: a colima-style IdentityFile key is selectable, RSA excluded" {
+    source_functions
+    unset SSH_AUTH_SOCK SSH_AGENT_PID
+
+    # A non-~/.ssh key referenced via IdentityFile (the colima case).
+    mkdir -p "${HOME}/elsewhere"
+    ssh-keygen -t ed25519 -f "${HOME}/elsewhere/colima" -C "colima" -N "" -q
+    printf 'IdentityFile %s/elsewhere/colima\n' "${HOME}" > "${HOME}/.ssh/config"
+    # A legacy RSA key that must NOT appear in the modern picker.
+    ssh-keygen -t rsa -b 2048 -f "${HOME}/.ssh/id_rsa" -N "" -q
+
+    run list_signing_candidates
+    assert_success
+    assert_output --partial "elsewhere/colima.pub"
+    refute_output --partial "id_rsa"
+}
+
+@test "list_signing_candidates: empty when no modern keys anywhere" {
+    source_functions
+    unset SSH_AUTH_SOCK SSH_AGENT_PID
+    run list_signing_candidates
+    assert_success
+    assert_output ""
+}
+
+# ===========================================================================
+# Agent-aware signing: the chosen key's holding agent is tracked so signing
+# and verification target the RIGHT agent (git signs via SSH_AUTH_SOCK).
+# ===========================================================================
+
+@test "agent_socket_for_blob: finds the socket holding a key, empty for unknown" {
+    source_functions
+    start_test_agent
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/k" -N "" -q
+    ssh-add "${TEST_HOME}/k" >/dev/null 2>&1
+    local blob
+    blob="$(awk '{print $2}' "${TEST_HOME}/k.pub")"
+
+    run agent_socket_for_blob "$blob"
+    assert_success
+    assert_output "$SSH_AUTH_SOCK"
+
+    run agent_socket_for_blob "AAAAnot-a-real-blob"
+    assert_success
+    assert_output ""
+}
+
+@test "list_signing_candidates: agent key carries its socket and agent-type label" {
+    source_functions
+    start_test_agent
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/k" -C "vault@host" -N "" -q
+    ssh-add "${TEST_HOME}/k" >/dev/null 2>&1
+
+    run list_signing_candidates
+    assert_success
+    # Record carries the holding socket as the 5th field, and labels the agent.
+    assert_output --partial "$SSH_AUTH_SOCK"
+    assert_output --partial "[agent:"
+}
+
+@test "enable_signing_agent_key warns when the key's agent is not SSH_AUTH_SOCK" {
+    source_functions
+    AUTO_YES=true   # skip the interactive smoke test
+    unset SSH_AUTH_SOCK SSH_AGENT_PID
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/k" -N "" -q
+    local pub
+    pub="$(cat "${TEST_HOME}/k.pub")"
+
+    # Pass an explicit holding socket that differs from (unset) SSH_AUTH_SOCK.
+    run enable_signing_agent_key "$pub" "/run/bitwarden-ssh-agent.sock"
+    assert_success
+    assert_output --partial "git signs commits via SSH_AUTH_SOCK"
+    assert_output --partial "export SSH_AUTH_SOCK=/run/bitwarden-ssh-agent.sock"
+}
+
+@test "apply_identity_agent_offer: prefers the agent holding the signing key" {
+    source_functions
+    AUTO_YES=true
+    : > "${HOME}/.ssh/config"
+    start_test_agent
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/sk" -N "" -q
+    ssh-add "${TEST_HOME}/sk" >/dev/null 2>&1
+    local pub
+    pub="$(cat "${TEST_HOME}/sk.pub")"
+    git config --global user.signingkey "key::${pub}"
+    # The agent holding the key is detectable as the Bitwarden socket; current
+    # SSH_AUTH_SOCK is unset, so the preferred agent should be offered.
+    ln -s "$SSH_AUTH_SOCK" "${HOME}/.bitwarden-ssh-agent.sock"
+    unset SSH_AUTH_SOCK
+
+    run apply_identity_agent_offer
+    assert_success
+    assert_output --partial "holds your signing key"
+    grep -q "IdentityAgent ${HOME}/.bitwarden-ssh-agent.sock" "${HOME}/.ssh/config"
+}
+
+@test "apply_identity_agent_offer: offers to fix a mismatched existing IdentityAgent" {
+    source_functions
+    AUTO_YES=true   # accepts the (default-No) fix prompt
+    start_test_agent
+    ssh-keygen -t ed25519 -f "${TEST_HOME}/sk" -N "" -q
+    ssh-add "${TEST_HOME}/sk" >/dev/null 2>&1
+    local pub
+    pub="$(cat "${TEST_HOME}/sk.pub")"
+    git config --global user.signingkey "key::${pub}"
+    ln -s "$SSH_AUTH_SOCK" "${HOME}/.bitwarden-ssh-agent.sock"
+    unset SSH_AUTH_SOCK
+    cat > "${HOME}/.ssh/config" <<'SSHEOF'
+IdentityAgent /wrong/agent.sock
+SSHEOF
+
+    run apply_identity_agent_offer
+    assert_success
+    assert_output --partial "lives in the agent at"
+    grep -q "IdentityAgent ${HOME}/.bitwarden-ssh-agent.sock" "${HOME}/.ssh/config"
 }

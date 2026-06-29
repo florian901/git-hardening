@@ -16,7 +16,7 @@ readonly SCRIPT_DIR
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 readonly REPO_ROOT
 readonly CONTAINER_DIR="${SCRIPT_DIR}/containers"
-readonly IMAGE_PREFIX="git-harden-test"
+readonly IMAGE_PREFIX="dev-harden-test"
 
 # Distro matrix
 readonly DISTROS=(ubuntu debian fedora alpine arch)

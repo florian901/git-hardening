@@ -1,6 +1,6 @@
 # Reasoning: Why Each Default Was Chosen
 
-Every setting `git-harden.sh` audits or applies exists because of a specific attack vector or operational risk. This document explains the trade-off behind each one.
+Every setting `dev-harden.sh` audits or applies exists because of a specific attack vector or operational risk. This document explains the trade-off behind each one.
 
 Settings are grouped the same way they appear in the script's audit output.
 

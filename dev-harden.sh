@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# git-harden.sh — Audit and harden global git configuration
-# Usage: git-harden.sh [--audit] [-y] [--reset-signing] [--help]
+# dev-harden.sh — Audit and harden global git configuration
+# Usage: dev-harden.sh [--audit] [-y] [--reset-signing] [--help]
 
 set -o errexit
 set -o nounset
@@ -361,7 +361,7 @@ parse_args() {
                 exit 0
                 ;;
             --version)
-                printf 'git-harden.sh %s\n' "$VERSION"
+                printf 'dev-harden.sh %s\n' "$VERSION"
                 exit 0
                 ;;
             *)
@@ -373,7 +373,7 @@ parse_args() {
 
 usage() {
     cat >&2 <<'EOF'
-Usage: git-harden.sh [OPTIONS]
+Usage: dev-harden.sh [OPTIONS]
 
 Audit and harden your global git configuration.
 
@@ -753,7 +753,7 @@ audit_precommit_hook() {
     fi
 
     if grep -q 'gitleaks' "$hook_path" 2>/dev/null; then
-        if grep -q 'git-harden.sh' "$hook_path" 2>/dev/null && \
+        if grep -q 'dev-harden.sh' "$hook_path" 2>/dev/null && \
            ! grep -q 'local_hook' "$hook_path" 2>/dev/null; then
             print_warn "Pre-commit hook predates repo-local dispatch — re-run without --audit to upgrade"
         else
@@ -1176,7 +1176,7 @@ audit_secret_inventory() {
     SECRET_FINDINGS=()
 
     # --- Clear-cut credentials (tier = security) ---------------------------
-    secret_report_exists security "git credentials (plaintext)" "${HOME}/.git-credentials" generic
+    secret_report_exists security "git credentials (plaintext)" "${HOME}/.git-credentials" cred-helper
     secret_report_content security "AWS static keys" "${HOME}/.aws/credentials" 'aws_secret_access_key' plugin:aws
     secret_report_exists security "GCP application-default credentials" "${HOME}/.config/gcloud/application_default_credentials.json" config:gcloud
     secret_report_content security "DigitalOcean token" "${HOME}/.config/doctl/config.yaml" 'access-token:' generic
@@ -1198,7 +1198,7 @@ audit_secret_inventory() {
     secret_report_exists security "PostgreSQL password (.pgpass)" "${HOME}/.pgpass" config:pgpass
     secret_report_content security "MySQL password (.my.cnf)" "${HOME}/.my.cnf" 'password[[:space:]]*=' generic
     secret_report_exists security "MySQL login-path (recoverable by any local process)" "${HOME}/.mylogin.cnf" generic
-    secret_report_exists security "Network credentials (.netrc)" "${HOME}/.netrc" config:netrc
+    secret_report_exists security "Network credentials (.netrc)" "${HOME}/.netrc" cred-helper
 
     # GCP service-account JSON in the fixed gcloud legacy dir (json-marker).
     local legacy_dir="${HOME}/.config/gcloud/legacy_credentials"
@@ -1256,6 +1256,44 @@ readonly OP_SHELL_PLUGIN_CLIS=(
 # The install pointer printed once when `op` is absent (FR4).
 readonly OP_INSTALL_URL="https://developer.1password.com/docs/cli/get-started/"
 
+# Print concrete, platform/distro-specific install commands for the 1Password
+# CLI (op). The Debian/Fedora installs require adding 1Password's signed
+# package repository (a multi-step sequence that drifts), so for those we point
+# at the official page rather than shipping a stale apt-key incantation; macOS
+# and Arch have stable one-liners. The authoritative URL is always printed.
+op_install_hint() {
+    local distro_id=""
+    if [[ -f /etc/os-release ]]; then
+        distro_id="$(sed -n 's/^ID=//p' /etc/os-release | tr -d '"')"
+    fi
+
+    printf '  %bInstall the 1Password CLI (op):%b\n' "$YELLOW" "$RESET" >&2
+    case "$PLATFORM" in
+        macos)
+            printf '    • Homebrew:   brew install 1password-cli\n' >&2
+            printf '    • Or enable it in the 1Password app: Settings → Developer → "Use the CLI"\n' >&2
+            ;;
+        linux)
+            case "$distro_id" in
+                ubuntu|debian|pop|linuxmint)
+                    printf '    • apt (1Password repo):  follow the Debian/Ubuntu steps at %s\n' "$OP_INSTALL_URL" >&2
+                    ;;
+                fedora|rhel|centos|rocky|alma)
+                    printf '    • dnf (1Password repo):  follow the RHEL/Fedora steps at %s\n' "$OP_INSTALL_URL" >&2
+                    ;;
+                arch|manjaro|endeavouros)
+                    printf '    • AUR:        yay -S 1password-cli   (or another AUR helper)\n' >&2
+                    ;;
+                *)
+                    printf '    • See %s for your distribution\n' "$OP_INSTALL_URL" >&2
+                    ;;
+            esac
+            printf '    • Or Homebrew on Linux:  brew install 1password-cli\n' >&2
+            ;;
+    esac
+    printf '    • All platforms / details:  %s\n' "$OP_INSTALL_URL" >&2
+}
+
 # Return " (also gitignored)" when the managed global gitignore
 # (core.excludesFile) contains a pattern matching the finding's basename;
 # otherwise the empty string. Display-only hint for the advisor (FR4). The
@@ -1296,9 +1334,6 @@ secret_advisor_config_example() {
             ;;
         pypi)
             printf '    op run -- twine upload dist/*   # with password=op://vault/item/token in %s\n' "$qpath" >&2
-            ;;
-        netrc)
-            printf '    op inject -i %s.tpl -o %s   # machine … password op://vault/item/token\n' "$qpath" "$qpath" >&2
             ;;
         pgpass)
             printf '    op inject -i %s.tpl -o %s   # host:port:db:user:op://vault/item/password\n' "$qpath" "$qpath" >&2
@@ -1343,10 +1378,19 @@ secret_advisor() {
     if ! command -v op >/dev/null 2>&1; then
         op_present=false
         print_info "The 1Password CLI (op) is not installed."
-        printf '  Install it: %s\n' "$OP_INSTALL_URL" >&2
-        printf '  Then move each credential below into a vault and delete the\n' >&2
-        printf '  plaintext copy. The exact next step per credential follows.\n\n' >&2
+        op_install_hint
+        printf '\n' >&2
     fi
+
+    # The two-step model, shown once: move each secret INTO 1Password, then use
+    # op to make it available where it's needed (so no plaintext stays on disk).
+    print_info "Move each secret into 1Password, then reference it with op — never commit plaintext:"
+    printf '    1. Store:  op item create --category "API Credential" --title "NAME" \\\n' >&2
+    printf '                 "credential=PASTE_SECRET_HERE"      # or paste it in the 1Password app\n' >&2
+    printf '    2. Use:    op read "op://vault/NAME/credential"  # fetch one value on demand\n' >&2
+    printf '               op run --env-file=prod.env -- your-cmd  # inject many as env vars\n' >&2
+    printf '               op inject -i config.tpl -o config       # render a config file\n' >&2
+    printf '    Then delete the plaintext file. Per-credential next steps:\n\n' >&2
 
     # Track which shell-plugin CLIs we have already advised so a CLI surfaced by
     # several files (e.g. ~/.terraformrc and credentials.tfrc.json) prints once.
@@ -1385,6 +1429,12 @@ secret_advisor() {
                 print_info "$(printf '%s: template the credential into 1Password%s' "$cli" "$(secret_gitignored_suffix "$path")")"
                 secret_advisor_config_example "$cli" "$path"
                 ;;
+            cred-helper)
+                # Credential-helper / auto-consumed files (.git-credentials,
+                # .netrc): git reads these automatically, so the right move is to
+                # switch the credential BACKEND, not op-read the file by hand.
+                secret_advisor_cred_helper "$path"
+                ;;
             env-dotfile)
                 local qpath
                 qpath="$(printf '%q' "$path")"
@@ -1394,7 +1444,7 @@ secret_advisor() {
                 ;;
             agent-key)
                 print_info "SSH/GPG keys: ${path}"
-                printf '    Use the agent-backed key path (run git-harden.sh and accept the\n' >&2
+                printf '    Use the agent-backed key path (run dev-harden.sh and accept the\n' >&2
                 printf '    SSH-agent migration) so private keys live in 1Password, not on disk.\n' >&2
                 ;;
             *)
@@ -1413,10 +1463,56 @@ secret_advisor() {
 # config-template path: store it in a vault and reference it via op://.
 secret_advisor_generic() {
     local path="$1"
-    local qpath
+    local qpath title
     qpath="$(printf '%q' "$path")"
+    title="$(basename -- "$path")"
     print_info "$(printf 'credential: store in 1Password, reference via op://%s' "$(secret_gitignored_suffix "$path")")"
-    printf '    op item create / op read op://vault/item/field, then delete %s\n' "$qpath" >&2
+    printf '    store:  op item create --category "API Credential" --title "%s" "credential=..."\n' "$title" >&2
+    printf '    use:    op read "op://vault/%s/credential"   # then delete %s\n' "$title" "$qpath" >&2
+}
+
+# Advice for credential-helper / auto-consumed files (.git-credentials, .netrc).
+# These are NOT loose secrets: git (and curl, for .netrc) read them
+# automatically via the credential subsystem. Storing the value as a vault item
+# and `op read`-ing it does NOT keep git working — git never calls op, and
+# deleting the file while credential.helper=store is set breaks authentication.
+# The correct migration switches the credential BACKEND to the OS keychain
+# (which dev-harden also configures in its Credential Storage step), then
+# removes the plaintext file.
+secret_advisor_cred_helper() {
+    local path="$1"
+    local qpath base helper
+    qpath="$(printf '%q' "$path")"
+    base="$(basename -- "$path")"
+    # Platform-appropriate keychain-backed git credential helper.
+    if [ "$PLATFORM" = "macos" ]; then
+        helper="osxkeychain"
+    else
+        helper="git-credential-libsecret"
+    fi
+
+    case "$base" in
+        .git-credentials)
+            print_info "$(printf '%s: git'\''s credential.helper=store backend — git reads it automatically%s' "$base" "$(secret_gitignored_suffix "$path")")"
+            printf '    Migrate the credential HELPER, not the file (op read is not what git calls):\n' >&2
+            printf '    1. git config --global credential.helper %s\n' "$helper" >&2
+            printf '       (dev-harden also offers this in its Credential Storage step)\n' >&2
+            printf '    2. Re-authenticate on your next push/fetch; the keychain stores it encrypted.\n' >&2
+            printf '    3. THEN delete %s (removing it earlier would break git auth).\n' "$qpath" >&2
+            printf '    For GitHub/GitLab tokens: op plugin init gh (or glab) routes auth through 1Password.\n' >&2
+            ;;
+        .netrc)
+            print_info "$(printf '%s: read automatically by git and curl/other tools%s' "$base" "$(secret_gitignored_suffix "$path")")"
+            printf '    For git HTTPS hosts: switch to a keychain helper and drop the git entries:\n' >&2
+            printf '    1. git config --global credential.helper %s\n' "$helper" >&2
+            printf '    For other tools: render .netrc from 1Password at runtime instead of storing it:\n' >&2
+            printf '    2. op inject -i .netrc.tpl -o %s   # machine … password op://vault/item/token\n' "$qpath" >&2
+            printf '       ‡ idiomatic — confirm with op --help; delete the rendered file when done.\n' >&2
+            ;;
+        *)
+            secret_advisor_generic "$path"
+            ;;
+    esac
 }
 
 # FR3 apply: offer a single grouped `chmod 600` over the files the permission
@@ -1741,7 +1837,7 @@ EOF
                 continue
             fi
             # Count RSA bits via a throwaway public-key file (read-only).
-            tmppub="$(mktemp -t git-harden-agentkey.XXXXXX)"
+            tmppub="$(mktemp -t dev-harden-agentkey.XXXXXX)"
             printf '%s\n' "$keyline" > "$tmppub"
             report_ssh_key_hygiene "$key_type" "(agent: ${agent_type})" "$tmppub"
             rm -f "$tmppub"
@@ -2028,7 +2124,7 @@ backup_git_config() {
     chmod 600 "$backup_file"
 
     {
-        echo "# git-harden.sh backup — $timestamp"
+        echo "# dev-harden.sh backup — $timestamp"
         echo "# Global git config snapshot"
         echo ""
         if [ -f "$config_file" ]; then
@@ -2290,7 +2386,7 @@ write_precommit_hook() {
     mkdir -p "$HOOKS_DIR"
     cat > "$hook_path" << 'HOOK_EOF'
 #!/usr/bin/env bash
-# Installed by git-harden.sh — global pre-commit: secret scan + dispatch.
+# Installed by dev-harden.sh — global pre-commit: secret scan + dispatch.
 # Runs gitleaks on the staged diff, then dispatches to the repository's own
 # pre-commit hook (.git/hooks/pre-commit), which core.hooksPath would
 # otherwise silently disable.
@@ -2304,7 +2400,7 @@ if [ "${SKIP_GITLEAKS:-0}" = "1" ]; then
 elif command -v gitleaks >/dev/null 2>&1; then
     gitleaks protect --staged --redact --verbose
 else
-    printf 'git-harden pre-commit: gitleaks not installed — secret scan SKIPPED\n' >&2
+    printf 'dev-harden pre-commit: gitleaks not installed — secret scan SKIPPED\n' >&2
     printf '  Install it: brew install gitleaks (macOS) or https://github.com/gitleaks/gitleaks\n' >&2
 fi
 
@@ -2331,9 +2427,9 @@ apply_precommit_hook() {
         if grep -q 'gitleaks' "$hook_path" 2>/dev/null; then
             # Our pre-dispatch hook version silently disabled repo-local
             # hooks — offer the upgrade
-            if grep -q 'git-harden.sh' "$hook_path" 2>/dev/null && \
+            if grep -q 'dev-harden.sh' "$hook_path" 2>/dev/null && \
                ! grep -q 'local_hook' "$hook_path" 2>/dev/null; then
-                if prompt_yn "Upgrade git-harden pre-commit hook to also dispatch to repo-local hooks?"; then
+                if prompt_yn "Upgrade dev-harden pre-commit hook to also dispatch to repo-local hooks?"; then
                     write_precommit_hook "$hook_path"
                 fi
             fi
@@ -2392,7 +2488,7 @@ apply_dispatch_hooks() {
     for name in "${missing[@]}"; do
         cat > "${HOOKS_DIR}/${name}" << 'DISPATCH_EOF'
 #!/usr/bin/env bash
-# Installed by git-harden.sh — dispatch stub.
+# Installed by dev-harden.sh — dispatch stub.
 # core.hooksPath redirects all hooks to this directory; this stub forwards
 # to the repository's own hook so repo-local hooks keep working.
 # Deliberately uses .git/hooks directly: `git rev-parse --git-path hooks`
@@ -2511,7 +2607,7 @@ apply_signing_config() {
                 enable_signing_agent_key "$agent_keys"
             else
                 print_info "No SSH signing key found. Skipping commit.gpgsign and tag.gpgsign."
-                print_info "Run git-harden.sh interactively (without -y) to set up signing."
+                print_info "Run dev-harden.sh interactively (without -y) to set up signing."
             fi
         fi
     else
@@ -2522,7 +2618,7 @@ apply_signing_config() {
 
 detect_existing_keys() {
     SIGNING_KEY_FOUND=false
-    
+
     SIGNING_PUB_PATH=""
 
     # Check if a signing key is already configured
@@ -2625,6 +2721,113 @@ detect_fido2_hardware() {
     return 1
 }
 
+# Return the agent socket that currently holds a given public-key BLOB (field 2
+# of an ssh public key), or empty. Read-only probe of each detected agent.
+# git signs commits with the agent at SSH_AUTH_SOCK, so callers use this to tell
+# whether a chosen signing key is reachable for actual signing.
+agent_socket_for_blob() {
+    local target="$1"
+    [ -n "$target" ] || return 0
+    local agent_type sock
+    while IFS=$'\t' read -r agent_type sock; do
+        [ -n "$sock" ] || continue
+        if agent_list_keys "$sock" | awk '{print $2}' | grep -qxF -- "$target"; then
+            printf '%s' "$sock"
+            return 0
+        fi
+    done <<EOF
+$(list_ssh_agent_sockets)
+EOF
+}
+
+# Emit every selectable signing-key candidate, one per line, TAB-separated as
+#   <kind>\t<sk>\t<value>\t<label>\t<sock>
+# kind = agent|disk; sk = 1 for a hardware-backed (sk-*) key else 0; value is
+# the agent public-key line (kind=agent) or the .pub file path (kind=disk);
+# label is a human display string; sock is the agent socket holding the key
+# (kind=agent) or empty (kind=disk). git signs with the agent at SSH_AUTH_SOCK,
+# so the holding socket is carried through to warn/verify against the RIGHT
+# agent. Hardware-backed (sk) keys are listed FIRST. Modern algorithms only. A
+# disk key whose blob already lives in an agent is omitted (prefer the agent).
+list_signing_candidates() {
+    local agent_blobs
+    agent_blobs="$(list_agent_pub_blobs)"
+
+    local sk_out="" other_out=""
+    local keytype label rec blob
+
+    # Agent-held keys — iterate sockets directly so each key carries the socket
+    # that holds it (dedup by blob across agents; first agent wins).
+    local agent_type sock key seen_blobs=""
+    while IFS=$'\t' read -r agent_type sock; do
+        [ -n "$sock" ] || continue
+        while IFS= read -r key; do
+            [ -n "$key" ] || continue
+            case "$key" in
+                ssh-ed25519\ *|sk-ssh-ed25519*|ecdsa-sha2-*\ *|sk-ecdsa-sha2*) ;;
+                *) continue ;;
+            esac
+            blob="$(printf '%s' "$key" | awk '{print $2}')"
+            [ -n "$blob" ] || continue
+            case "$seen_blobs" in *"|${blob}|"*) continue ;; esac
+            seen_blobs="${seen_blobs}|${blob}|"
+            keytype="$(printf '%s' "$key" | awk '{print $1}')"
+            label="[agent:${agent_type}] $(agent_key_label "$key")"
+            case "$keytype" in
+                sk-*) printf -v rec '%s\t%s\t%s\t%s\t%s\n' agent 1 "$key" "$label" "$sock"; sk_out="${sk_out}${rec}" ;;
+                *)    printf -v rec '%s\t%s\t%s\t%s\t%s\n' agent 0 "$key" "$label" "$sock"; other_out="${other_out}${rec}" ;;
+            esac
+        done <<INNER_EOF
+$(agent_list_keys "$sock")
+INNER_EOF
+    done <<OUTER_EOF
+$(list_ssh_agent_sockets)
+OUTER_EOF
+
+    # Candidate on-disk .pub paths: ~/.ssh/*.pub plus IdentityFile-referenced.
+    local pubpaths="" f ip
+    for f in "${SSH_DIR}"/*.pub; do
+        [ -f "$f" ] && pubpaths="${pubpaths}${f}"$'\n'
+    done
+    while IFS= read -r ip; do
+        ip="$(strip_ssh_value "$ip")"
+        [ -n "$ip" ] || continue
+        ip="${ip/#\~/$HOME}"
+        [ -f "${ip}.pub" ] && pubpaths="${pubpaths}${ip}.pub"$'\n'
+    done <<EOF
+$(list_identity_files)
+EOF
+
+    local seen_paths="" path comment base
+    while IFS= read -r path; do
+        [ -n "$path" ] || continue
+        case "$seen_paths" in *"|${path}|"*) continue ;; esac
+        seen_paths="${seen_paths}|${path}|"
+        is_public_key_file "$path" || continue
+        keytype="$(awk 'NR==1{print $1}' "$path" 2>/dev/null || true)"
+        case "$keytype" in
+            ssh-ed25519|sk-ssh-ed25519*|ecdsa-sha2-*|sk-ecdsa-sha2*) ;;
+            *) continue ;;
+        esac
+        blob="$(awk 'NR==1{print $2}' "$path" 2>/dev/null || true)"
+        if [ -n "$blob" ]; then
+            case "$agent_blobs" in *"$blob"*) continue ;; esac
+        fi
+        base="$(basename -- "$path")"
+        comment="$(awk 'NR==1{$1="";$2="";sub(/^[ \t]+/,"");print}' "$path" 2>/dev/null || true)"
+        label="[disk] ${keytype} ${base}"
+        [ -n "$comment" ] && label="${label} (${comment})"
+        case "$keytype" in
+            sk-*) printf -v rec '%s\t%s\t%s\t%s\t%s\n' disk 1 "$path" "$label" ""; sk_out="${sk_out}${rec}" ;;
+            *)    printf -v rec '%s\t%s\t%s\t%s\t%s\n' disk 0 "$path" "$label" ""; other_out="${other_out}${rec}" ;;
+        esac
+    done <<EOF
+$pubpaths
+EOF
+
+    printf '%s%s' "$sk_out" "$other_out"
+}
+
 signing_wizard() {
     print_header "SSH Signing Setup Wizard"
 
@@ -2634,108 +2837,75 @@ signing_wizard() {
     printf '  identity separation matters, generate a dedicated key per context and\n' >&2
     printf '  use git'\''s includeIf to configure per-org signing keys.\n' >&2
 
-    if [ "$SIGNING_KEY_FOUND" = true ]; then
-        printf '\n  Found existing key: %s\n' "$SIGNING_PUB_PATH" >&2
-        if prompt_yn "Use this key for git signing? (enables commit + tag signing)"; then
-            enable_signing "$SIGNING_PUB_PATH"
-            return
-        fi
+    # Build a unified, selectable list of existing keys (agent + disk), sk first.
+    local kinds=() sks=() values=() labels=() socks=()
+    local kind sk value label sock
+    while IFS=$'\t' read -r kind sk value label sock; do
+        [ -n "$kind" ] || continue
+        kinds+=("$kind"); sks+=("$sk"); values+=("$value"); labels+=("$label"); socks+=("$sock")
+    done <<EOF
+$(list_signing_candidates)
+EOF
+
+    local n=${#kinds[@]} any_sk=false i
+    for (( i = 0; i < n; i++ )); do
+        [ "${sks[$i]}" = 1 ] && { any_sk=true; break; }
+    done
+
+    if (( n > 0 )); then
+        printf '\n  Available signing keys (hardware-backed shown first):\n' >&2
+        for (( i = 0; i < n; i++ )); do
+            printf '    %d) %s\n' "$(( i + 1 ))" "${labels[$i]}" >&2
+        done
+    else
+        printf '\n  No existing SSH keys found in your agents or on disk.\n' >&2
     fi
 
-    # Offer an agent-backed key when at least one modern key is loaded in a
-    # reachable agent — no key file ever touches disk.
-    local agent_keys
-    agent_keys="$(list_modern_agent_keys)"
-
-    # Offer key generation options
+    # Generation/skip options. Keep the literal "Signing key options:" header —
+    # interactive tests anchor on it.
     printf '\n  Signing key options:\n' >&2
-    printf '    1) Generate a new ed25519 SSH key (software)\n' >&2
-    printf '    2) Generate a hardware-backed SSH key (FIDO2/U2F security key)\n' >&2
-    if [ -n "$agent_keys" ]; then
-        printf '    3) Use a key from your SSH agent (no key file on disk)\n' >&2
+    printf '    g) Generate a new ed25519 SSH key (software)\n' >&2
+    if [ "$any_sk" = true ]; then
+        printf '    h) Generate a hardware-backed (-sk) SSH key (FIDO2/security key)\n' >&2
+    else
+        printf '    h) Generate a hardware-backed (-sk) SSH key (FIDO2/security key) — recommended; none found\n' >&2
     fi
     printf '    s) Skip signing setup (e.g. in an agent container where humans sign at PR merge)\n' >&2
 
-    local choice
-    if [ -n "$agent_keys" ]; then
-        printf '\n  Choose [1/2/3/s]: ' >&2
+    local choice prompt
+    if (( n > 0 )); then
+        prompt="Choose a key [1-${n}] or [g/h/s]: "
     else
-        printf '\n  Choose [1/2/s]: ' >&2
+        prompt="Choose [g/h/s]: "
     fi
+    printf '\n  %s' "$prompt" >&2
     read -r choice </dev/tty || choice="s"
 
     case "$choice" in
-        1)
-            generate_ssh_key
-            ;;
-        2)
-            generate_fido2_key
-            ;;
-        3)
-            if [ -z "$agent_keys" ]; then
-                print_info "No agent keys available — skipping signing setup."
+        g|G) SIGNING_KEY_FOUND=false; generate_ssh_key ;;
+        h|H) SIGNING_KEY_FOUND=false; generate_fido2_key ;;
+        s|S|"") print_info "Skipping signing setup."; return ;;
+        *)
+            if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= n )); then
+                i=$(( choice - 1 ))
+                if [ "${kinds[$i]}" = agent ]; then
+                    enable_signing_agent_key "${values[$i]}" "${socks[$i]}"
+                else
+                    enable_signing "${values[$i]}"
+                fi
                 return
             fi
-            signing_wizard_agent_key "$agent_keys"
-            return
-            ;;
-        *)
-            print_info "Skipping signing setup."
+            print_info "No valid choice — skipping signing setup."
             return
             ;;
     esac
 
+    # Generation paths set SIGNING_KEY_FOUND/SIGNING_PUB_PATH on success.
     if [ "$SIGNING_KEY_FOUND" = true ]; then
         if prompt_yn "Enable commit and tag signing with this key?"; then
             enable_signing "$SIGNING_PUB_PATH"
         fi
     fi
-}
-
-# Let the user pick one of the modern agent-held keys (newline-separated full
-# public-key lines), then enable agent-backed signing for it. With a single
-# key, confirm and adopt; with several, prompt for an index.
-signing_wizard_agent_key() {
-    local agent_keys="$1"
-
-    local keys=()
-    local line
-    while IFS= read -r line; do
-        [[ -n "$line" ]] && keys+=("$line")
-    done <<EOF
-$agent_keys
-EOF
-
-    if (( ${#keys[@]} == 0 )); then
-        print_info "No agent keys available — skipping signing setup."
-        return
-    fi
-
-    local chosen
-    if (( ${#keys[@]} == 1 )); then
-        printf '\n  Agent key: %s\n' "$(agent_key_label "${keys[0]}")" >&2
-        if ! prompt_yn "Use this agent key for git signing?"; then
-            print_info "Skipping signing setup."
-            return
-        fi
-        chosen="${keys[0]}"
-    else
-        printf '\n  Keys loaded in your SSH agent:\n' >&2
-        local i
-        for (( i = 0; i < ${#keys[@]}; i++ )); do
-            printf '    %d) %s\n' "$(( i + 1 ))" "$(agent_key_label "${keys[$i]}")" >&2
-        done
-        local pick
-        printf '\n  Choose a key [1-%d] (or s to skip): ' "${#keys[@]}" >&2
-        read -r pick </dev/tty || pick="s"
-        if ! [[ "$pick" =~ ^[0-9]+$ ]] || (( pick < 1 || pick > ${#keys[@]} )); then
-            print_info "No key selected — skipping signing setup."
-            return
-        fi
-        chosen="${keys[$(( pick - 1 ))]}"
-    fi
-
-    enable_signing_agent_key "$chosen"
 }
 
 # Render a human-readable label for an agent public-key line: "<keytype>
@@ -2804,11 +2974,12 @@ print_vault_import_instructions() {
             1password)
                 saw_vault=true
                 printf '\n  %b1Password%b — import %s:\n' "$BOLD" "$RESET" "$key" >&2
-                printf '    1. Open the 1Password app → New Item → SSH Key → "Import a private key".\n' >&2
+                printf '    1. Open the 1Password app → Watchtower →\n' >&2
+                printf '         "Developer credentials on disk" and import the keys it lists there.\n' >&2
                 printf '    2. Select %s (the private key file).\n' "$key" >&2
                 printf '    3. Settings → Developer → enable "Use the SSH agent".\n' >&2
                 printf '    4. Ensure SSH_AUTH_SOCK points at the 1Password agent socket\n' >&2
-                printf '       (or set IdentityAgent — re-run git-harden without --migrate to apply it).\n' >&2
+                printf '       (or set IdentityAgent — re-run dev-harden without --migrate to apply it).\n' >&2
                 ;;
             bitwarden)
                 saw_vault=true
@@ -2827,10 +2998,11 @@ EOF
     if [ "$saw_vault" = false ]; then
         printf '\n  No 1Password/Bitwarden agent detected. Import %s into your vault of choice:\n' "$key" >&2
         printf '    • 1Password: app → New Item → SSH Key → Import a private key, then enable\n' >&2
-        printf '      the SSH agent under Settings → Developer.\n' >&2
+        printf '      the SSH agent under Settings → Developer. To import every on-disk key\n' >&2
+        printf '      at once, use Watchtower → "Developer credentials on disk".\n' >&2
         printf '    • Bitwarden: app → New Item → SSH Key, paste the private key, then enable\n' >&2
         printf '      "Use SSH agent" under Settings.\n' >&2
-        printf '  Re-run "git-harden --migrate" once the agent is running so it can confirm\n' >&2
+        printf '  Re-run "dev-harden --migrate" once the agent is running so it can confirm\n' >&2
         printf '  the key and offer to remove the plaintext copy.\n' >&2
     fi
 }
@@ -2992,7 +3164,7 @@ reset_signing() {
             local pub_key
             pub_key="$(cat "$key_path")"
             local tmpfile
-            tmpfile="$(mktemp -t git-harden-signers.XXXXXX)"
+            tmpfile="$(mktemp -t dev-harden-signers.XXXXXX)"
             grep -vF "$pub_key" "$ALLOWED_SIGNERS_FILE" > "$tmpfile" 2>/dev/null || true
             mv "$tmpfile" "$ALLOWED_SIGNERS_FILE"
             print_info "Removed key from $ALLOWED_SIGNERS_FILE"
@@ -3092,6 +3264,7 @@ enable_signing() {
 # entry from the same material, then smoke-tests through the agent.
 enable_signing_agent_key() {
     local pub_key="$1"
+    local sock="${2:-}"
     if ! is_public_key_material "$pub_key"; then
         print_warn "Selected agent key does not look like an SSH public key — not enabling signing"
         return
@@ -3102,7 +3275,31 @@ enable_signing_agent_key() {
     git config --global tag.forceSignAnnotated true
     print_info "Signing enabled: commits and tags will be signed with an agent-held key (no key file on disk)"
     setup_allowed_signers "$pub_key"
-    verify_signing_setup "" "$pub_key"
+
+    # git signs commits via the agent at SSH_AUTH_SOCK. If this key lives in a
+    # DIFFERENT agent (e.g. picked from Bitwarden while SSH_AUTH_SOCK points at
+    # 1Password), signing will fail with "Couldn't find key in agent" until the
+    # two match. Derive the holding socket if the caller didn't pass it, then
+    # warn with the exact export the user needs.
+    if [ -z "$sock" ]; then
+        local blob
+        blob="$(printf '%s' "$pub_key" | awk '{print $2}')"
+        sock="$(agent_socket_for_blob "$blob")"
+    fi
+    if [ -n "$sock" ] && [ "${SSH_AUTH_SOCK:-}" != "$sock" ]; then
+        print_warn "This signing key lives in the SSH agent at:"
+        printf '    %s\n' "$sock" >&2
+        if [ -n "${SSH_AUTH_SOCK:-}" ]; then
+            printf '  but SSH_AUTH_SOCK points elsewhere (%s).\n' "$SSH_AUTH_SOCK" >&2
+        else
+            printf '  but SSH_AUTH_SOCK is unset.\n' >&2
+        fi
+        printf '  git signs commits via SSH_AUTH_SOCK, so commit signing will fail until\n' >&2
+        printf '  they match. Point your shell at this agent (add to your shell rc to persist):\n' >&2
+        printf '    export SSH_AUTH_SOCK=%s\n' "$(printf '%q' "$sock")" >&2
+    fi
+
+    verify_signing_setup "" "$pub_key" "$sock"
 }
 
 # Smoke-test the signing setup: sign a test message and verify it against
@@ -3112,6 +3309,7 @@ enable_signing_agent_key() {
 verify_signing_setup() {
     local pub_path="$1"
     local pub_key="${2:-}"
+    local sock="${3:-}"
     local priv_path="${pub_path%.pub}"
 
     # Signing may require a hardware-key touch or a passphrase — never
@@ -3137,16 +3335,19 @@ verify_signing_setup() {
     fi
 
     local tmpdir
-    tmpdir="$(mktemp -d -t git-harden-verify.XXXXXX)"
-    printf 'git-harden signing verification\n' > "${tmpdir}/msg"
+    tmpdir="$(mktemp -d -t dev-harden-verify.XXXXXX)"
+    printf 'dev-harden signing verification\n' > "${tmpdir}/msg"
 
     local verify_ok=false
     # Keep sign stderr visible — it carries the touch/passphrase/approval prompts
     if [ "$agent_mode" = true ]; then
         # The private half lives in the agent: write the public key to a temp
         # file and sign with -U (use the agent for the matching private key).
+        # Target the socket that actually holds the key (the chosen key may live
+        # in a different agent than the ambient SSH_AUTH_SOCK).
         printf '%s\n' "$pub_key" > "${tmpdir}/key.pub"
-        if ssh-keygen -Y sign -U -n git -f "${tmpdir}/key.pub" "${tmpdir}/msg" >/dev/null && \
+        if SSH_AUTH_SOCK="${sock:-${SSH_AUTH_SOCK:-}}" \
+               ssh-keygen -Y sign -U -n git -f "${tmpdir}/key.pub" "${tmpdir}/msg" >/dev/null && \
            ssh-keygen -Y verify -n git -f "$ALLOWED_SIGNERS_FILE" -I "$SIGNING_PRINCIPAL" \
                -s "${tmpdir}/msg.sig" < "${tmpdir}/msg" >/dev/null 2>&1; then
             verify_ok=true
@@ -3389,7 +3590,7 @@ generate_fido2_key() {
         # Do NOT suppress stderr — per AC-7
         # Capture stderr to detect recoverable failures while still showing it
         local tmpstderr keygen_args
-        tmpstderr="$(mktemp -t git-harden-keygen.XXXXXX)"
+        tmpstderr="$(mktemp -t dev-harden-keygen.XXXXXX)"
         keygen_args=(-t "$key_type_label" -C "$email" -f "$key_path")
         if [ "$resident" = true ]; then
             keygen_args+=(-O resident)
@@ -3596,7 +3797,7 @@ append_ssh_directive() {
     else
         # Start a new global defaults block at EOF
         {
-            printf '\n# Added by git-harden.sh — global defaults (blocks above take precedence)\n'
+            printf '\n# Added by dev-harden.sh — global defaults (blocks above take precedence)\n'
             printf 'Host *\n'
             printf '    %s %s\n' "$directive" "$value"
         } >> "$SSH_CONFIG"
@@ -3790,7 +3991,7 @@ agent_key_stub_name() {
     fp=""
     if command -v ssh-keygen >/dev/null 2>&1; then
         local tmp
-        tmp="$(mktemp -t git-harden-stub.XXXXXX)"
+        tmp="$(mktemp -t dev-harden-stub.XXXXXX)"
         printf '%s\n' "$key" > "$tmp"
         fp="$(ssh-keygen -lf "$tmp" 2>/dev/null | awk '{print $2}' || true)"
         rm -f "$tmp"
@@ -3900,35 +4101,70 @@ EOF
 # IdentityAgent <socket> directive (append-at-EOF semantics). Never overwrites
 # an existing IdentityAgent.
 apply_identity_agent_offer() {
-    # Respect any existing IdentityAgent — never overwrite the user's choice.
-    if [ -n "$(get_ssh_directive_value "IdentityAgent")" ]; then
+    # The agent that holds the configured signing key (if it is a key:: agent
+    # key). IdentityAgent controls which agent ssh AUTHENTICATES with — keeping
+    # it consistent with the signing key's agent avoids the confusing mismatch
+    # where, e.g., signing uses Bitwarden but IdentityAgent points at 1Password.
+    local signing_key signing_blob preferred=""
+    signing_key="$(git config --global --get user.signingkey 2>/dev/null || true)"
+    case "$signing_key" in
+        key::*)
+            signing_blob="$(printf '%s' "${signing_key#key::}" | awk '{print $2}')"
+            preferred="$(agent_socket_for_blob "$signing_blob")"
+            ;;
+    esac
+
+    local existing
+    existing="$(get_ssh_directive_value "IdentityAgent")"
+    if [ -n "$existing" ]; then
+        # Already set. Only act if it conflicts with the agent holding the
+        # signing key — surface it as an opt-in fix (default No) rather than
+        # silently leaving a setup that can't sign / may break ssh auth.
+        if [ -n "$preferred" ] && [ "$existing" != "$preferred" ]; then
+            printf '\n  %bIdentityAgent%b (ssh authentication; does NOT affect commit signing)\n' "$BOLD" "$RESET" >&2
+            print_warn "IdentityAgent is set to ${existing},"
+            printf '  but your signing key lives in the agent at:\n    %s\n' "$preferred" >&2
+            printf '  Pointing ssh at an agent that lacks your keys can break auth to some hosts.\n\n' >&2
+            if prompt_yn "Update IdentityAgent to ${preferred}?" "n"; then
+                apply_single_ssh_directive "IdentityAgent" "$preferred"
+                print_info "Updated IdentityAgent to $preferred"
+            fi
+        fi
         return 0
     fi
 
-    # Find the first 1Password/Bitwarden socket that SSH_AUTH_SOCK does not
-    # already point at.
-    local agent_type sock chosen=""
+    # No IdentityAgent yet. Choose a socket to offer:
+    #   - the agent holding the signing key, if known and not already current;
+    #   - otherwise a single detected vault agent;
+    #   - if several vault agents exist and none is preferred, do NOT guess
+    #     (a wrong pick can break ssh) — leave it to the user.
+    local agent_type sock vault_socks=()
     while IFS=$'\t' read -r agent_type sock; do
         [ -n "$sock" ] || continue
-        case "$agent_type" in
-            1password|bitwarden) ;;
-            *) continue ;;
-        esac
-        if [ "${SSH_AUTH_SOCK:-}" = "$sock" ]; then
-            continue
-        fi
-        chosen="$sock"
-        break
+        case "$agent_type" in 1password|bitwarden) ;; *) continue ;; esac
+        [ "${SSH_AUTH_SOCK:-}" = "$sock" ] && continue
+        vault_socks+=("$sock")
     done <<EOF
 $(list_ssh_agent_sockets)
 EOF
 
+    local chosen="" reason=""
+    if [ -n "$preferred" ] && [ "${SSH_AUTH_SOCK:-}" != "$preferred" ]; then
+        chosen="$preferred"
+        reason=" (this is the agent that holds your signing key)"
+    elif (( ${#vault_socks[@]} == 1 )); then
+        chosen="${vault_socks[0]}"
+    elif (( ${#vault_socks[@]} > 1 )); then
+        print_info "Multiple vault SSH agents detected — not setting IdentityAgent automatically (a wrong pick can break ssh auth). Set it manually if you want one."
+        return 0
+    fi
+
     [ -n "$chosen" ] || return 0
 
-    printf '\n  %bIdentityAgent%b\n' "$BOLD" "$RESET" >&2
-    printf '  A vault SSH agent socket was detected at:\n    %s\n' "$chosen" >&2
-    printf '  SSH_AUTH_SOCK does not point at it. Setting IdentityAgent makes ssh use\n' >&2
-    printf '  this agent for every host (vault keys with per-use approval prompts).\n\n' >&2
+    printf '\n  %bIdentityAgent%b (controls which agent ssh uses to AUTHENTICATE to hosts;\n' "$BOLD" "$RESET" >&2
+    printf '  this does NOT affect git commit signing, which uses SSH_AUTH_SOCK)\n' >&2
+    printf '  Detected a vault agent socket at:\n    %s%s\n' "$chosen" "$reason" >&2
+    printf '  Setting IdentityAgent makes ssh use this agent for every host.\n\n' >&2
 
     if prompt_yn "Add global IdentityAgent ${chosen}?" "y"; then
         apply_single_ssh_directive "IdentityAgent" "$chosen"
@@ -4048,15 +4284,23 @@ print_admin_recommendations() {
     print_header "Admin / Org-Level Recommendations"
     printf '  These are informational and cannot be applied by this script:\n\n' >&2
     printf '  • Enable branch protection rules on main branches\n' >&2
-    printf '  • Enable GitHub vigilant mode (Settings → SSH and GPG keys → Flag unsigned commits)\n' >&2
     printf '  • Restrict force-pushes (disable or limit to admins)\n' >&2
     printf '  • Rotate personal access tokens regularly; prefer fine-grained tokens\n' >&2
     printf '  • Use short-lived credentials (GitHub App tokens, OIDC) in CI/CD\n' >&2
-    printf '  • Require signed commits via branch protection (Require signed commits)\n' >&2
     printf '  • Audit deploy keys and service account access quarterly\n' >&2
     printf '  • If using hook frameworks (husky, lefthook, pre-commit), pin versions and review changes\n' >&2
-    printf '  • Use separate signing keys per org to prevent cross-platform identity correlation (OSINT)\n' >&2
-    printf '    Use git includeIf with gitdir: or hasconfig:remote.*.url: for per-org signing keys\n' >&2
+
+    # Signing-specific guidance is only actionable once a signing key is
+    # actually configured — otherwise "require signed commits" / "vigilant mode"
+    # are noise the user cannot follow through on. Gate them on the real config.
+    local signing_key
+    signing_key="$(git config --global --get user.signingkey 2>/dev/null || true)"
+    if [ -n "$signing_key" ]; then
+        printf '  • Enable GitHub vigilant mode (Settings → SSH and GPG keys → Flag unsigned commits)\n' >&2
+        printf '  • Require signed commits via branch protection (Require signed commits)\n' >&2
+        printf '  • Use separate signing keys per org to prevent cross-platform identity correlation (OSINT)\n' >&2
+        printf '    Use git includeIf with gitdir: or hasconfig:remote.*.url: for per-org signing keys\n' >&2
+    fi
     printf '\n' >&2
 }
 
@@ -4176,9 +4420,10 @@ main() {
     apply_signing_config
     apply_ssh_config
 
-    # Only show admin recommendations if everything completed without
-    # missing dependencies or incomplete signing setup
-    if [ "$MISSING_DEPENDENCY" = false ] && [ "$SIGNING_KEY_FOUND" = true ]; then
+    # Show admin recommendations unless a dependency was missing. The
+    # signing-specific items inside are gated on an actual signing key, so a
+    # user who skipped signing still gets the non-signing org guidance.
+    if [ "$MISSING_DEPENDENCY" = false ]; then
         print_admin_recommendations
     fi
 

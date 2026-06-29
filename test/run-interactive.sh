@@ -36,8 +36,8 @@ export GIT_CONFIG_GLOBAL="${TEST_HOME}/.gitconfig"
 mkdir -p "${TEST_HOME}/.ssh"
 mkdir -p "${TEST_HOME}/.config/git"
 
-# Copy the script into the test home (interactive helpers expect it at ~/git-harden.sh)
-cp "${REPO_ROOT}/git-harden.sh" "${TEST_HOME}/git-harden.sh"
+# Copy the script into the test home (interactive helpers expect it at ~/dev-harden.sh)
+cp "${REPO_ROOT}/dev-harden.sh" "${TEST_HOME}/dev-harden.sh"
 
 # Copy interactive test scripts
 cp -r "${SCRIPT_DIR}/interactive" "${TEST_HOME}/test-interactive"
