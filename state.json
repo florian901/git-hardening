@@ -1,6 +1,6 @@
 {
   "next_display_id": 58,
-  "next_comment_id": 91,
+  "next_comment_id": 92,
   "display_id_map": {
     "07033463-973b-469e-a4bc-5840d5abe0ef": 18,
     "079a080a-51b2-4d1a-90e1-b5b22ca8c39d": 41,
@@ -434,7 +434,7 @@
       "priority": "medium",
       "created_by": "anon-31e9bd66",
       "created_at": "2026-06-26T09:28:48.086939Z",
-      "updated_at": "2026-06-26T09:28:51.617811Z",
+      "updated_at": "2026-06-29T09:55:50.416517Z",
       "labels": [
         "enhancement"
       ],
@@ -443,6 +443,13 @@
           "author": "anon-31e9bd66",
           "content": "Done + tested (uncommitted). Advisor now: (1) prints a store->use intro for any finding — '1. Store: op item create ...' then '2. Use: op read/op run/op inject'; generic path shows explicit store:/use: lines. (2) When op is absent, op_install_hint prints concrete platform/distro install commands (brew install 1password-cli on macOS + Linux Homebrew; Arch AUR; official repo steps for Debian/Fedora) plus the URL. Per-finding tailored steps unchanged (op plugin init / op inject / op run). 2 new BATS tests (255 total, all green); shellcheck clean; no-secret-leak test still passes; AC-8 URL check still holds. CHANGELOG [Unreleased] updated. Held for commit.",
           "created_at": "2026-06-26T09:50:20.064381Z",
+          "kind": "note"
+        },
+        "1e280f9d-1a3f-4637-8412-b5c1e19adb97": {
+          "display_id": 91,
+          "author": "anon-31e9bd66",
+          "content": "Shipped in b642cb7 (signed, verified). Covered: advisor store->use steps + concrete op install commands + Watchtower bulk-import note; credential-helper handling for ~/.git-credentials and ~/.netrc (switch credential.helper to keychain, not generic op-read); admin recs gated on a configured signing key; unified signing-key picker (agent+disk, sk-first); and agent-aware signing (track holding socket, verify against it, warn on SSH_AUTH_SOCK mismatch, IdentityAgent prefers the signing key's agent + repairs a mismatch). 267 BATS, interactive 5/5, shellcheck clean, container e2e green on alpine/debian/fedora+host. Also completed the git-harden -> dev-harden rename.",
+          "created_at": "2026-06-29T09:55:50.416373Z",
           "kind": "note"
         },
         "3851276c-63b8-4ef4-822d-463e93326a87": {
@@ -1519,9 +1526,16 @@
     }
   },
   "next_milestone_id": 1,
+  "unsigned_event_warnings": [
+    {
+      "agent_id": "anon-31e9bd66",
+      "agent_seq": 1,
+      "timestamp": "2026-06-29T09:55:50.416517Z"
+    }
+  ],
   "watermark": {
-    "timestamp": "2026-03-27T17:10:32.652172Z",
-    "agent_id": "BP3j-Uz4t-git-harden-sh-00eb",
+    "timestamp": "2026-06-29T09:55:50.416517Z",
+    "agent_id": "anon-31e9bd66",
     "agent_seq": 1
   }
 }
