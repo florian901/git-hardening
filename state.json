@@ -1,6 +1,6 @@
 {
-  "next_display_id": 60,
-  "next_comment_id": 92,
+  "next_display_id": 61,
+  "next_comment_id": 95,
   "display_id_map": {
     "07033463-973b-469e-a4bc-5840d5abe0ef": 18,
     "079a080a-51b2-4d1a-90e1-b5b22ca8c39d": 41,
@@ -57,6 +57,7 @@
     "d41855c2-2525-4c19-8900-6ae2ebad6a6f": 38,
     "d6c91105-46af-488b-9e62-cacf63bff1df": 28,
     "d8970dd4-b66c-407a-b4df-c46cec9ad1df": 7,
+    "e0c73ab4-f9cc-4994-a101-d7f3cf83e361": 60,
     "ea270205-669c-4b21-aaae-5f0399c4d31e": 54,
     "f18d1bc1-a500-453d-9260-6cd49f6b92a5": 43,
     "fdf25e87-e3ec-47ff-9599-11f2f144276a": 50,
@@ -267,10 +268,33 @@
       "priority": "low",
       "created_by": "anon-31e9bd66",
       "created_at": "2026-06-29T10:30:58.364669Z",
-      "updated_at": "2026-06-29T10:31:16.901314Z",
+      "updated_at": "2026-07-09T22:08:25.015669Z",
       "labels": [
         "refactor"
-      ]
+      ],
+      "comments": {
+        "232eedc5-c8ce-4e5e-a4e0-ef8d74bc787a": {
+          "display_id": 94,
+          "author": "anon-31e9bd66",
+          "content": "Session auto-ended (stale after 19486 minutes). No handoff notes provided.",
+          "created_at": "2026-07-09T22:08:25.015514Z",
+          "kind": "handoff"
+        },
+        "2bb89f01-b58f-4cf2-b915-fc67f9860ba3": {
+          "display_id": 92,
+          "author": "anon-31e9bd66",
+          "content": "Session auto-ended (stale after 18929 minutes). No handoff notes provided.",
+          "created_at": "2026-07-09T12:51:23.039627Z",
+          "kind": "handoff"
+        },
+        "9bfa88f1-0fee-44c4-a404-6787bade1430": {
+          "display_id": 93,
+          "author": "anon-31e9bd66",
+          "content": "Session auto-ended (stale after 18933 minutes). No handoff notes provided.",
+          "created_at": "2026-07-09T12:56:05.374483Z",
+          "kind": "handoff"
+        }
+      }
     },
     "30fcbc89-b3ec-4359-aef1-9d66a8be9bae": {
       "uuid": "30fcbc89-b3ec-4359-aef1-9d66a8be9bae",
@@ -1449,6 +1473,16 @@
         }
       }
     },
+    "e0c73ab4-f9cc-4994-a101-d7f3cf83e361": {
+      "uuid": "e0c73ab4-f9cc-4994-a101-d7f3cf83e361",
+      "display_id": 60,
+      "title": "Fix doctest harness + AWS test-instance script blockers from Daria reviews",
+      "status": "open",
+      "priority": "high",
+      "created_by": "anon-31e9bd66",
+      "created_at": "2026-07-09T22:14:02.812837Z",
+      "updated_at": "2026-07-09T22:14:02.812837Z"
+    },
     "ea270205-669c-4b21-aaae-5f0399c4d31e": {
       "uuid": "ea270205-669c-4b21-aaae-5f0399c4d31e",
       "display_id": 54,
@@ -1585,11 +1619,31 @@
       "agent_id": "anon-31e9bd66",
       "agent_seq": 6,
       "timestamp": "2026-06-29T10:31:16.901314Z"
+    },
+    {
+      "agent_id": "anon-31e9bd66",
+      "agent_seq": 7,
+      "timestamp": "2026-07-09T12:51:23.039781Z"
+    },
+    {
+      "agent_id": "anon-31e9bd66",
+      "agent_seq": 8,
+      "timestamp": "2026-07-09T12:56:05.374532Z"
+    },
+    {
+      "agent_id": "anon-31e9bd66",
+      "agent_seq": 9,
+      "timestamp": "2026-07-09T22:08:25.015669Z"
+    },
+    {
+      "agent_id": "anon-31e9bd66",
+      "agent_seq": 10,
+      "timestamp": "2026-07-09T22:14:02.812837Z"
     }
   ],
   "watermark": {
-    "timestamp": "2026-06-29T10:31:16.901314Z",
+    "timestamp": "2026-07-09T22:14:02.812837Z",
     "agent_id": "anon-31e9bd66",
-    "agent_seq": 6
+    "agent_seq": 10
   }
 }
