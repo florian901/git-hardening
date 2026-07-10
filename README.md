@@ -252,6 +252,14 @@ git submodule update --init --recursive
 # Interactive tests (tmux) — tests the full interactive flow on macOS/Linux
 ./test/run-interactive.sh
 
+# Guide doctests — every fenced block in the EC2/1Password guide
+./test/guide/doctest.sh
+
+# Instance tier — verify TPM sealing claims on a real NitroTPM EC2 box (billable)
+./test/instance/create-test-instance.sh --create --region us-east-2   # stand one up
+./test/instance/run-instance-tests.sh   --region us-east-2            # run the tests
+./test/instance/create-test-instance.sh --destroy --region us-east-2  # tear it down
+
 # Full e2e matrix — containers + interactive tests across distros
 # Requires docker or podman
 ./test/e2e.sh                                    # All distros + host
@@ -264,6 +272,8 @@ git submodule update --init --recursive
 |-----------|---------------|--------------|
 | `test/run.sh` | 272 BATS unit tests — config audit, apply, signing, agent/key detection, secret inventory, migration | `bats-core` submodule |
 | `test/run-interactive.sh` | 5 tmux-driven tests — full accept, identity guard, safety gate, signing generate/skip | `tmux` |
+| `test/guide/doctest.sh` | 22 doctests — every fenced block in the EC2/1Password guide is parsed, linted, or executed against stub `op`/`secretspec`/`aws`/`ssh` with secret-leak assertions ([details](test/guide/README.md)) | `ssh`; optional `shellcheck`, `python3`, `systemd-analyze` |
+| `test/instance/` | 24 checks on a real NitroTPM instance — TPM seal/unseal round-trip, `LoadCredentialEncrypted` delivery, `$CREDENTIALS_DIRECTORY` ramfs/privacy, IMDSv2, Parameter-Store Deny — run over SSM, no inbound ports ([details](test/instance/README.md)) | AWS creds; the box is billable |
 | `test/e2e.sh` | Container matrix (Ubuntu, Debian, Fedora, Alpine, Arch) + host interactive | `docker` or `podman` |
 
 All tests run in isolated environments and never modify your real git or SSH configuration.

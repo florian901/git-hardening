@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Doctest stub for the AWS CLI. Validates arguments instead of calling AWS.
+set -o errexit
+set -o nounset
+set -o pipefail
+IFS=$'\n\t'
+
+main() {
+    printf '%s\n' "$*" >> "${DOCTEST_LOG}/aws.argv"
+
+    # For ec2-instance-connect send-ssh-public-key: the file:// path must
+    # exist AND contain a public key at call time (catches path mismatches
+    # between ssh-keygen -f and --ssh-public-key).
+    local prev="" arg pub=""
+    for arg in "$@"; do
+        if [[ "${prev}" == "--ssh-public-key" ]]; then
+            pub="${arg}"
+        fi
+        prev="${arg}"
+    done
+
+    if [[ -n "${pub}" ]]; then
+        local path="${pub#file://}"
+        if [[ ! -s "${path}" ]]; then
+            printf 'aws stub: --ssh-public-key path does not exist: %s\n' "${path}" >&2
+            return 1
+        fi
+        local keytype
+        keytype="$(awk '{print $1; exit}' "${path}")"
+        if [[ "${keytype}" != ssh-ed25519 ]]; then
+            printf 'aws stub: %s is not an ed25519 public key\n' "${path}" >&2
+            return 1
+        fi
+    fi
+}
+
+main "$@"

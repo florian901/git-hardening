@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Doctest stub for the 1Password CLI. Never touches a real vault.
+#
+# Emits DOCTEST_SECRET, a per-run nonce. Asserting that exact nonce crosses the
+# wire proves PROVENANCE: the value came from `op`, not from a literal the
+# block hardcoded while calling `op` decoratively.
+set -o errexit
+set -o nounset
+set -o pipefail
+IFS=$'\n\t'
+
+main() {
+    local cmd="${1:-}"
+
+    printf '%s\n' "$*" >> "${DOCTEST_LOG}/op.argv"
+
+    if [[ "${OP_STUB_FAIL:-0}" == "1" ]]; then
+        printf 'op stub: simulated failure\n' >&2
+        return 1
+    fi
+
+    [[ -n "${DOCTEST_SECRET:-}" ]] || {
+        printf 'op stub: DOCTEST_SECRET not set\n' >&2
+        return 1
+    }
+
+    case "${cmd}" in
+        read)
+            printf '%s' "${DOCTEST_SECRET}"
+            ;;
+        inject)
+            local template=""
+            shift
+            while (($# > 0)); do
+                if [[ "$1" == "-i" ]]; then
+                    template="$2"
+                    shift
+                fi
+                shift
+            done
+            [[ -n "${template}" && -r "${template}" ]] || {
+                printf 'op stub: inject needs a readable -i template\n' >&2
+                return 1
+            }
+            # Emulate `op inject`: substitute each op:// reference with the
+            # nonce, leave the rest of the template untouched.
+            sed -E "s#op://[^[:space:]]+#${DOCTEST_SECRET}#g" "${template}"
+            ;;
+        *)
+            printf 'op stub: unsupported invocation: %s\n' "$*" >&2
+            return 1
+            ;;
+    esac
+}
+
+main "$@"

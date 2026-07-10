@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Doctest stub for ssh. Records argv and captures stdin for assertions.
+set -o errexit
+set -o nounset
+set -o pipefail
+IFS=$'\n\t'
+
+main() {
+    # Append, never truncate: a block that invokes ssh more than once must not
+    # be able to hide its earlier argv from the assertions. ssh.calls lets the
+    # harness assert the expected number of invocations.
+    printf '%s\n' "$@" >> "${DOCTEST_LOG}/ssh.argv"
+    printf 'call\n'    >> "${DOCTEST_LOG}/ssh.calls"
+
+    # Capture whatever the guide streams over the channel.
+    cat >> "${DOCTEST_LOG}/ssh.stdin"
+}
+
+main "$@"
