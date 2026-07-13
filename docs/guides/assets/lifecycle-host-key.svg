@@ -86,7 +86,7 @@
   <!-- PID1 -> ramfs -->
   <line class="flow" x1="805" y1="326" x2="805" y2="356"/>
 
-  <rect class="plain" x="690" y="358" width="230" height="76" rx="8"/>
+  <rect class="plain" x="680" y="358" width="250" height="76" rx="8"/>
   <text class="name mono" x="805" y="382" text-anchor="middle" font-size="12">$CREDENTIALS_DIRECTORY/</text>
   <text class="name mono" x="805" y="398" text-anchor="middle" font-size="12">db-password</text>
   <text class="det muted" x="805" y="418" text-anchor="middle">ramfs · 0700 · unit-private · gone on stop</text>
