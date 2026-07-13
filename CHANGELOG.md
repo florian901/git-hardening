@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- Five SVG diagrams in the EC2/1Password zero-plaintext guide (`docs/guides/assets/`), each embedded with descriptive alt text: the **secret lifecycle** (vault → `op read` → pipe → SSH-over-SSM → `systemd-creds` seal → TPM-sealed blob → PID 1 unseal → ramfs `$CREDENTIALS_DIRECTORY`), the **two authorization anchors** (biometric laptop door vs. AWS/IAM control-plane door, which reaches the same instance with zero biometrics), the **transport stack** (the eight hops of `ssh prov-i-…` and what credential each consumes), the **Track A vs. Track B blast radius** (the forwarded agent socket as a signing oracle), and the **`--with-key=host` variant** (key file and ciphertext on the same EBS volume — the at-rest guarantee is gone). Diagrams use literal colors only: CSS custom properties and `@media` queries render black in resvg-based previews (Zed)
+
 ## [1.0.0] - 2026-06-29
 
 First stable release: consolidates agent-backed keys (v0.7) and the plaintext secret inventory + 1Password migration advisor (v0.8), plus a round of UX and multi-agent correctness fixes. Tracking: issues #56, #57.

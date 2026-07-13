@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 800" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Two independent authorization anchors reach the same EC2 instance</title>
+  <desc id="desc">Two parallel doors open the same instance. Door 1, the laptop anchor: a human is gated by a per-use biometric prompt, which unlocks 1Password (vault, agent, op) and opens SSH over SSM. Door 2, the AWS/IAM control-plane anchor: any holder of the AWS identity — a cached SSO token, an exported credential, an over-broad IAM principal, or a CI role — can call ssm:StartSession or push an EC2 Instance Connect key with zero biometrics, gated only by token lifetime, IAM policy minimalism, and CloudTrail audit. The laptop-anchor story is only as strong as the gating of the AWS credential itself.</desc>
+  <style>
+    /* Literal colors only — no var()/@media: renderers like resvg (Zed preview)
+       support neither and would paint every var() fill black. Palette is chosen
+       to stay legible on both light and dark page backgrounds. */
+    text { fill: #24292f; }
+    .muted { fill: #6e7981; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .zone { fill: none; stroke: #8b98a5; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .zonelabel { font-size: 13px; font-weight: 700; letter-spacing: .04em; fill: #6e7981; }
+    .plain { fill: #fef3c7; stroke: #d97706; stroke-width: 1.5; }
+    .enc { fill: #ccfbf1; stroke: #0f766e; stroke-width: 1.5; }
+    .proc { fill: #f1f5f9; stroke: #64748b; stroke-width: 1.5; }
+    .name { font-size: 13px; font-weight: 600; }
+    .det { font-size: 11px; }
+    .flow { stroke: #6e7981; stroke-width: 1.5; fill: none; marker-end: url(#head); }
+    .flowlabel { font-size: 11px; }
+    .step { font-size: 10px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6e7981"/>
+    </marker>
+  </defs>
+
+  <!-- ===================== Door 1 zone (laptop anchor) ===================== -->
+  <rect class="zone" x="20" y="44" width="450" height="556" rx="10"/>
+  <text class="zonelabel" x="36" y="34">DOOR 1 <tspan class="muted" font-weight="400">— laptop anchor (biometric)</tspan></text>
+
+  <!-- 1: human -->
+  <rect class="proc" x="95" y="66" width="300" height="56" rx="8"/>
+  <text class="name" x="245" y="90" text-anchor="middle">Human at the laptop</text>
+  <text class="det muted" x="245" y="108" text-anchor="middle">present and interacting</text>
+  <circle cx="95" cy="66" r="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text class="step" x="95" y="69.5" text-anchor="middle">1</text>
+
+  <line class="flow" x1="245" y1="122" x2="245" y2="158"/>
+
+  <!-- 2: biometric gate -->
+  <rect class="enc" x="95" y="160" width="300" height="60" rx="8"/>
+  <text class="name" x="245" y="184" text-anchor="middle">Biometric approval</text>
+  <text class="det muted" x="245" y="202" text-anchor="middle">Touch ID — the gate, fires per use</text>
+  <circle cx="95" cy="160" r="8" fill="#ccfbf1" stroke="#0f766e" stroke-width="1.5"/>
+  <text class="step" x="95" y="163.5" text-anchor="middle">2</text>
+
+  <line class="flow" x1="245" y1="220" x2="245" y2="256"/>
+
+  <!-- 3: 1Password -->
+  <rect class="enc" x="95" y="258" width="300" height="66" rx="8"/>
+  <text class="name" x="245" y="282" text-anchor="middle">1Password</text>
+  <text class="det muted mono" x="245" y="302" text-anchor="middle">vault · SSH agent · op</text>
+  <text class="det muted" x="245" y="317" text-anchor="middle">keys stay in the vault; only signatures cross</text>
+  <circle cx="95" cy="258" r="8" fill="#ccfbf1" stroke="#0f766e" stroke-width="1.5"/>
+  <text class="step" x="95" y="261.5" text-anchor="middle">3</text>
+
+  <line class="flow" x1="245" y1="324" x2="245" y2="360"/>
+
+  <!-- 4: ssh over ssm -->
+  <rect class="proc" x="95" y="362" width="300" height="60" rx="8"/>
+  <text class="name mono" x="245" y="386" text-anchor="middle">ssh over SSM</text>
+  <text class="det muted" x="245" y="404" text-anchor="middle">transport opened after the prompt</text>
+  <circle cx="95" cy="362" r="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text class="step" x="95" y="365.5" text-anchor="middle">4</text>
+
+  <!-- door-1 gate callout -->
+  <text class="det muted" x="245" y="452" text-anchor="middle" font-style="italic">gated by: a per-use biometric prompt</text>
+  <text class="det muted" x="245" y="470" text-anchor="middle" font-style="italic">the human must be physically present</text>
+
+  <!-- ===================== Door 2 zone (AWS/IAM anchor) ===================== -->
+  <rect class="zone" x="510" y="44" width="450" height="556" rx="10"/>
+  <text class="zonelabel" x="526" y="34">DOOR 2 <tspan class="muted" font-weight="400">— AWS / IAM control-plane anchor</tspan></text>
+
+  <!-- A: any holder of the AWS identity -->
+  <rect class="plain" x="585" y="66" width="300" height="130" rx="8"/>
+  <text class="name" x="735" y="90" text-anchor="middle">Any holder of the AWS identity</text>
+  <text class="det muted" x="602" y="114">• a cached SSO token (~/.aws/sso)</text>
+  <text class="det muted" x="602" y="134">• an exported access key</text>
+  <text class="det muted" x="602" y="154">• an over-broad IAM principal</text>
+  <text class="det muted" x="602" y="174">• a CI role</text>
+  <circle cx="585" cy="66" r="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text class="step" x="585" y="69.5" text-anchor="middle">A</text>
+
+  <line class="flow" x1="735" y1="196" x2="735" y2="256"/>
+
+  <!-- B: control-plane calls -->
+  <rect class="plain" x="585" y="258" width="300" height="66" rx="8"/>
+  <text class="name mono" x="735" y="282" text-anchor="middle" font-size="12">ssm:StartSession · EIC key push</text>
+  <text class="det muted" x="735" y="302" text-anchor="middle">start a session / push a 60-second key</text>
+  <text class="det muted" x="735" y="317" text-anchor="middle">no laptop, no vault involved</text>
+  <circle cx="585" cy="258" r="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text class="step" x="585" y="261.5" text-anchor="middle">B</text>
+
+  <line class="flow" x1="735" y1="324" x2="735" y2="360"/>
+
+  <!-- C: reaches the box -->
+  <rect class="proc" x="585" y="362" width="300" height="60" rx="8"/>
+  <text class="name" x="735" y="386" text-anchor="middle">Session / login on the instance</text>
+  <text class="det muted" x="735" y="404" text-anchor="middle" font-weight="600" fill="#d97706">ZERO biometrics</text>
+  <circle cx="585" cy="362" r="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text class="step" x="585" y="365.5" text-anchor="middle">C</text>
+
+  <!-- door-2 gate callout -->
+  <text class="det muted" x="735" y="452" text-anchor="middle" font-style="italic">gated only by: token lifetime ·</text>
+  <text class="det muted" x="735" y="470" text-anchor="middle" font-style="italic">IAM policy minimalism · CloudTrail audit</text>
+
+  <!-- ===================== Converge on the instance ===================== -->
+  <path class="flow" d="M 245 486 V 620 H 425 V 654"/>
+  <path class="flow" d="M 735 486 V 620 H 555 V 654"/>
+
+  <rect class="proc" x="290" y="656" width="400" height="72" rx="8"/>
+  <text class="name" x="490" y="686" text-anchor="middle">Same EC2 instance</text>
+  <text class="det muted" x="490" y="706" text-anchor="middle">private subnet · one host · reached two independent ways</text>
+
+  <!-- punchline -->
+  <text class="det muted" x="490" y="766" text-anchor="middle" font-size="12" font-style="italic">The laptop-anchor story is only as strong as the gating of the AWS credential itself.</text>
+
+  <!-- ===================== Legend ===================== -->
+  <rect class="enc" x="120" y="782" width="26" height="14" rx="3"/>
+  <text class="det" x="154" y="793">gated by hardware presence</text>
+  <rect class="plain" x="430" y="782" width="26" height="14" rx="3"/>
+  <text class="det" x="464" y="793">reachable with a credential alone — no presence</text>
+</svg>

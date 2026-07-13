@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Sealing without NitroTPM: the wrapping key becomes a file on the same disk</title>
+  <desc id="desc">The same seal flow as with NitroTPM, but --with-key=host derives the wrapping key from /var/lib/systemd/credential.secret, a plaintext file on the root EBS volume. systemd-creds encrypt reads that file to wrap the secret and writes the ciphertext blob to /etc/credstore.encrypted. Because the host key and the ciphertext both live on the same volume, a single EBS snapshot copies both halves and can be decrypted offline forever — the at-rest guarantee against volume copies is gone. Every runtime protection remains: at service start PID 1 unseals with the on-disk key into a ramfs credential that is 0700, unit-private, with swap and coredumps off. Anyone who reads the key file owns every blob.</desc>
+  <style>
+    /* Literal colors only — no var()/@media: renderers like resvg (Zed preview)
+       support neither and would paint every var() fill black. Palette is chosen
+       to stay legible on both light and dark page backgrounds. */
+    text { fill: #24292f; }
+    .muted { fill: #6e7981; }
+    .warn { fill: #d97706; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .zone { fill: none; stroke: #8b98a5; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .zonelabel { font-size: 13px; font-weight: 700; letter-spacing: .04em; fill: #6e7981; }
+    .plain { fill: #fef3c7; stroke: #d97706; stroke-width: 1.5; }
+    .enc { fill: #ccfbf1; stroke: #0f766e; stroke-width: 1.5; }
+    .proc { fill: #f1f5f9; stroke: #64748b; stroke-width: 1.5; }
+    .name { font-size: 13px; font-weight: 600; }
+    .det { font-size: 11px; }
+    .flow { stroke: #6e7981; stroke-width: 1.5; fill: none; marker-end: url(#head); }
+    .flowlabel { font-size: 11px; }
+    .step { font-size: 10px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6e7981"/>
+    </marker>
+  </defs>
+
+  <!-- ===================== EC2 instance zone ===================== -->
+  <rect class="zone" x="20" y="44" width="920" height="486" rx="10"/>
+  <text class="zonelabel" x="36" y="34">EC2 INSTANCE <tspan class="muted" font-weight="400">— no NitroTPM · sealed with --with-key=host</tspan></text>
+
+  <!-- incoming secret -->
+  <line class="flow" x1="200" y1="46" x2="200" y2="70"/>
+  <text class="flowlabel muted" x="318" y="62">delivered from the laptop — Appendix A.1</text>
+
+  <!-- systemd-creds encrypt -->
+  <rect class="plain" x="90" y="72" width="220" height="60" rx="8"/>
+  <text class="name mono" x="200" y="96" text-anchor="middle" font-size="12">systemd-creds encrypt</text>
+  <text class="det muted" x="200" y="114" text-anchor="middle">reads stdin · plaintext in memory only</text>
+
+  <!-- encrypt <-> key file (derive) -->
+  <line class="flow" x1="185" y1="132" x2="185" y2="248"/>
+  <line class="flow" x1="215" y1="248" x2="215" y2="134"/>
+  <text class="flowlabel muted mono" x="228" y="182">--with-key=host</text>
+  <text class="flowlabel muted" x="228" y="198">derives the key from a file</text>
+
+  <!-- encrypt -> blob (write) -->
+  <path class="flow" d="M 310 102 H 455 V 248"/>
+  <text class="flowlabel muted" x="365" y="96">writes ciphertext</text>
+
+  <!-- ===================== EBS volume sub-zone ===================== -->
+  <rect class="zone" x="70" y="230" width="520" height="205" rx="10"/>
+  <text class="zonelabel" x="250" y="222">EBS VOLUME (root)</text>
+
+  <!-- host key file -->
+  <rect class="plain" x="100" y="250" width="210" height="76" rx="8"/>
+  <text class="name mono" x="205" y="272" text-anchor="middle" font-size="11">/var/lib/systemd/</text>
+  <text class="name mono" x="205" y="288" text-anchor="middle" font-size="12">credential.secret</text>
+  <text class="det muted" x="205" y="310" text-anchor="middle">the host key — a plaintext file</text>
+
+  <!-- ciphertext blob -->
+  <rect class="enc" x="350" y="250" width="210" height="76" rx="8"/>
+  <text class="name mono" x="455" y="272" text-anchor="middle" font-size="11">/etc/credstore.encrypted/</text>
+  <text class="name mono" x="455" y="288" text-anchor="middle" font-size="12">db-password.cred</text>
+  <text class="det muted" x="455" y="310" text-anchor="middle">ciphertext blob</text>
+
+  <!-- key-owns-every-blob note -->
+  <text class="det warn" x="330" y="352" text-anchor="middle" font-weight="600">anyone who reads the key file owns every blob</text>
+
+  <!-- snapshot warning -->
+  <text class="det warn" x="330" y="388" text-anchor="middle">One EBS snapshot copies the key AND the ciphertext together —</text>
+  <text class="det warn" x="330" y="404" text-anchor="middle">decryptable offline, at leisure, forever. The at-rest guarantee is gone.</text>
+
+  <!-- ===================== Runtime (unchanged protections) ===================== -->
+  <!-- EBS -> PID1 unseal -->
+  <line class="flow" x1="590" y1="288" x2="690" y2="288"/>
+  <text class="flowlabel muted" x="640" y="276" text-anchor="middle">unseal</text>
+  <text class="flowlabel muted" x="640" y="312" text-anchor="middle">local key</text>
+
+  <rect class="proc" x="690" y="250" width="230" height="76" rx="8"/>
+  <text class="name" x="805" y="278" text-anchor="middle">PID 1 (systemd)</text>
+  <text class="det muted" x="805" y="298" text-anchor="middle">unseals with the on-disk key</text>
+  <text class="det muted" x="805" y="314" text-anchor="middle">before ExecStart</text>
+
+  <!-- PID1 -> ramfs -->
+  <line class="flow" x1="805" y1="326" x2="805" y2="356"/>
+
+  <rect class="plain" x="690" y="358" width="230" height="76" rx="8"/>
+  <text class="name mono" x="805" y="382" text-anchor="middle" font-size="12">$CREDENTIALS_DIRECTORY/</text>
+  <text class="name mono" x="805" y="398" text-anchor="middle" font-size="12">db-password</text>
+  <text class="det muted" x="805" y="418" text-anchor="middle">ramfs · 0700 · unit-private · gone on stop</text>
+
+  <text class="det" x="805" y="464" text-anchor="middle" font-weight="600" fill="#0f766e">runtime protections all remain</text>
+  <text class="det muted" x="805" y="482" text-anchor="middle">ramfs · swap off · coredumps off · unit-private</text>
+
+  <!-- bottom comparison -->
+  <text class="det muted" x="330" y="464" text-anchor="middle" font-size="12" font-style="italic">With --with-key=tpm2 the wrapping key never leaves the</text>
+  <text class="det muted" x="330" y="482" text-anchor="middle" font-size="12" font-style="italic">chip; --with-key=host makes it a file on this same volume.</text>
+
+  <!-- ===================== Legend ===================== -->
+  <rect class="plain" x="60" y="558" width="26" height="14" rx="3"/>
+  <text class="det" x="94" y="569">the host key — plaintext, on the same disk</text>
+  <rect class="enc" x="430" y="558" width="26" height="14" rx="3"/>
+  <text class="det" x="464" y="569">ciphertext — no longer safe alone; the key sits beside it</text>
+</svg>

@@ -20,6 +20,10 @@ the gating of the AWS credential itself, which is why Phase 0.3 keeps no
 long-lived AWS key on disk — via SSO's short-lived token, or via the 1Password
 plugin for static keys — and why the instance role must stay minimal.
 
+![Two independent authorization anchors reach the same EC2 instance. Door 1, the laptop anchor: a human passes a per-use biometric prompt (Touch ID), which unlocks 1Password — vault, SSH agent, and op — and opens ssh over SSM. Door 2, the AWS/IAM control-plane anchor: any holder of the AWS identity (a cached SSO token, an exported access key, an over-broad IAM principal, or a CI role) can call ssm:StartSession or push a 60-second EC2 Instance Connect key with zero biometrics, gated only by token lifetime, IAM policy minimalism, and CloudTrail audit. Both doors reach the same instance in a private subnet.](assets/two-authorization-anchors.svg)
+
+Door 1 is numbered 1–4, Door 2 lettered A–C. Teal marks what a hardware-presence check gates; amber marks what a credential reaches on its own, with no human present — which is why the whole scheme is only as strong as the weaker of the two anchors.
+
 ---
 
 ## Phase 0 — Laptop prerequisites
@@ -163,6 +167,10 @@ token's lifetime, so keep that lifetime short.
 - Docs: [ssh_config(5) — ProxyCommand, ControlMaster, ExitOnForwardFailure](https://man.openbsd.org/ssh_config)
 - Docs: [1Password — use the SSH agent with a specific host (IdentityAgent)](https://www.1password.dev/ssh/agent/compatibility/)
 
+![Transport stack for a single ssh prov-i-… command, as eight numbered hops across two zones. On the laptop: (1) the ssh client reads ~/.ssh/config and points IdentityAgent at the 1Password agent socket for the user key; (2) ProxyCommand runs ~/bin/aws-op; (3) op plugin run is the authorization gate — the 1Password biometric prompt on the static-key path, or the aws sso login token on the SSO path; (4) aws ssm start-session is authorized by IAM and recorded in CloudTrail. On the AWS and instance side: (5) SSM Session Manager brokers the tunnel; (6) the outbound-only SSM agent dials out with no inbound port 22 in a private subnet; (7) local sshd answers only through that tunnel; (8) login uses the 60-second EC2 Instance Connect key from 1.3. Each hop is annotated with the credential or authority it consumes.](assets/transport-stack.svg)
+
+The stack descends 1→8; the text beside each hop names the credential or authority that hop consumes. Teal marks the single authorization gate (hop 3), amber the short-lived EIC key (hop 8), and neutral grey the infrastructure hops in between.
+
 ### 1.3 Ephemeral login keys via EC2 Instance Connect
 
 Skip permanent `authorized_keys` entries entirely. The throwaway keypair lives in
@@ -266,6 +274,10 @@ Neither track protects an already-delivered secret from root acting while it is
 in memory: root reads any process's ramfs. The difference is what else the
 attacker gets.
 
+![Two structurally parallel panels comparing what a concurrent-root attacker reaches under each track, with the same 1Password vault, instance, and streamed secrets in both. Track A, time-boxed agent forwarding: a forwarded 1Password agent socket lives on the instance, so root drives it as a signing oracle and reaches back to every key the vault serves — the vault, the socket, and the streamed secrets in unit memory are all amber (reachable this session). Track B, no forwarding with EC2 Instance Connect login and local resolve/push: no socket is ever created, so the vault and the absent socket are teal (out of reach) and root gets only the amber streamed secrets. The single difference is the reach-back path that only Track A creates.](assets/provisioning-tracks.svg)
+
+Both panels share the same layout so the delta stands out: amber is what concurrent root can reach in that session, teal is what stays out of reach. Only Track A's forwarded socket turns the laptop vault amber.
+
 ### Track A — Time-boxed 1Password agent forwarding
 
 Private keys never leave the vault; only signatures cross. 1Password prompts on
@@ -343,6 +355,14 @@ Deliver each secret **once** over the SSH channel, seal it with `systemd-creds`
 bound to NitroTPM, and let the service decrypt it into the non-swappable,
 service-private `$CREDENTIALS_DIRECTORY` at start. Plaintext never touches
 instance disk — the pipe goes straight into the encryptor.
+
+![Lifecycle of a runtime secret: from the 1Password vault through op read, an anonymous pipe, and the SSH channel to systemd-creds encrypt, which seals it to the NitroTPM as a ciphertext blob on disk; at every service start PID 1 unseals the blob via the TPM into a ramfs file in the service-private $CREDENTIALS_DIRECTORY. Plaintext exists only in pipes, process memory, and ramfs — never at rest.](assets/secret-lifecycle.svg)
+
+Steps 1–4 happen on and from the laptop (delivery, once); steps 5–6 seal the
+secret while your SSH session is open; steps 7–9 repeat at every service start
+with no laptop involved. Amber boxes are the only places plaintext ever exists —
+all of them memory; the only thing that ever rests on disk is the TPM-sealed
+blob (6), which no off-instance copy can decrypt.
 
 ### 4.1 Deliver + seal in one shot (from the laptop)
 
@@ -478,7 +498,7 @@ whenever a secret rotates.
       SSH-over-SSM tunnels are ciphertext to SSM session logging — but a plain
       logged *interactive* `aws ssm start-session` shell records keystrokes, so
       keep secret delivery on the SSH-tunneled path.
-- [ ] Re-check the load-bearing gap periodically: if 1Password ships
+- [ ] Re-check the feature gap periodically: if 1Password ships
       `session-bind`/destination-constraint support, Track A's residual risk
       shrinks dramatically — watch the
       [1Password SSH agent release notes](https://releases.1password.com/) and
@@ -511,6 +531,10 @@ and key therefore travel together. Anyone who snapshots the volume, detaches it,
 or restores a backup gets both halves and decrypts offline, at leisure, forever.
 With `--with-key=tpm2` the key never leaves the Nitro security chip and cannot be
 exported, so the same snapshot is inert.
+
+![What changes when the instance has no NitroTPM and the credential is sealed with --with-key=host. systemd-creds encrypt reads the secret on stdin and derives its wrapping key from /var/lib/systemd/credential.secret — a plaintext file — then writes the ciphertext blob to /etc/credstore.encrypted/db-password.cred. Both the key file (amber) and the blob (teal) live on the same root EBS volume, so a single snapshot copies both halves and can be decrypted offline forever: the at-rest guarantee against volume copies is gone, and anyone who reads the key file owns every blob. Every runtime protection is unchanged — at service start PID 1 unseals with the on-disk key into a ramfs credential that is 0700, unit-private, with swap and coredumps off.](assets/lifecycle-host-key.svg)
+
+This is the instance zone of the Phase 4 lifecycle with one substitution: the NitroTPM chip becomes a file on the same disk. Amber is the plaintext host key; teal is ciphertext that is no longer sufficient on its own, because the key now sits beside it. The runtime column (PID 1 → ramfs) is byte-for-byte the Phase 4 behaviour.
 
 | | `--with-key=tpm2` | `--with-key=host` |
 |---|---|---|

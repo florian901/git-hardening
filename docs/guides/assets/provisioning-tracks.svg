@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 600" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">What concurrent root reaches under Track A versus Track B</title>
+  <desc id="desc">Two structurally parallel panels, each with the same concurrent-root attacker on the instance. Track A time-boxed agent forwarding: a forwarded 1Password agent socket lives on the instance, so root drives it as a signing oracle and reaches back to every key the laptop vault serves — vault, socket, and the streamed secrets in unit memory are all reachable (amber). Track B no forwarding, EC2 Instance Connect login with local resolve and push: no socket exists, so the vault stays out of reach (teal) and root gets only the secrets explicitly streamed this session (amber). The delta is the reach-back path that only Track A creates.</desc>
+  <style>
+    /* Literal colors only — no var()/@media: renderers like resvg (Zed preview)
+       support neither and would paint every var() fill black. Palette is chosen
+       to stay legible on both light and dark page backgrounds. */
+    text { fill: #24292f; }
+    .muted { fill: #6e7981; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .zone { fill: none; stroke: #8b98a5; stroke-width: 1.5; stroke-dasharray: 6 4; }
+    .zonelabel { font-size: 13px; font-weight: 700; letter-spacing: .04em; fill: #6e7981; }
+    .plain { fill: #fef3c7; stroke: #d97706; stroke-width: 1.5; }
+    .enc { fill: #ccfbf1; stroke: #0f766e; stroke-width: 1.5; }
+    .proc { fill: #f1f5f9; stroke: #64748b; stroke-width: 1.5; }
+    .name { font-size: 13px; font-weight: 600; }
+    .det { font-size: 11px; }
+    .flow { stroke: #6e7981; stroke-width: 1.5; fill: none; marker-end: url(#head); }
+    .flowlabel { font-size: 11px; }
+    .step { font-size: 10px; font-weight: 700; }
+  </style>
+  <defs>
+    <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6e7981"/>
+    </marker>
+  </defs>
+
+  <!-- ============================================================ TRACK A -->
+  <text class="zonelabel" x="95" y="42">TRACK A <tspan class="muted" font-weight="400">— time-boxed agent forwarding</tspan></text>
+
+  <!-- vault -->
+  <rect class="plain" x="95" y="76" width="300" height="56" rx="8"/>
+  <text class="name" x="245" y="100" text-anchor="middle">1Password vault (laptop)</text>
+  <text class="det muted" x="245" y="118" text-anchor="middle">every key the agent serves</text>
+
+  <!-- socket -> vault (reach-back, arrow points up) -->
+  <line class="flow" x1="245" y1="172" x2="245" y2="134"/>
+  <text class="flowlabel muted" x="255" y="158">signs as ANY vault key</text>
+
+  <!-- forwarded socket -->
+  <rect class="plain" x="95" y="174" width="300" height="56" rx="8"/>
+  <text class="name mono" x="245" y="198" text-anchor="middle">forwarded 1P agent socket</text>
+  <text class="det muted" x="245" y="216" text-anchor="middle">a live signing oracle</text>
+
+  <!-- root -> socket (arrow points up) -->
+  <line class="flow" x1="245" y1="310" x2="245" y2="232"/>
+  <text class="flowlabel muted" x="256" y="262">root drives the socket</text>
+
+  <!-- instance zone -->
+  <rect class="zone" x="44" y="286" width="402" height="210" rx="10"/>
+  <text class="zonelabel" x="60" y="278">EC2 INSTANCE</text>
+  <text class="det muted" x="430" y="278" text-anchor="end" font-style="italic">concurrent root present</text>
+
+  <!-- root -->
+  <rect class="proc" x="95" y="310" width="300" height="54" rx="8"/>
+  <text class="name" x="245" y="333" text-anchor="middle">concurrent root (attacker)</text>
+  <text class="det muted" x="245" y="351" text-anchor="middle">owns the box during the window</text>
+
+  <line class="flow" x1="245" y1="364" x2="245" y2="398"/>
+
+  <!-- streamed secrets -->
+  <rect class="plain" x="95" y="400" width="300" height="54" rx="8"/>
+  <text class="name" x="245" y="423" text-anchor="middle">streamed secrets in unit memory</text>
+  <text class="det muted" x="245" y="441" text-anchor="middle">the secrets pushed this session</text>
+
+  <!-- caption -->
+  <text class="det" x="245" y="530" text-anchor="middle">root gets the streamed secrets <tspan font-weight="700" fill="#d97706">plus</tspan> a signing</text>
+  <text class="det" x="245" y="546" text-anchor="middle">oracle for every key the vault holds</text>
+
+  <!-- ============================================================ TRACK B -->
+  <text class="zonelabel" x="585" y="42">TRACK B <tspan class="muted" font-weight="400">— no forwarding (EIC + local resolve/push)</tspan></text>
+
+  <!-- vault (unreachable) -->
+  <rect class="enc" x="585" y="76" width="300" height="56" rx="8"/>
+  <text class="name" x="735" y="100" text-anchor="middle">1Password vault (laptop)</text>
+  <text class="det muted" x="735" y="118" text-anchor="middle">keys stay put — no path in</text>
+
+  <text class="flowlabel muted" x="735" y="158" text-anchor="middle" font-style="italic">no path back to the vault</text>
+
+  <!-- no socket -->
+  <rect class="enc" x="585" y="174" width="300" height="56" rx="8"/>
+  <text class="name" x="735" y="198" text-anchor="middle">no agent socket</text>
+  <text class="det muted" x="735" y="216" text-anchor="middle">the socket is never created</text>
+
+  <text class="flowlabel muted" x="735" y="262" text-anchor="middle" font-style="italic">nothing to hijack — no reach-back</text>
+
+  <!-- instance zone -->
+  <rect class="zone" x="534" y="286" width="402" height="210" rx="10"/>
+  <text class="zonelabel" x="550" y="278">EC2 INSTANCE</text>
+  <text class="det muted" x="920" y="278" text-anchor="end" font-style="italic">concurrent root present</text>
+
+  <!-- root -->
+  <rect class="proc" x="585" y="310" width="300" height="54" rx="8"/>
+  <text class="name" x="735" y="333" text-anchor="middle">concurrent root (attacker)</text>
+  <text class="det muted" x="735" y="351" text-anchor="middle">owns the box during the window</text>
+
+  <line class="flow" x1="735" y1="364" x2="735" y2="398"/>
+
+  <!-- streamed secrets -->
+  <rect class="plain" x="585" y="400" width="300" height="54" rx="8"/>
+  <text class="name" x="735" y="423" text-anchor="middle">streamed secrets in unit memory</text>
+  <text class="det muted" x="735" y="441" text-anchor="middle">the secrets pushed this session</text>
+
+  <!-- caption -->
+  <text class="det" x="735" y="530" text-anchor="middle">root gets <tspan font-weight="700" fill="#0f766e">only</tspan> the secrets streamed this</text>
+  <text class="det" x="735" y="546" text-anchor="middle">session — the vault is out of reach</text>
+
+  <!-- ===================== Legend ===================== -->
+  <rect class="plain" x="150" y="572" width="26" height="14" rx="3"/>
+  <text class="det" x="184" y="583">reachable by concurrent root this session</text>
+  <rect class="enc" x="560" y="572" width="26" height="14" rx="3"/>
+  <text class="det" x="594" y="583">out of reach this session</text>
+  <rect class="proc" x="770" y="572" width="26" height="14" rx="3"/>
+  <text class="det" x="804" y="583">the attacker</text>
+</svg>
